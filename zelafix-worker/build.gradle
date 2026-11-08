@@ -1,0 +1,66 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.1.1'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'fiap.com.br'
+version = '1.0.0-SNAPSHOT'
+description = 'zelafix-worker'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://repo.spring.io/milestone' }
+    maven { url 'https://repo.spring.io/snapshot' }
+}
+
+ext {
+    set('springAiVersion', "2.0.1")
+}
+
+dependencies {
+    // Spring Boot Core & Actuator
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // Mensageria Assíncrona (RabbitMQ - Opção A)
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+
+    // Spring AI (OpenAI LLM Integration - Rubrica 4 da Global Solution)
+    implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+
+    // Spring Data JPA & Banco de Dados Oracle FIAP
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    runtimeOnly 'com.oracle.database.jdbc:ojdbc11:23.7.0.25.01'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // Testes
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-amqp-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

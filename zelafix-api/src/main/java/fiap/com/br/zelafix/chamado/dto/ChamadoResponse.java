@@ -1,0 +1,64 @@
+package fiap.com.br.zelafix.chamado.dto;
+
+import fiap.com.br.zelafix.chamado.Chamado;
+import fiap.com.br.zelafix.endereco.dto.EnderecoResponse;
+import fiap.com.br.zelafix.historico.dto.HistoricoResponse;
+
+import java.util.Collections;
+import java.util.List;
+
+public record ChamadoResponse(
+        String id,
+        String protocolo,
+        String titulo,
+        String descricao,
+        String categoria,
+        String status,
+        String prioridade,
+        Integer apoiosCount,
+        boolean apoiadoPeloUsuario,
+        String parecerIa,
+        String orgaoResponsavel,
+        EnderecoResponse endereco,
+        String fotoUrl,
+        String dataAbertura,
+        String dataAtualizacao,
+        String autorId,
+        String autorNome,
+        String feedbackResolucao,
+        List<HistoricoResponse> historico
+) {
+    public static ChamadoResponse fromEntity(Chamado c, Long currentUserId) {
+        boolean apoiado = false;
+        if (currentUserId != null && c.getVotos() != null) {
+            apoiado = c.getVotos().stream()
+                    .anyMatch(v -> v.getUsuario() != null && currentUserId.equals(v.getUsuario().getIdUsuario()));
+        }
+
+        List<HistoricoResponse> hist = (c.getHistorico() != null)
+                ? c.getHistorico().stream().map(HistoricoResponse::fromEntity).toList()
+                : Collections.emptyList();
+
+        return new ChamadoResponse(
+                String.valueOf(c.getIdChamado()),
+                c.getProtocolo(),
+                c.getTitulo(),
+                c.getDescricao(),
+                c.getCategoria().getNmCategoria(),
+                c.getStatus().getNmStatus(),
+                c.getPrioridade() != null ? c.getPrioridade().getDescricao() : null,
+                c.getApoiosCount(),
+                apoiado,
+                c.getParecerIa(),
+                c.getOrgaoResponsavel(),
+                EnderecoResponse.fromEntity(c.getEndereco()),
+                c.getFotoUrl(),
+                c.getDtAbertura() != null ? c.getDtAbertura().toString() : null,
+                c.getDtConclusao() != null ? c.getDtConclusao().toString() : null,
+                String.valueOf(c.getUsuario().getIdUsuario()),
+                c.getUsuario().getNmUsuario(),
+                c.getFeedbackResolucao(),
+                hist
+        );
+    }
+}

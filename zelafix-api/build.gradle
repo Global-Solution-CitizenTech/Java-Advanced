@@ -1,0 +1,88 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.1.1'
+    id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'fiap.com.br'
+version = '1.0.0-SNAPSHOT'
+description = 'zelafix-api'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Spring Boot Core & Web MVC
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+    implementation 'org.springframework.boot:spring-boot-starter-restclient'
+
+    // Spring Data JPA & Banco de Dados Oracle FIAP
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    runtimeOnly 'com.oracle.database.jdbc:ojdbc11:23.7.0.25.01'
+
+    // Mensageria Assíncrona (RabbitMQ - Opção A)
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+
+    // Segurança & Autenticação JWT RSA (Padrão Challenge Clyvo 4)
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
+    // Documentação Swagger / OpenAPI 3.0
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5'
+
+    // Lombok
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // Testes
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-amqp-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.register('generateRsaKeys') {
+    def keysDir = file('src/main/resources/keys')
+    def privFile = file('src/main/resources/keys/private_key.pem')
+    def pubFile = file('src/main/resources/keys/public_key.pem')
+    outputs.files(privFile, pubFile)
+    doLast {
+        if (!privFile.exists() || !pubFile.exists()) {
+            keysDir.mkdirs()
+            def kpg = java.security.KeyPairGenerator.getInstance("RSA")
+            kpg.initialize(2048)
+            def kp = kpg.generateKeyPair()
+            def privEnc = java.util.Base64.mimeEncoder.encodeToString(kp.private.encoded)
+            def pubEnc = java.util.Base64.mimeEncoder.encodeToString(kp.public.encoded)
+            privFile.text = "-----BEGIN PRIVATE KEY-----\n" + privEnc + "\n-----END PRIVATE KEY-----\n"
+            pubFile.text = "-----BEGIN PUBLIC KEY-----\n" + pubEnc + "\n-----END PUBLIC KEY-----\n"
+            println ">>> [zelafix-api] Par de chaves RSA gerado com sucesso em src/main/resources/keys"
+        }
+    }
+}
+
+tasks.named('processResources') {
+    dependsOn 'generateRsaKeys'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+

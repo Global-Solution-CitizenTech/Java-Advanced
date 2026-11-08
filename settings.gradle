@@ -1,0 +1,4 @@
+rootProject.name = 'zelafix-backend'
+
+include 'zelafix-api'
+include 'zelafix-worker'

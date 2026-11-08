@@ -1,0 +1,38 @@
+# Gradle & Build Artifacts
+.gradle/
+**/build/
+**/bin/
+**/out/
+
+# IDEs & Editors
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+**/.classpath
+**/.project
+**/.settings/
+nbproject/
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Logs & Temp
+*.log
+*.tmp
+*.bak
+*.swp
+
+# Environment & Secrets (Rubrica D de Penalidades da FIAP)
+.env
+*.env
+!.env.example
+**/keys/*.pem
+!**/keys/.gitkeep
+
+# User Uploads (Runtime Files)
+**/uploads/*
+!**/uploads/.gitkeep
