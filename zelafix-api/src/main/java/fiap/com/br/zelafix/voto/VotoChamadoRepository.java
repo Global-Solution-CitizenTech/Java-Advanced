@@ -9,7 +9,5 @@ import java.util.Optional;
 public interface VotoChamadoRepository extends JpaRepository<VotoChamado, Long> {
     boolean existsByChamadoIdChamadoAndUsuarioIdUsuario(Long idChamado, Long idUsuario);
     Optional<VotoChamado> findByChamadoIdChamadoAndUsuarioIdUsuario(Long idChamado, Long idUsuario);
-    void deleteByChamadoIdChamadoAndUsuarioIdUsuario(Long idChamado, Long idUsuario);
     long countByChamadoIdChamado(Long idChamado);
 }
-

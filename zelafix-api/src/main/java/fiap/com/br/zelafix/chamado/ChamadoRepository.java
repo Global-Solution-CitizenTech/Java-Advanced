@@ -8,14 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
-
 @Repository
 public interface ChamadoRepository extends JpaRepository<Chamado, Long>, JpaSpecificationExecutor<Chamado> {
-
-    Page<Chamado> findByUsuarioIdUsuario(Long idUsuario, Pageable pageable);
-
-    Page<Chamado> findByCategoriaIdCategoria(Long idCategoria, Pageable pageable);
 
     @Query("""
         SELECT c FROM Chamado c
@@ -40,17 +34,6 @@ public interface ChamadoRepository extends JpaRepository<Chamado, Long>, JpaSpec
     );
 
     @Query("""
-        SELECT c FROM Chamado c
-        WHERE EXISTS (
-            SELECT h FROM HistChamado h 
-            WHERE h.chamado = c 
-              AND h.status.idStatus = :idStatus
-              AND h.idHist = (SELECT MAX(h2.idHist) FROM HistChamado h2 WHERE h2.chamado = c)
-        )
-    """)
-    Page<Chamado> findByStatusIdStatus(@Param("idStatus") Long idStatus, Pageable pageable);
-
-    @Query("""
         SELECT COUNT(c) FROM Chamado c
         WHERE EXISTS (
             SELECT h FROM HistChamado h 
@@ -60,15 +43,4 @@ public interface ChamadoRepository extends JpaRepository<Chamado, Long>, JpaSpec
         )
     """)
     long countByStatusNmStatusIgnoreCase(@Param("nmStatus") String nmStatus);
-
-    default Optional<Chamado> findByProtocolo(String protocolo) {
-        if (protocolo == null || protocolo.isBlank()) return Optional.empty();
-        String digits = protocolo.replaceAll("\\D", "");
-        if (digits.isEmpty()) return Optional.empty();
-        try {
-            return findById(Long.parseLong(digits));
-        } catch (NumberFormatException e) {
-            return Optional.empty();
-        }
-    }
 }

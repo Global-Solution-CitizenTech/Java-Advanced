@@ -8,5 +8,4 @@ import java.util.Optional;
 @Repository
 public interface BairroRepository extends JpaRepository<Bairro, Long> {
     Optional<Bairro> findByNomeIgnoreCaseAndCidadeId(String nome, Long cidadeId);
-    Optional<Bairro> findByNomeIgnoreCase(String nome);
 }
