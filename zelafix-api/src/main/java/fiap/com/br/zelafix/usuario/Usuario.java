@@ -51,7 +51,7 @@ public class Usuario {
     @Column(name = "cargo", length = 10, nullable = false)
     private CargoUsuario cargo;
 
-    @ManyToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "endereco_id_endereco", nullable = false)
     private Endereco endereco;
 
