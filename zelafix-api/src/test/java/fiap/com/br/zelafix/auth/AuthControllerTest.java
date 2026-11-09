@@ -6,6 +6,7 @@ import fiap.com.br.zelafix.endereco.bairro.Bairro;
 import fiap.com.br.zelafix.endereco.cidade.Cidade;
 import fiap.com.br.zelafix.endereco.estado.Estado;
 import fiap.com.br.zelafix.auth.dto.LoginRequest;
+import fiap.com.br.zelafix.telefone.Telefone;
 import fiap.com.br.zelafix.usuario.CargoUsuario;
 import fiap.com.br.zelafix.usuario.Usuario;
 import fiap.com.br.zelafix.usuario.UsuarioService;
@@ -62,27 +63,29 @@ class AuthControllerTest {
                 .bairro(bairro)
                 .build();
 
+        Telefone mockTelefone = Telefone.builder().numDdd("11").numTel("987654321").build();
         Usuario mockUsuario = Usuario.builder()
                 .idUsuario(1L)
                 .nmUsuario("Carlos Munícipe")
                 .email("cidadao@zelafix.com.br")
                 .cargo(CargoUsuario.CIDADAO)
                 .endereco(endereco)
+                .telefones(java.util.List.of(mockTelefone))
                 .build();
 
         when(authenticationManager.authenticate(any()))
                 .thenReturn(new UsernamePasswordAuthenticationToken("cidadao@zelafix.com.br", "Senha@123"));
         when(tokenService.generateToken("cidadao@zelafix.com.br")).thenReturn("mock-jwt-token-xyz");
-        when(usuarioService.buscarPorEmail("cidadao@zelafix.com.br")).thenReturn(mockUsuario);
+        when(usuarioService.findByEmail("cidadao@zelafix.com.br")).thenReturn(mockUsuario);
 
         mockMvc.perform(post("/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value("mock-jwt-token-xyz"))
-                .andExpect(jsonPath("$.usuario.nome").value("Carlos Munícipe"))
-                .andExpect(jsonPath("$.usuario.email").value("cidadao@zelafix.com.br"))
-                .andExpect(jsonPath("$.usuario.cargo").value("CIDADAO"));
+                .andExpect(jsonPath("$.user.nome").value("Carlos Munícipe"))
+                .andExpect(jsonPath("$.user.email").value("cidadao@zelafix.com.br"))
+                .andExpect(jsonPath("$.user.cargo").value("CIDADAO"));
     }
 
     @Test

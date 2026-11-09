@@ -17,11 +17,11 @@
 
 ## 🏛️ 1. Arquitetura Distribuída do Sistema
 
-O backend foi arquitetado em **dois microsserviços autônomos e desacoplados** que se comunicam de forma assíncrona através de mensageria com **RabbitMQ**, seguindo rigorosamente a estrutura didática ensinada em aula no projeto **`paredao`** (`voting-gateway` + `vote-aggregator`):
+O backend foi arquitetado em **dois microsserviços autônomos e desacoplados** que se comunicam de forma assíncrona através de mensageria com **RabbitMQ**:
 
 1. **`zelafix-api` (Gateway REST & Produtor — Porta 8080):**
    - API RESTful do domínio consumida pelo aplicativo mobile (**React Native Expo**) e painel web administrativo.
-   - Autenticação e autorização via **Spring Security com tokens Bearer JWT assinados por par de chaves RSA** (Padrão *Challenge Clyvo 4*).
+   - Autenticação e autorização via **Spring Security com tokens Bearer JWT assinados por par de chaves RSA**.
    - Mapeamento relacional com **Spring Data JPA** e paginação (`Pageable`) sobre o schema corporativo Oracle (`citizenTech.ddl`).
    - Validações de entrada com **Jakarta Bean Validation** (`@Valid`) e tratamento centralizado de exceções (`@RestControllerAdvice`).
    - **Produtor RabbitMQ:** Publica eventos de abertura de ocorrências (`chamado.triagem.key`) e votos/apoios da comunidade (`chamado.voto.key`).
@@ -29,7 +29,7 @@ O backend foi arquitetado em **dois microsserviços autônomos e desacoplados** 
 2. **`zelafix-worker` (Consumidor Assíncrono & Heavy Worker — Porta 8081):**
    - Microsserviço de processamento em segundo plano sem exposição de endpoints públicos.
    - **Triagem Inteligente via Spring AI:** Escuta a fila `chamado.triagem.queue`, aciona a LLM da OpenAI para classificação de urgência, identificação de órgão municipal competente e emissão de parecer técnico fundamentado.
-   - **Agregador de Votos (Padrão Paredão `VoteConsumer`):** Escuta a fila `chamado.voto.queue`, acumula os votos em memória utilizando `ConcurrentHashMap` thread-safe para suportar picos de tráfego sem sobrecarregar o banco, e descarrega os totais em lote a cada 3 segundos com `@Scheduled(fixedDelay = 3000) flush()`.
+   - **Agregador de Votos (`VoteConsumer`):** Escuta a fila `chamado.voto.queue`, acumula os votos em memória utilizando `ConcurrentHashMap` thread-safe para suportar picos de tráfego sem sobrecarregar o banco, e descarrega os totais em lote a cada 3 segundos com `@Scheduled(fixedDelay = 3000) flush()`.
 
 ```mermaid
 flowchart TD
@@ -103,24 +103,25 @@ flowchart TD
 
 | Item | Critério de Avaliação | Pontos | Como Foi Atendido no Projeto |
 | :---: | :--- | :---: | :--- |
-| **01** | **API REST do Domínio** (mínimo 3 entidades relacionadas, CRUD e paginação) | **20 pts** | Mapeamento relacional de 10 entidades conforme `citizenTech.ddl` (`Usuario`, `Chamado`, `Categoria`, `Status`, `VotoChamado`, `HistStatus`, `Endereco`, `Bairro`, `Cidade`, `Estado`). Suporte a paginação com `Pageable`, ordenação dinâmica e filtros por status, categoria e busca textual. |
+| **01** | **API REST do Domínio** (mínimo 3 entidades relacionadas, CRUD e paginação) | **20 pts** | Mapeamento relacional de 10 entidades conforme `citizenTech.ddl` (`Usuario`, `Chamado`, `Categoria`, `Status`, `VotoChamado`, `HistChamado`, `Endereco`, `Bairro`, `Cidade`, `Estado`). Suporte a paginação com `Pageable`, ordenação dinâmica e filtros por status, categoria e busca textual. |
 | **02** | **Validação & Tratamento de Erros** (`@Valid` e `@RestControllerAdvice`) | **10 pts** | Bean Validation estrito em todos os DTOs (`@NotBlank`, `@Email`, `@Size`, etc.). `GlobalExceptionHandler` captura `MethodArgumentNotValidException`, `ResourceNotFoundException` e `BadCredentialsException` retornando `ProblemDetail` padronizado (RFC 7807). |
-| **03** | **Segurança com JWT & RBAC** (múltiplos papéis de usuário) | **20 pts** | Spring Security 6 / OAuth2 Resource Server com tokens JWT assinados via par de chaves RSA 2048 bits geradas automaticamente pelo Gradle. Controle de acesso por papéis: `ROLE_CIDADAO` (criar chamados, apoiar com votos) e `ROLE_GESTOR` (alterar status, despachar equipes, exclusão administrativa). |
+| **03** | **Segurança com JWT & RBAC** (múltiplos papéis de usuário) | **20 pts** | Spring Security 6 / OAuth2 Resource Server com tokens JWT assinados via par de chaves RSA 2048 bits geradas automaticamente pelo Gradle. Controle de acesso por papéis: `ROLE_CIDADAO` (munícipe: criar ocorrências, apoiar com votos, gerenciar próprio perfil), `ROLE_GESTOR` (agente da prefeitura: avaliar ocorrências e atualizar status de resolução dos chamados) e `ROLE_ADMIN` (administrador geral com CRUD completo de usuários, chamados, categorias, status, endereços e alteração de cargos). |
 | **04** | **Spring AI Integrado ao Fluxo de Negócio** | **20 pts** | Integração via `ChatClient` com OpenAI (modelo `gpt-4o-mini`) no `zelafix-worker`. O worker consome a mensagem da fila assíncrona, analisa a criticidade do chamado, classifica o órgão municipal competente e emite parecer técnico fundamentado para a equipe de campo, com fallback heurístico para execução offline. |
-| **05** | **Arquitetura Distribuída Funcional (Opção A — RabbitMQ)** | **20 pts** | Implementação com 2 microsserviços autônomos (`zelafix-api` e `zelafix-worker`). Mensageria com RabbitMQ: DirectExchange `zelafix.direct`, filas duráveis e agregação de votos com buffer em memória (`ConcurrentHashMap`) e flush periódico em lote (`@Scheduled`), espelhando fielmente o projeto `paredao`. |
-| **06** | **Documentação OpenAPI/Swagger & Integração Mobile** | **10 pts** | Swagger interativo disponível em `http://localhost:8080/swagger-ui.html`. Integração 100% validada com o app React Native (`Mobile-Application-Development`), com rotas diretas padronizadas (`/chamados`, `/usuarios`, `/auth/login`, `/uploads`, etc.). |
+| **05** | **Arquitetura Distribuída Funcional (Opção A — RabbitMQ)** | **20 pts** | Implementação com 2 microsserviços autônomos (`zelafix-api` e `zelafix-worker`). Mensageria com RabbitMQ: DirectExchange `zelafix.direct`, filas duráveis e agregação de votos com buffer em memória (`ConcurrentHashMap`) e flush periódico em lote (`@Scheduled`). |
+| **06** | **Documentação OpenAPI/Swagger & Integração Mobile** | **10 pts** | Swagger interativo disponível em `http://localhost:8080/swagger-ui.html`. Integração 100% validada com o app React Native (`Mobile-Application-Development`), com rotas diretas padronizadas (`/chamados`, `/usuarios`, `/auth/login`, etc.). |
 | **TOTAL** | **Pontuação Total da Entrega** | **100 pts** | **Solução Completa, Testada e Validada.** |
 
 ---
 
 ## 🔑 3. Credenciais de Teste para Avaliação
 
-O banco de dados é inicializado automaticamente com usuários de teste e dados pré-carregados (`DatabaseSeeder.java`):
+O banco de dados é inicializado automaticamente com usuários de teste e dados pré-carregados via migrations versionadas do Flyway (`V1__criar_tabelas_zelafix.sql`, `V2__dados_iniciais_zelafix.sql` e `V3__admin_inicial.sql`):
 
 | Papel | Nome | E-mail | Senha | Permissões |
 | :--- | :--- | :--- | :--- | :--- |
-| **Cidadão** | Carlos Munícipe | `cidadao@zelafix.com.br` | `Senha@123` | Criar chamados, apoiar ocorrências, comentar e acompanhar status. |
-| **Gestor Municipal** | Dra. Mariana Gestora | `gestor@zelafix.com.br` | `Senha@123` | Acesso irrestrito, alteração de status de chamados e ações administrativas. |
+| **Cidadão** | Carlos Munícipe | `cidadao@zelafix.com.br` | `Senha@123` | Criar chamados (iniciam como `PENDENTE`), apoiar ocorrências e gerenciar seu perfil. |
+| **Funcionário da Prefeitura** | Mariana Servidora Pública | `gestor@zelafix.com.br` | `Senha@123` | Agente público da prefeitura: atualizar status de resolução dos chamados (`PENDENTE`, `EM_ANALISE`, `EM_EXECUCAO`, `CONCLUIDO`, `REJEITADO`). |
+| **Administrador Geral** | Administrador ZelaFix | `admin@zelafix.com.br` | `123mudar` | Acesso administrativo irrestrito: CRUD completo de usuários, chamados, categorias, status, endereços e alteração de perfis/cargos. |
 
 ---
 

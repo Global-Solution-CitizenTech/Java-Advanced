@@ -70,7 +70,7 @@ class ChamadoServiceTest {
 
     private Usuario usuario;
     private Categoria categoria;
-    private Status statusAberto;
+    private Status statusPendente;
     private Endereco endereco;
 
     @BeforeEach
@@ -87,9 +87,9 @@ class ChamadoServiceTest {
                 .nmCategoria("Buraco na Rua")
                 .build();
 
-        statusAberto = Status.builder()
+        statusPendente = Status.builder()
                 .idStatus(1L)
-                .nmStatus("ABERTO")
+                .nmStatus("PENDENTE")
                 .build();
 
         Estado estado = Estado.builder().id(1L).nome("São Paulo").build();
@@ -107,21 +107,21 @@ class ChamadoServiceTest {
     }
 
     @Test
-    @DisplayName("Deve criar um chamado com status ABERTO e publicar evento no RabbitMQ")
+    @DisplayName("Deve criar um chamado com status PENDENTE e publicar evento no RabbitMQ")
     void deveCriarChamadoComSucesso() {
-        EnderecoRequest enderecoRequest = new EnderecoRequest("05422001", "Rua dos Pinheiros", "720", "Esquina com Fradique");
+        EnderecoRequest enderecoRequest = new EnderecoRequest("05422001", "720", "Esquina com Fradique", "Rua dos Pinheiros");
         ChamadoRequest request = new ChamadoRequest(
                 "Buraco perigoso na via",
                 "Cratera profunda na pista da direita",
-                "Buraco na Rua",
+                1L,
                 enderecoRequest,
                 null
         );
 
-        when(usuarioService.buscarPorEmail(usuario.getEmail())).thenReturn(usuario);
-        when(categoriaService.buscarPorNomeOuCriar("Buraco na Rua")).thenReturn(categoria);
-        when(statusService.buscarPorNomeOuCriar("ABERTO")).thenReturn(statusAberto);
-        when(enderecoService.findOrCreate(any())).thenReturn(endereco);
+        when(usuarioService.findByEmail(usuario.getEmail())).thenReturn(usuario);
+        when(categoriaService.findById(1L)).thenReturn(categoria);
+        when(statusService.findByNameOrCreate("PENDENTE")).thenReturn(statusPendente);
+        when(enderecoService.findOrCreateByCepAndNumero(any())).thenReturn(endereco);
 
         Chamado chamadoSalvo = Chamado.builder()
                 .idChamado(100L)
@@ -136,10 +136,10 @@ class ChamadoServiceTest {
 
         when(chamadoRepository.save(any())).thenReturn(chamadoSalvo);
 
-        ChamadoResponse response = chamadoService.criar(request, usuario.getEmail());
+        ChamadoResponse response = chamadoService.create(request, usuario.getEmail());
 
         assertNotNull(response);
-        assertEquals(100L, response.id());
+        assertEquals(100L, response.idChamado());
         assertEquals("Buraco perigoso na via", response.titulo());
 
         verify(chamadoEventProducer, times(1)).publicarTriagem(any());
@@ -162,11 +162,11 @@ class ChamadoServiceTest {
                 .build();
 
         when(chamadoRepository.findById(200L)).thenReturn(Optional.of(chamado));
-        when(usuarioService.buscarPorEmail(usuario.getEmail())).thenReturn(usuario);
+        when(usuarioService.findByEmail(usuario.getEmail())).thenReturn(usuario);
         when(votoChamadoRepository.findByChamadoIdChamadoAndUsuarioIdUsuario(200L, 1L))
                 .thenReturn(Optional.empty());
 
-        ChamadoResponse response = chamadoService.apoiar(200L, usuario.getEmail());
+        ChamadoResponse response = chamadoService.vote(200L, usuario.getEmail());
 
         assertNotNull(response);
         verify(votoChamadoRepository, times(1)).save(any());
@@ -190,11 +190,11 @@ class ChamadoServiceTest {
         VotoChamado voto = VotoChamado.builder().chamado(chamado).usuario(usuario).dtVoto(LocalDateTime.now()).build();
 
         when(chamadoRepository.findById(300L)).thenReturn(Optional.of(chamado));
-        when(usuarioService.buscarPorEmail(usuario.getEmail())).thenReturn(usuario);
+        when(usuarioService.findByEmail(usuario.getEmail())).thenReturn(usuario);
         when(votoChamadoRepository.findByChamadoIdChamadoAndUsuarioIdUsuario(300L, 1L))
                 .thenReturn(Optional.of(voto));
 
-        ChamadoResponse response = chamadoService.apoiar(300L, usuario.getEmail());
+        ChamadoResponse response = chamadoService.vote(300L, usuario.getEmail());
 
         assertNotNull(response);
         verify(votoChamadoRepository, times(1)).delete(voto);
@@ -211,12 +211,12 @@ class ChamadoServiceTest {
                 .build();
 
         when(chamadoRepository.findById(400L)).thenReturn(Optional.of(chamado));
-        when(usuarioService.buscarPorEmail(usuario.getEmail())).thenReturn(usuario);
+        when(usuarioService.findByEmail(usuario.getEmail())).thenReturn(usuario);
 
         StatusRequest request = new StatusRequest("CONCLUIDO", "Resolvido");
 
         assertThrows(BusinessException.class, () ->
-                chamadoService.atualizarStatus(400L, request, usuario.getEmail())
+                chamadoService.updateStatus(400L, request, usuario.getEmail())
         );
     }
 
@@ -244,14 +244,64 @@ class ChamadoServiceTest {
                 .build();
 
         when(chamadoRepository.findById(500L)).thenReturn(Optional.of(chamado));
-        when(usuarioService.buscarPorEmail(gestor.getEmail())).thenReturn(gestor);
-        when(statusService.buscarPorNomeOuCriar("CONCLUIDO")).thenReturn(statusNovo);
+        when(usuarioService.findByEmail(gestor.getEmail())).thenReturn(gestor);
+        when(statusService.findByNameOrCreate("CONCLUIDO")).thenReturn(statusNovo);
 
         StatusRequest request = new StatusRequest("CONCLUIDO", "Serviço finalizado com sucesso.");
 
-        ChamadoResponse response = chamadoService.atualizarStatus(500L, request, gestor.getEmail());
+        ChamadoResponse response = chamadoService.updateStatus(500L, request, gestor.getEmail());
 
         assertNotNull(response);
         verify(histChamadoRepository, times(1)).save(any(HistChamado.class));
+    }
+
+    @Test
+    @DisplayName("ADMIN atualiza status com sucesso e grava histórico")
+    void devePermitirAdminAtualizarStatus() {
+        Usuario admin = Usuario.builder()
+                .idUsuario(99L)
+                .nmUsuario("Admin do Sistema")
+                .email("admin@zelafix.com.br")
+                .cargo(CargoUsuario.ADMIN)
+                .build();
+
+        Status statusNovo = Status.builder().idStatus(4L).nmStatus("CONCLUIDO").build();
+
+        Chamado chamado = Chamado.builder()
+                .idChamado(600L)
+                .titulo("Vazamento de água")
+                .descricao("Urgente")
+                .categoria(categoria)
+                .endereco(endereco)
+                .usuario(usuario)
+                .foto("bytes".getBytes(StandardCharsets.UTF_8))
+                .dtAbertura(LocalDateTime.now())
+                .build();
+
+        when(chamadoRepository.findById(600L)).thenReturn(Optional.of(chamado));
+        when(usuarioService.findByEmail(admin.getEmail())).thenReturn(admin);
+        when(statusService.findByNameOrCreate("CONCLUIDO")).thenReturn(statusNovo);
+
+        StatusRequest request = new StatusRequest("CONCLUIDO", "Resolvido por intervenção direta de admin.");
+
+        ChamadoResponse response = chamadoService.updateStatus(600L, request, admin.getEmail());
+
+        assertNotNull(response);
+        verify(histChamadoRepository, times(1)).save(any(HistChamado.class));
+    }
+
+    @Test
+    @DisplayName("ADMIN pode deletar chamado por ID")
+    void devePermitirAdminDeletarChamado() {
+        Chamado chamado = Chamado.builder()
+                .idChamado(700L)
+                .titulo("Chamado para exclusão")
+                .build();
+
+        when(chamadoRepository.findById(700L)).thenReturn(Optional.of(chamado));
+
+        chamadoService.delete(700L);
+
+        verify(chamadoRepository, times(1)).delete(chamado);
     }
 }
