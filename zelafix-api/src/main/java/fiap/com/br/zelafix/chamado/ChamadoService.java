@@ -137,7 +137,7 @@ public class ChamadoService {
     // =========================================================================
 
     @Transactional
-    public ChamadoResponse vote(Long id, String email) {
+    public ChamadoResponse apoiar(Long id, String email) {
         Chamado chamado = findChamadoById(id);
         Usuario usuario = usuarioService.findByEmail(email);
 

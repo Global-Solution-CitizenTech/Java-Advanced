@@ -113,10 +113,10 @@ public class ChamadoController {
         return chamadoService.updateStatus(id, request, jwt.getSubject());
     }
 
-    @PostMapping({"/{id}/apoiar", "/{id}/voto"})
-    @Operation(summary = "Apoiar/votar em um chamado (ou desfazer apoio) via RabbitMQ assíncrono")
-    public ChamadoResponse vote(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
-        return chamadoService.vote(id, jwt.getSubject());
+    @PostMapping("/{id}/apoiar")
+    @Operation(summary = "Apoiar um chamado comunitário (ou desfazer apoio) via RabbitMQ assíncrono")
+    public ChamadoResponse apoiar(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
+        return chamadoService.apoiar(id, jwt.getSubject());
     }
 
     @DeleteMapping("/{id}")
