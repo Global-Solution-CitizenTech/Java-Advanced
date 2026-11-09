@@ -33,7 +33,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -49,12 +52,16 @@ public class ChamadoService {
     private final ChamadoEventProducer chamadoEventProducer;
     private final VotoEventProducer votoEventProducer;
 
+    // =========================================================================
+    // 1. CONSULTAS E LISTAGENS
+    // =========================================================================
+
     public Page<ChamadoResponse> findAll(String status, String categoria, String busca, Boolean apenasMeus, String email, Pageable pageable) {
         Long currentUserId = usuarioService.findByEmail(email).getIdUsuario();
         Long autorId = Boolean.TRUE.equals(apenasMeus) ? currentUserId : null;
 
-        return chamadoRepository.findByFiltros(status, categoria, autorId, busca, pageable)
-                .map(c -> toResponse(c, currentUserId, false));
+        Page<Chamado> chamados = chamadoRepository.findByFiltros(status, categoria, autorId, busca, pageable);
+        return enriquecerPagina(chamados, currentUserId);
     }
 
     public Chamado findById(Long id) {
@@ -69,6 +76,10 @@ public class ChamadoService {
     public byte[] getPhoto(Long id) {
         return findChamadoById(id).getFoto();
     }
+
+    // =========================================================================
+    // 2. CICLO DE VIDA DO CHAMADO (ABERTURA, EDIÇÃO, EXCLUSÃO)
+    // =========================================================================
 
     @Transactional
     public ChamadoResponse create(ChamadoRequest request, String email) {
@@ -94,23 +105,26 @@ public class ChamadoService {
     public ChamadoResponse update(Long id, ChamadoRequest request, String email) {
         Chamado chamado = findChamadoById(id);
         Usuario usuario = usuarioService.findByEmail(email);
-
-        if (!chamado.getUsuario().getIdUsuario().equals(usuario.getIdUsuario()) && usuario.getCargo() != CargoUsuario.ADMIN) {
-            throw new BusinessException("Você não tem permissão para editar este chamado.");
-        }
+        validarPermissaoEdicao(chamado, usuario);
 
         aplicarEm(chamado, request);
         return toResponse(chamadoRepository.save(chamado), usuario.getIdUsuario(), true);
     }
 
     @Transactional
+    public void delete(Long id) {
+        chamadoRepository.delete(findChamadoById(id));
+    }
+
+    // =========================================================================
+    // 3. GESTÃO DE STATUS E AUDITORIA
+    // =========================================================================
+
+    @Transactional
     public ChamadoResponse updateStatus(Long id, StatusRequest request, String email) {
         Chamado chamado = findChamadoById(id);
         Usuario operador = usuarioService.findByEmail(email);
-
-        if (operador.getCargo() != CargoUsuario.GESTOR && operador.getCargo() != CargoUsuario.ADMIN) {
-            throw new BusinessException("Apenas funcionários da prefeitura ou administradores têm permissão para atualizar o status do chamado.");
-        }
+        validarPermissaoGestao(operador);
 
         Status novoStatus = statusService.findByNameOrCreate(request.status());
         histChamadoRepository.save(request.toEntity(chamado, operador, novoStatus));
@@ -118,28 +132,22 @@ public class ChamadoService {
         return toResponse(chamado, operador.getIdUsuario(), true);
     }
 
+    // =========================================================================
+    // 4. APOIO POPULAR (VOTOS E MENSERAGIA)
+    // =========================================================================
+
     @Transactional
     public ChamadoResponse vote(Long id, String email) {
         Chamado chamado = findChamadoById(id);
         Usuario usuario = usuarioService.findByEmail(email);
 
-        Optional<VotoChamado> votoExistente = votoChamadoRepository.findByChamadoIdChamadoAndUsuarioIdUsuario(id, usuario.getIdUsuario());
-
-        if (votoExistente.isPresent()) {
-            votoChamadoRepository.delete(votoExistente.get());
-            votoEventProducer.publicarVoto(new VotoMessage(id, usuario.getIdUsuario(), "REMOVER"));
-        } else {
-            votoChamadoRepository.save(criarVoto(chamado, usuario));
-            votoEventProducer.publicarVoto(new VotoMessage(id, usuario.getIdUsuario(), "VOTAR"));
-        }
-
+        alternarVoto(chamado, usuario);
         return toResponse(chamado, usuario.getIdUsuario(), true);
     }
 
-    @Transactional
-    public void delete(Long id) {
-        chamadoRepository.delete(findChamadoById(id));
-    }
+    // =========================================================================
+    // 5. PAINEL DE ESTATÍSTICAS
+    // =========================================================================
 
     public EstatisticasResponse getStatistics() {
         return new EstatisticasResponse(
@@ -152,9 +160,75 @@ public class ChamadoService {
         );
     }
 
+    // =========================================================================
+    // 6. HELPERS PRIVADOS (BUSCAS, ENRIQUECIMENTO E VALIDAÇÕES)
+    // =========================================================================
+
     private Chamado findChamadoById(Long id) {
         return chamadoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Chamado com id " + id + " não encontrado."));
+    }
+
+    private void validarPermissaoEdicao(Chamado chamado, Usuario usuario) {
+        if (!chamado.getUsuario().getIdUsuario().equals(usuario.getIdUsuario()) && usuario.getCargo() != CargoUsuario.ADMIN) {
+            throw new BusinessException("Você não tem permissão para editar este chamado.");
+        }
+    }
+
+    private void validarPermissaoGestao(Usuario operador) {
+        if (operador.getCargo() != CargoUsuario.GESTOR && operador.getCargo() != CargoUsuario.ADMIN) {
+            throw new BusinessException("Apenas funcionários da prefeitura ou administradores têm permissão para atualizar o status do chamado.");
+        }
+    }
+
+    private void alternarVoto(Chamado chamado, Usuario usuario) {
+        Long chamadoId = chamado.getIdChamado();
+        Long usuarioId = usuario.getIdUsuario();
+        Optional<VotoChamado> votoExistente = votoChamadoRepository.findByChamadoIdChamadoAndUsuarioIdUsuario(chamadoId, usuarioId);
+
+        if (votoExistente.isPresent()) {
+            votoChamadoRepository.delete(votoExistente.get());
+            votoEventProducer.publicarVoto(new VotoMessage(chamadoId, usuarioId, "REMOVER"));
+        } else {
+            votoChamadoRepository.save(criarVoto(chamado, usuario));
+            votoEventProducer.publicarVoto(new VotoMessage(chamadoId, usuarioId, "VOTAR"));
+        }
+    }
+
+    private Page<ChamadoResponse> enriquecerPagina(Page<Chamado> chamados, Long currentUserId) {
+        if (chamados.isEmpty()) {
+            return chamados.map(c -> toResponse(c, currentUserId, false));
+        }
+
+        List<Long> ids = chamados.map(Chamado::getIdChamado).toList();
+        Map<Long, String> statusMap = mapearStatusPorChamado(ids);
+        Map<Long, Long> votosCountMap = mapearVotosPorChamado(ids);
+        Set<Long> apoiadosSet = votoChamadoRepository.findChamadoIdsApoiadosPorMim(ids, currentUserId);
+
+        return chamados.map(c -> ChamadoResponse.fromEntity(
+                c,
+                statusMap.getOrDefault(c.getIdChamado(), StatusChamadoEnum.PENDENTE.name()),
+                votosCountMap.getOrDefault(c.getIdChamado(), 0L),
+                apoiadosSet.contains(c.getIdChamado()),
+                List.of()
+        ));
+    }
+
+    private Map<Long, String> mapearStatusPorChamado(List<Long> ids) {
+        return histChamadoRepository.findLatestByChamadoIds(ids).stream()
+                .collect(Collectors.toMap(
+                        h -> h.getChamado().getIdChamado(),
+                        h -> h.getStatus().getNmStatus(),
+                        (existente, substituto) -> existente
+                ));
+    }
+
+    private Map<Long, Long> mapearVotosPorChamado(List<Long> ids) {
+        return votoChamadoRepository.countVotosByChamadoIds(ids).stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> (Long) row[1]
+                ));
     }
 
     private void aplicarEm(Chamado chamado, ChamadoRequest request) {
