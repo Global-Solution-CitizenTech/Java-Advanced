@@ -33,7 +33,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -303,5 +308,31 @@ class ChamadoServiceTest {
         chamadoService.delete(700L);
 
         verify(chamadoRepository, times(1)).delete(chamado);
+    }
+
+    @Test
+    @DisplayName("Deve buscar chamados paginados com carregamento em lote de status, votos e apoio (sem N+1)")
+    void deveBuscarChamadosComCarregamentoEmLote() {
+        Chamado c1 = Chamado.builder().idChamado(10L).titulo("Buraco 1").categoria(categoria).usuario(usuario).endereco(endereco).dtAbertura(LocalDateTime.now()).build();
+        Chamado c2 = Chamado.builder().idChamado(20L).titulo("Buraco 2").categoria(categoria).usuario(usuario).endereco(endereco).dtAbertura(LocalDateTime.now()).build();
+        Page<Chamado> page = new PageImpl<>(List.of(c1, c2));
+
+        when(usuarioService.findByEmail(usuario.getEmail())).thenReturn(usuario);
+        when(chamadoRepository.findByFiltros(null, null, null, null, Pageable.unpaged())).thenReturn(page);
+
+        HistChamado h1 = HistChamado.builder().chamado(c1).status(statusPendente).build();
+        when(histChamadoRepository.findLatestByChamadoIds(List.of(10L, 20L))).thenReturn(List.of(h1));
+        when(votoChamadoRepository.countVotosByChamadoIds(List.of(10L, 20L))).thenReturn(List.<Object[]>of(new Object[]{10L, 5L}));
+        when(votoChamadoRepository.findChamadoIdsApoiadosPorMim(List.of(10L, 20L), 1L)).thenReturn(Set.of(10L));
+
+        Page<ChamadoResponse> resultado = chamadoService.findAll(null, null, null, null, usuario.getEmail(), Pageable.unpaged());
+
+        assertEquals(2, resultado.getTotalElements());
+        assertEquals("PENDENTE", resultado.getContent().get(0).status());
+        assertEquals(5L, resultado.getContent().get(0).totalVotos());
+        assertEquals(true, resultado.getContent().get(0).apoiadoPorMim());
+        assertEquals("PENDENTE", resultado.getContent().get(1).status());
+        assertEquals(0L, resultado.getContent().get(1).totalVotos());
+        assertEquals(false, resultado.getContent().get(1).apoiadoPorMim());
     }
 }
