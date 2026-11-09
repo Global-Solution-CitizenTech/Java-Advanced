@@ -8,34 +8,36 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public record ChamadoResponse(
-        Long id,
+        Long idChamado,
         String titulo,
         String descricao,
-        LocalDateTime dataAbertura,
-        String categoria,
-        String status,
-        String autor,
-        Long autorId,
+        LocalDateTime dtAbertura,
+        Long categoriaId,
+        String categoriaNome,
+        Long usuarioId,
+        String usuarioNome,
         EnderecoResponse endereco,
-        String fotoUrl,
-        long apoios,
+        String foto,
+        String status,
+        long totalVotos,
         boolean apoiadoPorMim,
         List<HistoricoResponse> historico
 ) {
-    public ChamadoResponse(Chamado c, String status, long apoios, boolean apoiadoPorMim, List<HistoricoResponse> historico) {
-        this(
+    public static ChamadoResponse fromEntity(Chamado c, String status, long totalVotos, boolean apoiado, List<HistoricoResponse> historico) {
+        return new ChamadoResponse(
                 c.getIdChamado(),
                 c.getTitulo(),
                 c.getDescricao(),
                 c.getDtAbertura(),
+                c.getCategoria().getIdCategoria(),
                 c.getCategoria().getNmCategoria(),
-                status,
-                c.getUsuario().getNmUsuario(),
                 c.getUsuario().getIdUsuario(),
-                new EnderecoResponse(c.getEndereco()),
+                c.getUsuario().getNmUsuario(),
+                EnderecoResponse.fromEntity(c.getEndereco()),
                 "/chamados/" + c.getIdChamado() + "/foto",
-                apoios,
-                apoiadoPorMim,
+                status,
+                totalVotos,
+                apoiado,
                 historico
         );
     }

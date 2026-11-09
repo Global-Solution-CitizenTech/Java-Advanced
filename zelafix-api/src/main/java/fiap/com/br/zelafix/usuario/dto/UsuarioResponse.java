@@ -8,15 +8,22 @@ public record UsuarioResponse(
         String nome,
         String email,
         String cargo,
+        String ddd,
+        String numeroTelefone,
         EnderecoResponse endereco
 ) {
-    public UsuarioResponse(Usuario u) {
-        this(
-                u.getIdUsuario(),
-                u.getNmUsuario(),
-                u.getEmail(),
-                u.getCargo().name(),
-                new EnderecoResponse(u.getEndereco())
+    public static UsuarioResponse fromEntity(Usuario usuario) {
+        var telefone = (usuario.getTelefones() != null && !usuario.getTelefones().isEmpty())
+                ? usuario.getTelefones().getFirst()
+                : null;
+        return new UsuarioResponse(
+                usuario.getIdUsuario(),
+                usuario.getNmUsuario(),
+                usuario.getEmail(),
+                usuario.getCargo().name(),
+                telefone != null ? telefone.getNumDdd() : null,
+                telefone != null ? telefone.getNumTel() : null,
+                EnderecoResponse.fromEntity(usuario.getEndereco())
         );
     }
 }

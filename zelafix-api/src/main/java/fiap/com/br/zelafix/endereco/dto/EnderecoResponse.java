@@ -5,23 +5,27 @@ import fiap.com.br.zelafix.endereco.Endereco;
 public record EnderecoResponse(
         Long id,
         String cep,
-        String rua,
         String numero,
+        String rua,
         String referencia,
         String bairro,
         String cidade,
         String estado
 ) {
-    public EnderecoResponse(Endereco e) {
-        this(
-                e.getId(),
-                e.getCep(),
-                e.getRua(),
-                e.getNumero(),
-                e.getReferencia(),
-                e.getBairro().getNome(),
-                e.getBairro().getCidade().getNome(),
-                e.getBairro().getCidade().getEstado().getNome()
+    public static EnderecoResponse fromEntity(Endereco endereco) {
+        String bairro = endereco.getBairro().getNome();
+        String cidade = endereco.getBairro().getCidade().getNome();
+        String estado = endereco.getBairro().getCidade().getEstado().getNome();
+
+        return new EnderecoResponse(
+                endereco.getId(),
+                endereco.getCep(),
+                endereco.getNumero(),
+                endereco.getRua(),
+                endereco.getReferencia(),
+                bairro,
+                cidade,
+                estado
         );
     }
 }
