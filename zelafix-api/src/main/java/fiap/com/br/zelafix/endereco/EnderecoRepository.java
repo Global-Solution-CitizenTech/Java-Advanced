@@ -7,5 +7,6 @@ import java.util.Optional;
 
 @Repository
 public interface EnderecoRepository extends JpaRepository<Endereco, Long> {
+    Optional<Endereco> findFirstByCepAndNumero(String cep, String numero);
     Optional<Endereco> findFirstByCepAndNumeroAndBairroIdOrderByIdAsc(String cep, String numero, Long bairroId);
 }

@@ -12,9 +12,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/usuarios")
 @RequiredArgsConstructor
-@Tag(name = "Usuarios", description = "Endpoints de gerenciamento e perfil de usuários")
+@Tag(name = "Usuarios", description = "Endpoints de gerenciamento de usuários")
 public class UsuarioController {
 
     private final UsuarioService usuarioService;
@@ -35,7 +35,7 @@ public class UsuarioController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "[PÚBLICO] Cadastro de novo cidadão")
+    @Operation(summary = "Cadastro de novo usuário")
     public LoginResponse cadastrar(@RequestBody @Valid UsuarioRequest request) {
         UsuarioResponse userResponse = usuarioService.cadastrar(request);
         String token = tokenService.generateToken(request.email());
@@ -43,30 +43,35 @@ public class UsuarioController {
     }
 
     @GetMapping("/me")
-    @Operation(summary = "[PROTEGIDO] Retorna perfil do usuário logado")
+    @Operation(summary = "Retorna perfil do usuário autenticado")
     public UsuarioResponse meuPerfil(@AuthenticationPrincipal Jwt jwt) {
         Usuario usuario = usuarioService.buscarPorEmail(jwt.getSubject());
-        return UsuarioResponse.fromEntity(usuario);
+        return new UsuarioResponse(usuario);
     }
 
     @PutMapping("/me")
-    @Operation(summary = "[PROTEGIDO] Atualiza dados do perfil do usuário logado")
+    @Operation(summary = "Atualiza perfil do usuário autenticado")
     public UsuarioResponse atualizarPerfil(@AuthenticationPrincipal Jwt jwt, @RequestBody @Valid UsuarioRequest request) {
         Usuario usuario = usuarioService.buscarPorEmail(jwt.getSubject());
-        return usuarioService.atualizarPerfil(usuario.getIdUsuario(), request);
+        return usuarioService.atualizar(usuario.getIdUsuario(), request);
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "[PROTEGIDO] Busca detalhes de usuário por id")
+    @Operation(summary = "Busca usuário por id")
     public UsuarioResponse buscarPorId(@PathVariable Long id) {
-        Usuario usuario = usuarioService.buscarPorId(id);
-        return UsuarioResponse.fromEntity(usuario);
+        return usuarioService.buscarPorId(id);
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('GESTOR')")
-    @Operation(summary = "[GESTOR] Lista paginada de todos os usuários")
+    @Operation(summary = "Listar todos os usuários")
     public Page<UsuarioResponse> listarTodos(@PageableDefault(size = 20) Pageable pageable) {
         return usuarioService.listarTodos(pageable);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Deletar usuário")
+    public void deletar(@PathVariable Long id) {
+        usuarioService.deletar(id);
     }
 }

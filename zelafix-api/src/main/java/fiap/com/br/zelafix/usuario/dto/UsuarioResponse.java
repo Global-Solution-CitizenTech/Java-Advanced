@@ -1,41 +1,22 @@
 package fiap.com.br.zelafix.usuario.dto;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import fiap.com.br.zelafix.endereco.dto.EnderecoResponse;
 import fiap.com.br.zelafix.usuario.Usuario;
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public record UsuarioResponse(
-        String id,
+        Long id,
         String nome,
         String email,
         String cargo,
-        String telefone,
-        EnderecoResponse endereco,
-        String cpf,
-        String avatarUrl,
-        String createdAt
+        EnderecoResponse endereco
 ) {
-    public UsuarioResponse(String id, String nome, String email, String cargo, String telefone, EnderecoResponse endereco) {
-        this(id, nome, email, cargo, telefone, endereco, null, null, null);
-    }
-
-    public static UsuarioResponse fromEntity(Usuario u) {
-        if (u == null) return null;
-        String tel = (u.getTelefones() != null && !u.getTelefones().isEmpty())
-                ? "(" + u.getTelefones().get(0).getNumDdd() + ") " + u.getTelefones().get(0).getNumTel()
-                : null;
-
-        return new UsuarioResponse(
-                String.valueOf(u.getIdUsuario()),
+    public UsuarioResponse(Usuario u) {
+        this(
+                u.getIdUsuario(),
                 u.getNmUsuario(),
                 u.getEmail(),
-                u.getCargo() != null ? u.getCargo().name() : "CIDADAO",
-                tel,
-                EnderecoResponse.fromEntity(u.getEndereco()),
-                null,
-                null,
-                null
+                u.getCargo().name(),
+                new EnderecoResponse(u.getEndereco())
         );
     }
 }

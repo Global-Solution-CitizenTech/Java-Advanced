@@ -58,9 +58,4 @@ public class Usuario {
     @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<Telefone> telefones = new ArrayList<>();
-
-    // Getters auxiliares transitórios para compatibilidade com DTOs e telas
-    public String getNome() {
-        return this.nmUsuario;
-    }
 }

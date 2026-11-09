@@ -2,10 +2,9 @@ package fiap.com.br.zelafix.chamado;
 
 import fiap.com.br.zelafix.categoria.Categoria;
 import fiap.com.br.zelafix.categoria.CategoriaService;
-import fiap.com.br.zelafix.chamado.dto.ChamadoCreateRequest;
+import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
-import fiap.com.br.zelafix.chamado.dto.ChamadoUpdateRequest;
-import fiap.com.br.zelafix.chamado.dto.StatusUpdateRequest;
+import fiap.com.br.zelafix.chamado.dto.StatusRequest;
 import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.EnderecoService;
 import fiap.com.br.zelafix.endereco.bairro.Bairro;
@@ -34,7 +33,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -111,20 +109,19 @@ class ChamadoServiceTest {
     @Test
     @DisplayName("Deve criar um chamado com status ABERTO e publicar evento no RabbitMQ")
     void deveCriarChamadoComSucesso() {
-        EnderecoRequest enderecoRequest = new EnderecoRequest("05422-001", "720", "Esquina com Fradique");
-        ChamadoCreateRequest request = new ChamadoCreateRequest(
+        EnderecoRequest enderecoRequest = new EnderecoRequest("05422001", "Rua dos Pinheiros", "720", "Esquina com Fradique");
+        ChamadoRequest request = new ChamadoRequest(
                 "Buraco perigoso na via",
                 "Cratera profunda na pista da direita",
                 "Buraco na Rua",
                 enderecoRequest,
-                "https://images.unsplash.com/photo-1581375922343-ac6b40caf5e3",
                 null
         );
 
         when(usuarioService.buscarPorEmail(usuario.getEmail())).thenReturn(usuario);
         when(categoriaService.buscarPorNomeOuCriar("Buraco na Rua")).thenReturn(categoria);
         when(statusService.buscarPorNomeOuCriar("ABERTO")).thenReturn(statusAberto);
-        when(enderecoService.findOrCreateByCepAndNumero(any())).thenReturn(endereco);
+        when(enderecoService.findOrCreate(any())).thenReturn(endereco);
 
         Chamado chamadoSalvo = Chamado.builder()
                 .idChamado(100L)
@@ -135,8 +132,6 @@ class ChamadoServiceTest {
                 .usuario(usuario)
                 .endereco(endereco)
                 .dtAbertura(LocalDateTime.now())
-                .historico(new ArrayList<>())
-                .votos(new ArrayList<>())
                 .build();
 
         when(chamadoRepository.save(any())).thenReturn(chamadoSalvo);
@@ -144,7 +139,7 @@ class ChamadoServiceTest {
         ChamadoResponse response = chamadoService.criar(request, usuario.getEmail());
 
         assertNotNull(response);
-        assertEquals("ZFX-00100", response.protocolo());
+        assertEquals(100L, response.id());
         assertEquals("Buraco perigoso na via", response.titulo());
 
         verify(chamadoEventProducer, times(1)).publicarTriagem(any());
@@ -163,8 +158,7 @@ class ChamadoServiceTest {
                 .endereco(endereco)
                 .categoria(categoria)
                 .foto("bytes".getBytes(StandardCharsets.UTF_8))
-                .historico(new ArrayList<>())
-                .votos(new ArrayList<>())
+                .dtAbertura(LocalDateTime.now())
                 .build();
 
         when(chamadoRepository.findById(200L)).thenReturn(Optional.of(chamado));
@@ -190,11 +184,10 @@ class ChamadoServiceTest {
                 .endereco(endereco)
                 .categoria(categoria)
                 .foto("bytes".getBytes(StandardCharsets.UTF_8))
-                .historico(new ArrayList<>())
-                .votos(new ArrayList<>())
+                .dtAbertura(LocalDateTime.now())
                 .build();
 
-        VotoChamado voto = new VotoChamado(chamado, usuario);
+        VotoChamado voto = VotoChamado.builder().chamado(chamado).usuario(usuario).dtVoto(LocalDateTime.now()).build();
 
         when(chamadoRepository.findById(300L)).thenReturn(Optional.of(chamado));
         when(usuarioService.buscarPorEmail(usuario.getEmail())).thenReturn(usuario);
@@ -215,13 +208,12 @@ class ChamadoServiceTest {
                 .idChamado(400L)
                 .titulo("Guia rebaixada danificada")
                 .usuario(usuario)
-                .historico(new ArrayList<>())
                 .build();
 
         when(chamadoRepository.findById(400L)).thenReturn(Optional.of(chamado));
         when(usuarioService.buscarPorEmail(usuario.getEmail())).thenReturn(usuario);
 
-        StatusUpdateRequest request = new StatusUpdateRequest("CONCLUIDO", "Resolvido", null);
+        StatusRequest request = new StatusRequest("CONCLUIDO", "Resolvido");
 
         assertThrows(BusinessException.class, () ->
                 chamadoService.atualizarStatus(400L, request, usuario.getEmail())
@@ -246,16 +238,16 @@ class ChamadoServiceTest {
                 .descricao("Perigo")
                 .categoria(categoria)
                 .endereco(endereco)
+                .usuario(usuario)
                 .foto("bytes".getBytes(StandardCharsets.UTF_8))
-                .historico(new ArrayList<>())
-                .votos(new ArrayList<>())
+                .dtAbertura(LocalDateTime.now())
                 .build();
 
         when(chamadoRepository.findById(500L)).thenReturn(Optional.of(chamado));
         when(usuarioService.buscarPorEmail(gestor.getEmail())).thenReturn(gestor);
         when(statusService.buscarPorNomeOuCriar("CONCLUIDO")).thenReturn(statusNovo);
 
-        StatusUpdateRequest request = new StatusUpdateRequest("CONCLUIDO", "Serviço finalizado com sucesso.", "Recapeamento concluído.");
+        StatusRequest request = new StatusRequest("CONCLUIDO", "Serviço finalizado com sucesso.");
 
         ChamadoResponse response = chamadoService.atualizarStatus(500L, request, gestor.getEmail());
 

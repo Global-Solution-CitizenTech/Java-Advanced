@@ -2,17 +2,17 @@ package fiap.com.br.zelafix.chamado;
 
 import fiap.com.br.zelafix.categoria.Categoria;
 import fiap.com.br.zelafix.categoria.CategoriaService;
-import fiap.com.br.zelafix.chamado.dto.ChamadoCreateRequest;
+import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
-import fiap.com.br.zelafix.chamado.dto.ChamadoUpdateRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
-import fiap.com.br.zelafix.chamado.dto.StatusUpdateRequest;
+import fiap.com.br.zelafix.chamado.dto.StatusRequest;
 import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.EnderecoService;
 import fiap.com.br.zelafix.exception.BusinessException;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
 import fiap.com.br.zelafix.historico.HistChamado;
 import fiap.com.br.zelafix.historico.HistChamadoRepository;
+import fiap.com.br.zelafix.historico.dto.HistoricoResponse;
 import fiap.com.br.zelafix.queue.dto.ChamadoTriagemMessage;
 import fiap.com.br.zelafix.queue.dto.VotoMessage;
 import fiap.com.br.zelafix.queue.producer.ChamadoEventProducer;
@@ -31,6 +31,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
 
 @Slf4j
@@ -56,17 +59,21 @@ public class ChamadoService {
             String userEmail,
             Pageable pageable
     ) {
-        Usuario usuario = usuarioService.buscarPorEmail(userEmail);
-        Long autorId = Boolean.TRUE.equals(apenasMeus) ? usuario.getIdUsuario() : null;
+        Long userId = null;
+        if (userEmail != null) {
+            userId = usuarioService.buscarPorEmail(userEmail).getIdUsuario();
+        }
+        Long autorId = Boolean.TRUE.equals(apenasMeus) ? userId : null;
+        Long currentUserId = userId;
 
         return chamadoRepository.findByFiltros(status, categoria, autorId, busca, pageable)
-                .map(c -> ChamadoResponse.fromEntity(c, usuario.getIdUsuario()));
+                .map(c -> toResponse(c, currentUserId, false));
     }
 
     public ChamadoResponse buscarPorId(Long id, String userEmail) {
         Chamado chamado = findChamadoById(id);
-        Usuario usuario = usuarioService.buscarPorEmail(userEmail);
-        return ChamadoResponse.fromEntity(chamado, usuario.getIdUsuario());
+        Long userId = userEmail != null ? usuarioService.buscarPorEmail(userEmail).getIdUsuario() : null;
+        return toResponse(chamado, userId, true);
     }
 
     public Chamado buscarEntidadePorId(Long id) {
@@ -74,67 +81,111 @@ public class ChamadoService {
     }
 
     @Transactional
-    public ChamadoResponse criar(ChamadoCreateRequest request, String userEmail) {
+    public ChamadoResponse criar(ChamadoRequest request, String userEmail) {
         return criarComFotoBytes(request, null, userEmail);
     }
 
     @Transactional
-    public ChamadoResponse criarComFotoBytes(ChamadoCreateRequest request, byte[] fotoBytes, String userEmail) {
+    public ChamadoResponse criarComFotoBytes(ChamadoRequest request, byte[] fotoBytes, String userEmail) {
         Usuario autor = usuarioService.buscarPorEmail(userEmail);
         Categoria categoria = categoriaService.buscarPorNomeOuCriar(request.categoria());
-        Endereco endereco = enderecoService.findOrCreateByCepAndNumero(request.endereco());
+        Endereco endereco = enderecoService.findOrCreate(request.endereco());
         Status statusInicial = statusService.buscarPorNomeOuCriar("ABERTO");
 
-        Chamado entity = request.toEntity(autor, categoria, endereco, fotoBytes);
+        byte[] bytes = fotoBytes;
+        if ((bytes == null || bytes.length == 0) && request.fotoBase64() != null && !request.fotoBase64().isBlank()) {
+            bytes = Base64.getDecoder().decode(request.fotoBase64());
+        }
+        if (bytes == null || bytes.length == 0) {
+            bytes = new byte[]{0};
+        }
+
+        Chamado entity = Chamado.builder()
+                .titulo(request.titulo())
+                .descricao(request.descricao())
+                .foto(bytes)
+                .dtAbertura(LocalDateTime.now())
+                .usuario(autor)
+                .endereco(endereco)
+                .categoria(categoria)
+                .build();
+
         Chamado salvo = chamadoRepository.save(entity);
 
-        votoChamadoRepository.save(new VotoChamado(salvo, autor));
-        histChamadoRepository.save(HistChamado.inicial(salvo, autor, statusInicial));
+        votoChamadoRepository.save(VotoChamado.builder()
+                .chamado(salvo)
+                .usuario(autor)
+                .dtVoto(LocalDateTime.now())
+                .build());
+
+        histChamadoRepository.save(HistChamado.builder()
+                .chamado(salvo)
+                .usuario(autor)
+                .status(statusInicial)
+                .dtMudanca(LocalDateTime.now())
+                .observacoes("Chamado registrado no sistema.")
+                .build());
 
         chamadoEventProducer.publicarTriagem(new ChamadoTriagemMessage(
                 salvo.getIdChamado(),
-                salvo.getProtocolo(),
+                "ZFX-" + salvo.getIdChamado(),
                 salvo.getTitulo(),
                 salvo.getDescricao(),
                 categoria.getNmCategoria(),
                 endereco.getBairro().getNome()
         ));
 
-        return ChamadoResponse.fromEntity(salvo, autor.getIdUsuario());
+        return toResponse(salvo, autor.getIdUsuario(), true);
     }
 
     @Transactional
-    public ChamadoResponse atualizar(Long id, ChamadoUpdateRequest request, String userEmail) {
+    public ChamadoResponse atualizar(Long id, ChamadoRequest request, String userEmail) {
         Chamado chamado = findChamadoById(id);
-        Usuario autor = usuarioService.buscarPorEmail(userEmail);
+        Usuario usuario = usuarioService.buscarPorEmail(userEmail);
 
-        Categoria categoria = (request.categoria() != null && !request.categoria().isBlank())
-                ? categoriaService.buscarPorNomeOuCriar(request.categoria())
-                : null;
-        Endereco endereco = (request.endereco() != null)
-                ? enderecoService.findOrCreateByCepAndNumero(request.endereco())
-                : null;
+        if (request.categoria() != null && !request.categoria().isBlank()) {
+            chamado.setCategoria(categoriaService.buscarPorNomeOuCriar(request.categoria()));
+        }
+        if (request.endereco() != null) {
+            chamado.setEndereco(enderecoService.findOrCreate(request.endereco()));
+        }
+        if (request.titulo() != null && !request.titulo().isBlank()) {
+            chamado.setTitulo(request.titulo());
+        }
+        if (request.descricao() != null && !request.descricao().isBlank()) {
+            chamado.setDescricao(request.descricao());
+        }
+        if (request.fotoBase64() != null && !request.fotoBase64().isBlank()) {
+            chamado.setFoto(Base64.getDecoder().decode(request.fotoBase64()));
+        }
 
-        request.aplicarEm(chamado, categoria, endereco);
-
-        Chamado atualizado = chamadoRepository.save(chamado);
-        return ChamadoResponse.fromEntity(atualizado, autor.getIdUsuario());
+        Chamado salvo = chamadoRepository.save(chamado);
+        return toResponse(salvo, usuario.getIdUsuario(), true);
     }
 
     @Transactional
-    public ChamadoResponse atualizarStatus(Long id, StatusUpdateRequest request, String userEmail) {
+    public ChamadoResponse atualizarStatus(Long id, StatusRequest request, String userEmail) {
         Chamado chamado = findChamadoById(id);
         Usuario gestor = usuarioService.buscarPorEmail(userEmail);
 
         if (gestor.getCargo() != CargoUsuario.GESTOR) {
-            throw new BusinessException("Apenas servidores de órgãos públicos (GESTOR) têm permissão para dar prosseguimento ou atualizar o status do chamado.");
+            throw new BusinessException("Apenas servidores de órgãos públicos (GESTOR) têm permissão para atualizar o status do chamado.");
         }
 
-        String statusAnterior = (chamado.getStatus() != null) ? chamado.getStatus().getNmStatus() : "ABERTO";
-        Status novoStatus = statusService.buscarPorNomeOuCriar(request.novoStatus());
+        Status novoStatus = statusService.buscarPorNomeOuCriar(request.status());
+        String obs = (request.observacao() != null && !request.observacao().isBlank())
+                ? request.observacao()
+                : "Status alterado para " + novoStatus.getNmStatus();
 
-        histChamadoRepository.save(request.toHistorico(chamado, gestor, novoStatus, statusAnterior));
-        return ChamadoResponse.fromEntity(chamado, gestor.getIdUsuario());
+        histChamadoRepository.save(HistChamado.builder()
+                .chamado(chamado)
+                .usuario(gestor)
+                .status(novoStatus)
+                .dtMudanca(LocalDateTime.now())
+                .observacoes(obs)
+                .build());
+
+        return toResponse(chamado, gestor.getIdUsuario(), true);
     }
 
     @Transactional
@@ -148,11 +199,15 @@ public class ChamadoService {
             votoChamadoRepository.delete(votoExistente.get());
             votoEventProducer.publicarVoto(new VotoMessage(id, usuario.getIdUsuario(), "REMOVER"));
         } else {
-            votoChamadoRepository.save(new VotoChamado(chamado, usuario));
+            votoChamadoRepository.save(VotoChamado.builder()
+                    .chamado(chamado)
+                    .usuario(usuario)
+                    .dtVoto(LocalDateTime.now())
+                    .build());
             votoEventProducer.publicarVoto(new VotoMessage(id, usuario.getIdUsuario(), "VOTAR"));
         }
 
-        return ChamadoResponse.fromEntity(chamado, usuario.getIdUsuario());
+        return toResponse(chamado, usuario.getIdUsuario(), true);
     }
 
     @Transactional
@@ -168,7 +223,6 @@ public class ChamadoService {
                 + chamadoRepository.countByStatusNmStatusIgnoreCase("EM_EXECUCAO");
         long resolvidos = chamadoRepository.countByStatusNmStatusIgnoreCase("CONCLUIDO");
         long rejeitados = chamadoRepository.countByStatusNmStatusIgnoreCase("REJEITADO");
-
         long totalApoios = votoChamadoRepository.count();
 
         return new EstatisticasResponse(total, abertos, emAndamento, resolvidos, rejeitados, totalApoios);
@@ -177,5 +231,18 @@ public class ChamadoService {
     private Chamado findChamadoById(Long id) {
         return chamadoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Chamado com id " + id + " não encontrado."));
+    }
+
+    private ChamadoResponse toResponse(Chamado c, Long userId, boolean incluirHistorico) {
+        String status = histChamadoRepository.findFirstByChamadoIdChamadoOrderByDtMudancaDesc(c.getIdChamado())
+                .map(h -> h.getStatus().getNmStatus())
+                .orElse("ABERTO");
+        long apoios = votoChamadoRepository.countByChamadoIdChamado(c.getIdChamado());
+        boolean apoiado = userId != null && votoChamadoRepository.existsByChamadoIdChamadoAndUsuarioIdUsuario(c.getIdChamado(), userId);
+        List<HistoricoResponse> historico = incluirHistorico
+                ? histChamadoRepository.findByChamadoIdChamadoOrderByDtMudancaDesc(c.getIdChamado()).stream().map(HistoricoResponse::new).toList()
+                : List.of();
+
+        return new ChamadoResponse(c, status, apoios, apoiado, historico);
     }
 }

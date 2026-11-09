@@ -30,90 +30,41 @@ public class EnderecoService {
     }
 
     public Endereco findById(Long id) {
-        return findEnderecoById(id);
+        return enderecoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Endereço " + id + " não encontrado."));
     }
 
     @Transactional
-    public Endereco create(EnderecoRequest enderecoRequest) {
-        return findOrCreateByCepAndNumero(enderecoRequest);
+    public Endereco findOrCreate(EnderecoRequest req) {
+        String cepLimpo = req.cep().replaceAll("\\D", "");
+        return enderecoRepository.findFirstByCepAndNumero(cepLimpo, req.numero())
+                .orElseGet(() -> {
+                    ViaCepResponse dados = viaCepService.getEnderecoPorCep(cepLimpo);
+                    Estado estado = estadoRepository.findByNomeIgnoreCase(dados.estado())
+                            .orElseGet(() -> estadoRepository.save(new Estado(null, dados.estado(), null)));
+                    Cidade cidade = cidadeRepository.findByNomeIgnoreCaseAndEstadoId(dados.localidade(), estado.getId())
+                            .orElseGet(() -> cidadeRepository.save(new Cidade(null, dados.localidade(), estado, null)));
+                    Bairro bairro = bairroRepository.findByNomeIgnoreCaseAndCidadeId(dados.bairro(), cidade.getId())
+                            .orElseGet(() -> bairroRepository.save(new Bairro(null, dados.bairro(), cidade, null)));
+
+                    String rua = (req.rua() != null && !req.rua().isBlank()) ? req.rua() : dados.logradouro();
+                    return enderecoRepository.save(Endereco.builder()
+                            .cep(cepLimpo)
+                            .rua(rua)
+                            .numero(req.numero())
+                            .referencia(req.referencia())
+                            .bairro(bairro)
+                            .build());
+                });
     }
 
     @Transactional
-    public Endereco update(Long id, EnderecoRequest enderecoRequest) {
-        Endereco endereco = findEnderecoById(id);
-        aplicarEndereco(endereco, enderecoRequest);
-        return enderecoRepository.save(endereco);
+    public Endereco findOrCreateByCepAndNumero(EnderecoRequest req) {
+        return findOrCreate(req);
     }
 
     @Transactional
     public void delete(Long id) {
-        findEnderecoById(id);
-        enderecoRepository.deleteById(id);
-    }
-
-    private Endereco findEnderecoById(Long id) {
-        return enderecoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Endereço com id " + id + " não encontrado."));
-    }
-
-    @Transactional
-    public Endereco findOrCreateByCepAndNumero(EnderecoRequest enderecoRequest) {
-        Endereco novo = buildEndereco(enderecoRequest);
-        return enderecoRepository
-                .findFirstByCepAndNumeroAndBairroIdOrderByIdAsc(novo.getCep(), novo.getNumero(), novo.getBairro().getId())
-                .orElseGet(() -> enderecoRepository.save(novo));
-    }
-
-    private Endereco buildEndereco(EnderecoRequest request) {
-        ViaCepResponse dados = obterDadosCep(request.cep());
-        Bairro bairro = obterOuCriarBairro(dados);
-        return request.toEntity(normalizarTexto(dados.logradouro()), bairro);
-    }
-
-    private Endereco aplicarEndereco(Endereco endereco, EnderecoRequest request) {
-        ViaCepResponse dados = obterDadosCep(request.cep());
-        Bairro bairro = obterOuCriarBairro(dados);
-        return aplicarEm(endereco, request, normalizarTexto(dados.logradouro()), bairro);
-    }
-
-    private ViaCepResponse obterDadosCep(String cep) {
-        ViaCepResponse dados = viaCepService.getEnderecoPorCep(cep.replaceAll("\\D", ""));
-        if (Boolean.TRUE.equals(dados.erro())) {
-            throw new IllegalArgumentException("CEP " + cep + " não encontrado.");
-        }
-        return dados;
-    }
-
-    private Bairro obterOuCriarBairro(ViaCepResponse dados) {
-        String nomeEstado = normalizarTexto(dados.estado());
-        Estado estado = estadoRepository.findByNomeIgnoreCase(nomeEstado)
-                .orElseGet(() -> estadoRepository.save(Estado.builder().nome(nomeEstado).build()));
-
-        String nomeCidade = normalizarTexto(dados.localidade());
-        Cidade cidade = cidadeRepository.findByNomeIgnoreCaseAndEstadoId(nomeCidade, estado.getId())
-                .orElseGet(() -> cidadeRepository.save(Cidade.builder().nome(nomeCidade).estado(estado).build()));
-
-        String nomeBairro = normalizarTexto(dados.bairro());
-        return bairroRepository.findByNomeIgnoreCaseAndCidadeId(nomeBairro, cidade.getId())
-                .orElseGet(() -> bairroRepository.save(Bairro.builder().nome(nomeBairro).cidade(cidade).build()));
-    }
-
-    private String normalizarTexto(String valor) {
-        return (valor == null || valor.isBlank()) ? "Não Informado" : valor.trim();
-    }
-
-    private Endereco aplicarEm(Endereco endereco, EnderecoRequest request, String rua, Bairro bairro) {
-        endereco.setCep(request.cep().replaceAll("\\D", ""));
-        endereco.setNumero(request.numero());
-        endereco.setRua(rua);
-        endereco.setBairro(bairro);
-        String ref = (request.referencia() != null && !request.referencia().isBlank())
-                ? request.referencia()
-                : (request.complemento() != null && !request.complemento().isBlank() ? request.complemento() : "Sem referência");
-        if (ref.length() > 50) {
-            ref = ref.substring(0, 50);
-        }
-        endereco.setReferencia(ref);
-        return endereco;
+        enderecoRepository.delete(findById(id));
     }
 }

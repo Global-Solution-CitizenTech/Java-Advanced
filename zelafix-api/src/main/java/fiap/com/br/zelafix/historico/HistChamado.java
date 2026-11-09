@@ -11,7 +11,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -52,21 +51,4 @@ public class HistChamado {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "status_id_status", nullable = false)
     private Status status;
-
-    public static HistChamado inicial(Chamado chamado, Usuario usuario, Status status) {
-        return HistChamado.builder()
-                .chamado(chamado)
-                .usuario(usuario)
-                .status(status)
-                .observacoes("Chamado registrado pelo cidadão. Encaminhado para a fila de triagem inteligente.")
-                .dtMudanca(LocalDateTime.now())
-                .build();
-    }
-
-    @PrePersist
-    public void prePersist() {
-        if (this.dtMudanca == null) {
-            this.dtMudanca = LocalDateTime.now();
-        }
-    }
 }

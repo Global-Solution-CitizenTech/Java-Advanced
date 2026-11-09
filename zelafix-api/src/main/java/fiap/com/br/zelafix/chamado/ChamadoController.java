@@ -1,10 +1,9 @@
 package fiap.com.br.zelafix.chamado;
 
-import fiap.com.br.zelafix.chamado.dto.ChamadoCreateRequest;
+import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
-import fiap.com.br.zelafix.chamado.dto.ChamadoUpdateRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
-import fiap.com.br.zelafix.chamado.dto.StatusUpdateRequest;
+import fiap.com.br.zelafix.chamado.dto.StatusRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -45,7 +44,7 @@ public class ChamadoController {
     private final ChamadoService chamadoService;
 
     @GetMapping
-    @Operation(summary = "[PROTEGIDO] Listar chamados com paginação (Pageable) e filtros dinâmicos")
+    @Operation(summary = "Listar chamados com paginação (Pageable) e filtros dinâmicos")
     public Page<ChamadoResponse> listar(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String categoria,
@@ -59,14 +58,14 @@ public class ChamadoController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "[PROTEGIDO] Buscar chamado por ID com dados completos e histórico de auditoria")
+    @Operation(summary = "Buscar chamado por ID com dados completos e histórico de auditoria")
     public ChamadoResponse buscarPorId(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
         String email = jwt != null ? jwt.getSubject() : null;
         return chamadoService.buscarPorId(id, email);
     }
 
     @GetMapping(value = "/{id}/foto", produces = {MediaType.IMAGE_JPEG_VALUE, MediaType.IMAGE_PNG_VALUE})
-    @Operation(summary = "[PÚBLICO] Obter a imagem fotográfica da ocorrência armazenada em BLOB no Oracle")
+    @Operation(summary = "Obter a imagem fotográfica da ocorrência armazenada em BLOB no Oracle")
     public ResponseEntity<byte[]> buscarFotoChamado(@PathVariable Long id) {
         Chamado chamado = chamadoService.buscarEntidadePorId(id);
         if (chamado.getFoto() == null || chamado.getFoto().length == 0) {
@@ -79,9 +78,9 @@ public class ChamadoController {
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "[PROTEGIDO] Abrir novo chamado com payload JSON (foto em base64 ou URL)")
+    @Operation(summary = "Abrir novo chamado com payload JSON (foto em base64)")
     public ChamadoResponse criar(
-            @RequestBody @Valid ChamadoCreateRequest request,
+            @RequestBody @Valid ChamadoRequest request,
             @AuthenticationPrincipal Jwt jwt
     ) {
         return chamadoService.criar(request, jwt.getSubject());
@@ -89,9 +88,9 @@ public class ChamadoController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "[PROTEGIDO] Abrir novo chamado enviando foto via MultipartFile (armazenada em BLOB)")
+    @Operation(summary = "Abrir novo chamado enviando foto via MultipartFile (armazenada em BLOB)")
     public ChamadoResponse criarComMultipart(
-            @RequestPart("dados") @Valid ChamadoCreateRequest request,
+            @RequestPart("dados") @Valid ChamadoRequest request,
             @RequestPart(value = "foto", required = false) MultipartFile foto,
             @AuthenticationPrincipal Jwt jwt
     ) throws IOException {
@@ -100,10 +99,10 @@ public class ChamadoController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "[PROTEGIDO] Atualizar dados do chamado")
+    @Operation(summary = "Atualizar dados do chamado")
     public ChamadoResponse atualizar(
             @PathVariable Long id,
-            @RequestBody @Valid ChamadoUpdateRequest request,
+            @RequestBody @Valid ChamadoRequest request,
             @AuthenticationPrincipal Jwt jwt
     ) {
         return chamadoService.atualizar(id, request, jwt.getSubject());
@@ -111,17 +110,17 @@ public class ChamadoController {
 
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('GESTOR')")
-    @Operation(summary = "[GESTOR] Atualizar status do chamado com registro de histórico e parecer de resolução")
+    @Operation(summary = "[GESTOR] Atualizar status do chamado com registro de histórico")
     public ChamadoResponse atualizarStatus(
             @PathVariable Long id,
-            @RequestBody @Valid StatusUpdateRequest request,
+            @RequestBody @Valid StatusRequest request,
             @AuthenticationPrincipal Jwt jwt
     ) {
         return chamadoService.atualizarStatus(id, request, jwt.getSubject());
     }
 
     @PostMapping({"/{id}/apoiar", "/{id}/voto"})
-    @Operation(summary = "[PROTEGIDO] Apoiar/votar em um chamado (ou desfazer apoio) via RabbitMQ assíncrono")
+    @Operation(summary = "Apoiar/votar em um chamado (ou desfazer apoio) via RabbitMQ assíncrono")
     public ChamadoResponse apoiar(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
         return chamadoService.apoiar(id, jwt.getSubject());
     }
@@ -135,7 +134,7 @@ public class ChamadoController {
     }
 
     @GetMapping("/estatisticas")
-    @Operation(summary = "[PÚBLICO] Obter estatísticas consolidadas para os cards do dashboard")
+    @Operation(summary = "Obter estatísticas consolidadas para os cards do dashboard")
     public EstatisticasResponse obterEstatisticas() {
         return chamadoService.obterEstatisticas();
     }

@@ -4,8 +4,6 @@ import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.EnderecoService;
 import fiap.com.br.zelafix.exception.BusinessException;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
-import fiap.com.br.zelafix.telefone.Telefone;
-import fiap.com.br.zelafix.telefone.TelefoneRepository;
 import fiap.com.br.zelafix.usuario.dto.UsuarioRequest;
 import fiap.com.br.zelafix.usuario.dto.UsuarioResponse;
 import lombok.RequiredArgsConstructor;
@@ -21,62 +19,64 @@ public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
     private final EnderecoService enderecoService;
-    private final TelefoneRepository telefoneRepository;
     private final PasswordEncoder passwordEncoder;
 
     public Page<UsuarioResponse> listarTodos(Pageable pageable) {
-        return usuarioRepository.findAll(pageable).map(UsuarioResponse::fromEntity);
+        return usuarioRepository.findAll(pageable).map(UsuarioResponse::new);
     }
 
-    public Usuario buscarPorId(Long id) {
-        return findUsuarioById(id);
+    public UsuarioResponse buscarPorId(Long id) {
+        return new UsuarioResponse(findEntityById(id));
     }
 
     public Usuario buscarPorEmail(String email) {
-        return usuarioRepository.findByEmail(email.trim().toLowerCase())
-                .orElseThrow(() -> new ResourceNotFoundException("Usuário com e-mail " + email + " não encontrado."));
+        return usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado: " + email));
     }
 
     @Transactional
-    public UsuarioResponse cadastrar(UsuarioRequest request) {
-        String emailNormalizado = request.email().trim().toLowerCase();
-        if (usuarioRepository.existsByEmail(emailNormalizado)) {
-            throw new BusinessException("Já existe um usuário cadastrado com o e-mail: " + request.email());
+    public UsuarioResponse cadastrar(UsuarioRequest req) {
+        if (usuarioRepository.existsByEmail(req.email())) {
+            throw new BusinessException("E-mail já cadastrado: " + req.email());
         }
 
-        Endereco endereco = enderecoService.findOrCreateByCepAndNumero(request.endereco());
-        Usuario salvo = usuarioRepository.save(request.toEntity(endereco, passwordEncoder.encode(request.senha())));
-        vincularTelefoneSeInformado(salvo, request);
+        Endereco endereco = enderecoService.findOrCreate(req.endereco());
+        Usuario usuario = Usuario.builder()
+                .nmUsuario(req.nome())
+                .email(req.email())
+                .senha(passwordEncoder.encode(req.senha()))
+                .cargo(req.cargo() != null ? req.cargo() : CargoUsuario.CIDADAO)
+                .endereco(endereco)
+                .build();
 
-        return UsuarioResponse.fromEntity(salvo);
+        return new UsuarioResponse(usuarioRepository.save(usuario));
     }
 
     @Transactional
-    public UsuarioResponse atualizarPerfil(Long id, UsuarioRequest request) {
-        Usuario usuario = findUsuarioById(id);
-        Endereco endereco = enderecoService.findOrCreateByCepAndNumero(request.endereco());
-        request.aplicarEm(usuario, endereco, passwordEncoder);
-        vincularTelefoneSeInformado(usuario, request);
-        return UsuarioResponse.fromEntity(usuarioRepository.save(usuario));
+    public UsuarioResponse atualizar(Long id, UsuarioRequest req) {
+        Usuario u = findEntityById(id);
+        Endereco endereco = enderecoService.findOrCreate(req.endereco());
+
+        u.setNmUsuario(req.nome());
+        u.setEmail(req.email());
+        if (req.senha() != null && !req.senha().isBlank()) {
+            u.setSenha(passwordEncoder.encode(req.senha()));
+        }
+        if (req.cargo() != null) {
+            u.setCargo(req.cargo());
+        }
+        u.setEndereco(endereco);
+
+        return new UsuarioResponse(usuarioRepository.save(u));
     }
 
     @Transactional
     public void deletar(Long id) {
-        Usuario usuario = findUsuarioById(id);
-        usuarioRepository.delete(usuario);
+        usuarioRepository.delete(findEntityById(id));
     }
 
-    private Usuario findUsuarioById(Long id) {
+    private Usuario findEntityById(Long id) {
         return usuarioRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuário com id " + id + " não encontrado."));
-    }
-
-    private void vincularTelefoneSeInformado(Usuario usuario, UsuarioRequest request) {
-        Telefone telefone = request.toTelefone(usuario);
-        if (telefone != null) {
-            telefoneRepository.save(telefone);
-            usuario.getTelefones().clear();
-            usuario.getTelefones().add(telefone);
-        }
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado: " + id));
     }
 }

@@ -56,15 +56,4 @@ public class Endereco {
     @JsonIgnore
     @Builder.Default
     private Set<Usuario> usuarios = new HashSet<>();
-
-    // Getter de compatibilidade transitória com código anterior
-    public String getComplemento() {
-        return this.referencia;
-    }
-
-    public void setComplemento(String complemento) {
-        if (complemento != null && !complemento.isBlank()) {
-            this.referencia = complemento.length() > 50 ? complemento.substring(0, 50) : complemento;
-        }
-    }
 }

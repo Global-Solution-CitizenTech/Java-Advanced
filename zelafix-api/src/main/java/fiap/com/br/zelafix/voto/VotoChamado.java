@@ -10,7 +10,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
@@ -48,17 +47,4 @@ public class VotoChamado {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id_usuario", nullable = false)
     private Usuario usuario;
-
-    public VotoChamado(Chamado chamado, Usuario usuario) {
-        this.chamado = chamado;
-        this.usuario = usuario;
-        this.dtVoto = LocalDateTime.now();
-    }
-
-    @PrePersist
-    public void prePersist() {
-        if (this.dtVoto == null) {
-            this.dtVoto = LocalDateTime.now();
-        }
-    }
 }

@@ -32,32 +32,28 @@ public class EnderecoController {
     private final EnderecoService enderecoService;
 
     @GetMapping
-    @ResponseStatus(HttpStatus.OK)
-    @Operation(summary = "[GESTOR] Listar todos os endereços com paginação e ordenação")
+    @Operation(summary = "[GESTOR] Listar todos os endereços com paginação")
     public Page<EnderecoResponse> findAll(@PageableDefault(size = 10, page = 0, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
-        return enderecoService.findAll(pageable)
-                .map(EnderecoResponse::fromEntity);
+        return enderecoService.findAll(pageable).map(EnderecoResponse::new);
     }
 
     @GetMapping("/{id}")
-    @ResponseStatus(HttpStatus.OK)
     @Operation(summary = "[GESTOR] Buscar endereço por ID")
     public EnderecoResponse findById(@PathVariable Long id) {
-        return EnderecoResponse.fromEntity(enderecoService.findById(id));
+        return new EnderecoResponse(enderecoService.findById(id));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "[GESTOR] Criar endereço")
     public EnderecoResponse create(@Valid @RequestBody EnderecoRequest enderecoRequest) {
-        return EnderecoResponse.fromEntity(enderecoService.create(enderecoRequest));
+        return new EnderecoResponse(enderecoService.findOrCreate(enderecoRequest));
     }
 
     @PutMapping("/{id}")
-    @ResponseStatus(HttpStatus.OK)
     @Operation(summary = "[GESTOR] Atualizar endereço")
     public EnderecoResponse update(@PathVariable Long id, @Valid @RequestBody EnderecoRequest enderecoRequest) {
-        return EnderecoResponse.fromEntity(enderecoService.update(id, enderecoRequest));
+        return new EnderecoResponse(enderecoService.findOrCreate(enderecoRequest));
     }
 
     @DeleteMapping("/{id}")
@@ -67,4 +63,3 @@ public class EnderecoController {
         enderecoService.delete(id);
     }
 }
-
