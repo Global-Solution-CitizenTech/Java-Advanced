@@ -5,8 +5,6 @@ import fiap.com.br.zelafix.categoria.CategoriaRepository;
 import fiap.com.br.zelafix.chamado.Chamado;
 import fiap.com.br.zelafix.chamado.ChamadoRepository;
 import fiap.com.br.zelafix.chamado.UrgenciaChamado;
-import fiap.com.br.zelafix.comentario.Comentario;
-import fiap.com.br.zelafix.comentario.ComentarioRepository;
 import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.EnderecoRepository;
 import fiap.com.br.zelafix.endereco.bairro.Bairro;
@@ -48,7 +46,6 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final EnderecoRepository enderecoRepository;
     private final UsuarioRepository usuarioRepository;
     private final ChamadoRepository chamadoRepository;
-    private final ComentarioRepository comentarioRepository;
     private final VotoChamadoRepository votoChamadoRepository;
     private final HistStatusRepository histStatusRepository;
     private final PasswordEncoder passwordEncoder;
@@ -167,13 +164,6 @@ public class DatabaseSeeder implements CommandLineRunner {
 
         votoChamadoRepository.save(VotoChamado.builder().chamado(c1Salvo).usuario(cidadao).dtVoto(LocalDateTime.now().minusDays(2)).build());
         votoChamadoRepository.save(VotoChamado.builder().chamado(c1Salvo).usuario(gestor).dtVoto(LocalDateTime.now().minusDays(1)).build());
-
-        comentarioRepository.save(Comentario.builder()
-                .chamado(c1Salvo)
-                .usuario(cidadao)
-                .conteudo("Quase vi um motoqueiro cair ontem à noite aqui. Precisamos de urgência!")
-                .dtComentario(LocalDateTime.now().minusDays(1))
-                .build());
 
         histStatusRepository.save(HistStatus.builder()
                 .chamado(c1Salvo)

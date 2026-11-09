@@ -1,7 +1,6 @@
 package fiap.com.br.zelafix.chamado;
 
 import fiap.com.br.zelafix.categoria.Categoria;
-import fiap.com.br.zelafix.comentario.Comentario;
 import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.historico.HistStatus;
 import fiap.com.br.zelafix.status.Status;
@@ -98,11 +97,6 @@ public class Chamado {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "categoria_id_categoria", nullable = false)
     private Categoria categoria;
-
-    @OneToMany(mappedBy = "chamado", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("dtComentario DESC")
-    @Builder.Default
-    private List<Comentario> comentarios = new ArrayList<>();
 
     @OneToMany(mappedBy = "chamado", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
