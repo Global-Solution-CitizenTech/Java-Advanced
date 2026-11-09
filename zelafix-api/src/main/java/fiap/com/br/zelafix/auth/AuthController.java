@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"", "/api"})
+@RequestMapping
 @RequiredArgsConstructor
 @Tag(name = "Autenticacao", description = "Autenticacao de usuarios, emissao de token JWT e gestao de perfil")
 public class AuthController {

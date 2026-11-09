@@ -26,7 +26,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
 @RestController
-@RequestMapping({"/uploads", "/api/uploads"})
+@RequestMapping("/uploads")
 @Tag(name = "Uploads", description = "Serviço de upload e visualização de fotos de ocorrências capturadas no mobile ou web")
 public class UploadController {
 

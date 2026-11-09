@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/chamados", "/api/chamados"})
+@RequestMapping("/chamados")
 @RequiredArgsConstructor
 @Tag(name = "Chamados", description = "Operações completas de CRUD e gestão de chamados de zeladoria urbana")
 public class ChamadoController {

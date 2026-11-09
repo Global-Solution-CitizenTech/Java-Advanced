@@ -53,22 +53,20 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .headers(headers -> headers.frameOptions(FrameOptionsConfig::sameOrigin))
                 .authorizeHttpRequests(auth -> auth
-                        // Endpoints públicos de autenticação e documentação (com e sem prefixo /api)
+                        // Endpoints públicos de autenticação e documentação
                         .requestMatchers(HttpMethod.POST,
-                                "/login", "/auth/login", "/auth/register", "/usuarios",
-                                "/api/login", "/api/auth/login", "/api/auth/register", "/api/usuarios"
+                                "/login", "/auth/login", "/auth/register", "/usuarios"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET,
-                                "/categorias/**", "/status/**", "/chamados/estatisticas", "/uploads/**",
-                                "/api/categorias/**", "/api/status/**", "/api/chamados/estatisticas", "/api/uploads/**"
+                                "/categorias/**", "/status/**", "/chamados/estatisticas", "/uploads/**"
                         ).permitAll()
                         .requestMatchers("/", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/swagger-resources/**", "/webjars/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info", "/error").permitAll()
 
                         // Endpoints restritos por papel (RBAC: GESTOR vs CIDADAO)
-                        .requestMatchers(HttpMethod.PATCH, "/chamados/*/status", "/api/chamados/*/status").hasRole("GESTOR")
-                        .requestMatchers(HttpMethod.DELETE, "/chamados/**", "/api/chamados/**").hasRole("GESTOR")
-                        .requestMatchers("/enderecos/**", "/api/enderecos/**").hasRole("GESTOR")
+                        .requestMatchers(HttpMethod.PATCH, "/chamados/*/status").hasRole("GESTOR")
+                        .requestMatchers(HttpMethod.DELETE, "/chamados/**").hasRole("GESTOR")
+                        .requestMatchers("/enderecos/**").hasRole("GESTOR")
 
                         // Qualquer outra requisição exige autenticação JWT
                         .anyRequest().authenticated()

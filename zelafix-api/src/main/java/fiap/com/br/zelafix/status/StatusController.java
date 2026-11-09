@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping({"/status", "/api/status"})
+@RequestMapping("/status")
 @RequiredArgsConstructor
 @Tag(name = "Status", description = "Estados do ciclo de vida dos chamados")
 public class StatusController {

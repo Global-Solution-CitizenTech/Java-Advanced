@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/usuarios", "/api/usuarios"})
+@RequestMapping("/usuarios")
 @RequiredArgsConstructor
 @Tag(name = "Usuarios", description = "Endpoints de gerenciamento e perfil de usuários")
 public class UsuarioController {
