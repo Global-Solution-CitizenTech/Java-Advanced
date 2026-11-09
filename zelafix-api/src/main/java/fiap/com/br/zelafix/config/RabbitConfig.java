@@ -10,7 +10,6 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Configuração de Mensageria Assíncrona com RabbitMQ (Opção A - Requisito Obrigatório da GS 2026/2).
- * Inspirada diretamente no projeto prático 'paredao' ministrado pelo professor em aula.
  *
  * Estrutura:
  * - DirectExchange: zelafix.direct (Central de Triagem que recebe os eventos da API)

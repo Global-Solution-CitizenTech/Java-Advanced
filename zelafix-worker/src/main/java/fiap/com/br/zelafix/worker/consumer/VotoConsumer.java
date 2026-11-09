@@ -12,11 +12,9 @@ import org.springframework.stereotype.Component;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Consumidor Assíncrono e Agregador de Votos RabbitMQ (Opção A).
- * Inspirado 100% no padrão 'VoteConsumer' do projeto 'paredao' ministrado em aula pelo professor.
+ * Consumidor Assíncrono e Agregador de Votos RabbitMQ.
  *
- * Em estrita 3FN, a contagem de apoios é calculada dinamicamente via relação 'voto_chamado'
- * (sem redundância de coluna física 'apoios_count' na tabela 'chamado').
+ * Em estrita 3FN, a contagem de apoios é calculada dinamicamente via relação 'voto_chamado'.
  * Este consumidor gerencia o buffer concorrente em memória e consolida a telemetria em lote.
  */
 @Slf4j
@@ -41,10 +39,10 @@ public class VotoConsumer {
     }
 
     public void consumeVoto(VotoMessage message) {
-        int delta = "REMOVER".equalsIgnoreCase(message.tipo()) ? -1 : 1;
+        int delta = "REMOVER".equalsIgnoreCase(message.operacao()) ? -1 : 1;
         votes.merge(message.idChamado(), delta, Integer::sum);
         log.info(">>> [ZelaFix Worker] Voto ({}) recebido para o chamado ID: {}, saldo no buffer: {}",
-                message.tipo(), message.idChamado(), votes.get(message.idChamado()));
+                message.operacao(), message.idChamado(), votes.get(message.idChamado()));
     }
 
     @Scheduled(fixedDelay = 3_000)

@@ -17,7 +17,7 @@ public class ChamadoEventProducer {
     private final ObjectMapper objectMapper;
 
     public void publicarTriagem(ChamadoTriagemMessage message) {
-        log.info("Publicando evento de triagem no RabbitMQ para o chamado protocolo: {}", message.protocolo());
+        log.info("Publicando evento de triagem no RabbitMQ para o chamado ID: {}", message.idChamado());
         try {
             String json = objectMapper.writeValueAsString(message);
             rabbitTemplate.convertAndSend(

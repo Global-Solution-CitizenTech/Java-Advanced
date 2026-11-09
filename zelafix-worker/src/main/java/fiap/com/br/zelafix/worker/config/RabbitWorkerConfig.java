@@ -10,7 +10,6 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Configuração de Mensageria RabbitMQ no Worker Consumidor (Opção A).
- * Inspirada diretamente no projeto prático 'paredao' (vote-aggregator) ministrado em aula.
  *
  * Estrutura:
  * - DirectExchange: zelafix.direct (Central de Triagem)

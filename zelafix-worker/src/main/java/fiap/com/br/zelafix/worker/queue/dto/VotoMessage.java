@@ -13,16 +13,4 @@ public record VotoMessage(
     public VotoMessage(Long idChamado, Long idUsuario) {
         this(idChamado, idUsuario, "VOTAR");
     }
-
-    public Long chamadoId() {
-        return this.idChamado;
-    }
-
-    public Long usuarioId() {
-        return this.idUsuario;
-    }
-
-    public String tipo() {
-        return this.operacao;
-    }
 }

@@ -91,9 +91,7 @@ public class ZelaFixAiService {
     }
 
     public TriagemIaResult aplicarHeuristicaTriagem(String categoria, String titulo, String descricao) {
-        String texto = ((categoria != null ? categoria : "") + " " +
-                (titulo != null ? titulo : "") + " " +
-                (descricao != null ? descricao : "")).toLowerCase(Locale.ROOT);
+        String texto = (categoria + " " + titulo + " " + descricao).toLowerCase(Locale.ROOT);
 
         String prioridade;
         String orgao;
