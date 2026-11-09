@@ -171,7 +171,7 @@ class ChamadoServiceTest {
         when(votoChamadoRepository.findByChamadoIdChamadoAndUsuarioIdUsuario(200L, 1L))
                 .thenReturn(Optional.empty());
 
-        ChamadoResponse response = chamadoService.vote(200L, usuario.getEmail());
+        ChamadoResponse response = chamadoService.apoiar(200L, usuario.getEmail());
 
         assertNotNull(response);
         verify(votoChamadoRepository, times(1)).save(any());
@@ -199,7 +199,7 @@ class ChamadoServiceTest {
         when(votoChamadoRepository.findByChamadoIdChamadoAndUsuarioIdUsuario(300L, 1L))
                 .thenReturn(Optional.of(voto));
 
-        ChamadoResponse response = chamadoService.vote(300L, usuario.getEmail());
+        ChamadoResponse response = chamadoService.apoiar(300L, usuario.getEmail());
 
         assertNotNull(response);
         verify(votoChamadoRepository, times(1)).delete(voto);
