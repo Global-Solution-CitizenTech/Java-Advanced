@@ -2,15 +2,23 @@ package fiap.com.br.zelafix.chamado;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface ChamadoRepository extends JpaRepository<Chamado, Long>, JpaSpecificationExecutor<Chamado> {
 
+    @Override
+    @EntityGraph(attributePaths = {"categoria", "usuario", "endereco.bairro.cidade.estado"})
+    Optional<Chamado> findById(Long id);
+
+    @EntityGraph(attributePaths = {"categoria", "usuario", "endereco.bairro.cidade.estado"})
     @Query("""
         SELECT c FROM Chamado c
         WHERE (:status IS NULL OR EXISTS (
