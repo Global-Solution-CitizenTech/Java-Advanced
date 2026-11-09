@@ -25,40 +25,40 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/enderecos")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('GESTOR')")
-@Tag(name = "Endereco", description = "Gerenciamento de endereços municipais")
+@PreAuthorize("hasRole('ADMIN')")
+@Tag(name = "Endereco", description = "Gerenciamento de endereços")
 public class EnderecoController {
 
     private final EnderecoService enderecoService;
 
     @GetMapping
-    @Operation(summary = "[GESTOR] Listar todos os endereços com paginação")
-    public Page<EnderecoResponse> findAll(@PageableDefault(size = 10, page = 0, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
-        return enderecoService.findAll(pageable).map(EnderecoResponse::new);
+    @Operation(summary = "[ADMIN] Listar todos os endereços com paginação")
+    public Page<EnderecoResponse> findAll(@PageableDefault(size = 10, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
+        return enderecoService.findAll(pageable).map(EnderecoResponse::fromEntity);
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "[GESTOR] Buscar endereço por ID")
+    @Operation(summary = "[ADMIN] Buscar endereço por ID")
     public EnderecoResponse findById(@PathVariable Long id) {
-        return new EnderecoResponse(enderecoService.findById(id));
+        return EnderecoResponse.fromEntity(enderecoService.findById(id));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "[GESTOR] Criar endereço")
+    @Operation(summary = "[ADMIN] Criar endereço")
     public EnderecoResponse create(@Valid @RequestBody EnderecoRequest enderecoRequest) {
-        return new EnderecoResponse(enderecoService.findOrCreate(enderecoRequest));
+        return EnderecoResponse.fromEntity(enderecoService.create(enderecoRequest));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "[GESTOR] Atualizar endereço")
+    @Operation(summary = "[ADMIN] Atualizar endereço")
     public EnderecoResponse update(@PathVariable Long id, @Valid @RequestBody EnderecoRequest enderecoRequest) {
-        return new EnderecoResponse(enderecoService.findOrCreate(enderecoRequest));
+        return EnderecoResponse.fromEntity(enderecoService.update(id, enderecoRequest));
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "[GESTOR] Deletar endereço")
+    @Operation(summary = "[ADMIN] Deletar endereço")
     public void delete(@PathVariable Long id) {
         enderecoService.delete(id);
     }

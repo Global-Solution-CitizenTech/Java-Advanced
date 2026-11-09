@@ -34,7 +34,6 @@ import java.util.List;
 
 /**
  * Configuração de Segurança com Spring Security e JWT RSA (Nimbus).
- * Alinhada 100% com a arquitetura do Challenge Clyvo 4 (fiap.com.br.petguardian.auth.SecurityConfig).
  */
 @Configuration
 @EnableWebSecurity
@@ -54,19 +53,24 @@ public class SecurityConfig {
                 .headers(headers -> headers.frameOptions(FrameOptionsConfig::sameOrigin))
                 .authorizeHttpRequests(auth -> auth
                         // Endpoints públicos de autenticação e documentação
-                        .requestMatchers(HttpMethod.POST,
-                                "/login", "/auth/login", "/auth/register", "/usuarios"
-                        ).permitAll()
-                        .requestMatchers(HttpMethod.GET,
-                                "/categorias/**", "/status/**", "/chamados/estatisticas", "/chamados/*/foto", "/uploads/**"
-                        ).permitAll()
+                        .requestMatchers(HttpMethod.POST, "/login", "/usuarios").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/categorias/**", "/status/**", "/chamados/estatisticas", "/chamados/*/foto").permitAll()
                         .requestMatchers("/", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/swagger-resources/**", "/webjars/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info", "/error").permitAll()
 
-                        // Endpoints restritos por papel (RBAC: GESTOR vs CIDADAO)
-                        .requestMatchers(HttpMethod.PATCH, "/chamados/*/status").hasRole("GESTOR")
-                        .requestMatchers(HttpMethod.DELETE, "/chamados/**").hasRole("GESTOR")
-                        .requestMatchers("/enderecos/**").hasRole("GESTOR")
+                        // Endpoints do próprio perfil (/usuarios/me)
+                        .requestMatchers("/usuarios/me").authenticated()
+
+                        // Gestão de status de chamados (Prefeitura e Admin)
+                        .requestMatchers(HttpMethod.PATCH, "/chamados/*/status").hasAnyRole("GESTOR", "ADMIN")
+
+                        // Endpoints exclusivos de ADMIN
+                        .requestMatchers(HttpMethod.DELETE, "/chamados/**").hasRole("ADMIN")
+                        .requestMatchers("/enderecos/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/categorias/**", "/status/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/categorias/**", "/status/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/categorias/**", "/status/**").hasRole("ADMIN")
+                        .requestMatchers("/usuarios/**").hasRole("ADMIN")
 
                         // Qualquer outra requisição exige autenticação JWT
                         .anyRequest().authenticated()
@@ -107,9 +111,6 @@ public class SecurityConfig {
         var converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
             String role = jwt.getClaimAsString("role");
-            if (role == null || role.isBlank()) {
-                role = "CIDADAO";
-            }
             return List.of(new SimpleGrantedAuthority("ROLE_" + role.trim().toUpperCase()));
         });
         return converter;

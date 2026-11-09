@@ -45,7 +45,7 @@ public class ChamadoController {
 
     @GetMapping
     @Operation(summary = "Listar chamados com paginação (Pageable) e filtros dinâmicos")
-    public Page<ChamadoResponse> listar(
+    public Page<ChamadoResponse> findAll(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String categoria,
             @RequestParam(required = false) String busca,
@@ -53,89 +53,83 @@ public class ChamadoController {
             @AuthenticationPrincipal Jwt jwt,
             @PageableDefault(size = 20, sort = "dtAbertura", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        String email = jwt != null ? jwt.getSubject() : null;
-        return chamadoService.listar(status, categoria, busca, apenasMeus, email, pageable);
+        return chamadoService.findAll(status, categoria, busca, apenasMeus, jwt.getSubject(), pageable);
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar chamado por ID com dados completos e histórico de auditoria")
-    public ChamadoResponse buscarPorId(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
-        String email = jwt != null ? jwt.getSubject() : null;
-        return chamadoService.buscarPorId(id, email);
+    public ChamadoResponse findById(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
+        return chamadoService.findDetailsById(id, jwt.getSubject());
     }
 
     @GetMapping(value = "/{id}/foto", produces = {MediaType.IMAGE_JPEG_VALUE, MediaType.IMAGE_PNG_VALUE})
     @Operation(summary = "Obter a imagem fotográfica da ocorrência armazenada em BLOB no Oracle")
-    public ResponseEntity<byte[]> buscarFotoChamado(@PathVariable Long id) {
-        Chamado chamado = chamadoService.buscarEntidadePorId(id);
-        if (chamado.getFoto() == null || chamado.getFoto().length == 0) {
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<byte[]> getPhoto(@PathVariable Long id) {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"chamado-" + id + ".jpg\"")
-                .body(chamado.getFoto());
+                .body(chamadoService.getPhoto(id));
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Abrir novo chamado com payload JSON (foto em base64)")
-    public ChamadoResponse criar(
+    public ChamadoResponse create(
             @RequestBody @Valid ChamadoRequest request,
             @AuthenticationPrincipal Jwt jwt
     ) {
-        return chamadoService.criar(request, jwt.getSubject());
+        return chamadoService.create(request, jwt.getSubject());
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Abrir novo chamado enviando foto via MultipartFile (armazenada em BLOB)")
-    public ChamadoResponse criarComMultipart(
+    public ChamadoResponse createWithMultipart(
             @RequestPart("dados") @Valid ChamadoRequest request,
             @RequestPart(value = "foto", required = false) MultipartFile foto,
             @AuthenticationPrincipal Jwt jwt
     ) throws IOException {
-        byte[] bytes = (foto != null && !foto.isEmpty()) ? foto.getBytes() : null;
-        return chamadoService.criarComFotoBytes(request, bytes, jwt.getSubject());
+        byte[] bytes = foto != null ? foto.getBytes() : null;
+        return chamadoService.create(request, bytes, jwt.getSubject());
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar dados do chamado")
-    public ChamadoResponse atualizar(
+    public ChamadoResponse update(
             @PathVariable Long id,
             @RequestBody @Valid ChamadoRequest request,
             @AuthenticationPrincipal Jwt jwt
     ) {
-        return chamadoService.atualizar(id, request, jwt.getSubject());
+        return chamadoService.update(id, request, jwt.getSubject());
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('GESTOR')")
-    @Operation(summary = "[GESTOR] Atualizar status do chamado com registro de histórico")
-    public ChamadoResponse atualizarStatus(
+    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN')")
+    @Operation(summary = "[GESTOR / ADMIN] Atualizar status do chamado (ex: CONCLUIDO, EM_EXECUCAO) com registro de histórico")
+    public ChamadoResponse updateStatus(
             @PathVariable Long id,
             @RequestBody @Valid StatusRequest request,
             @AuthenticationPrincipal Jwt jwt
     ) {
-        return chamadoService.atualizarStatus(id, request, jwt.getSubject());
+        return chamadoService.updateStatus(id, request, jwt.getSubject());
     }
 
     @PostMapping({"/{id}/apoiar", "/{id}/voto"})
     @Operation(summary = "Apoiar/votar em um chamado (ou desfazer apoio) via RabbitMQ assíncrono")
-    public ChamadoResponse apoiar(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
-        return chamadoService.apoiar(id, jwt.getSubject());
+    public ChamadoResponse vote(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
+        return chamadoService.vote(id, jwt.getSubject());
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('GESTOR')")
-    @Operation(summary = "[GESTOR] Excluir um chamado")
-    public ResponseEntity<Void> deletar(@PathVariable Long id) {
-        chamadoService.deletar(id);
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "[ADMIN] Excluir um chamado")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        chamadoService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/estatisticas")
     @Operation(summary = "Obter estatísticas consolidadas para os cards do dashboard")
-    public EstatisticasResponse obterEstatisticas() {
-        return chamadoService.obterEstatisticas();
+    public EstatisticasResponse getStatistics() {
+        return chamadoService.getStatistics();
     }
 }

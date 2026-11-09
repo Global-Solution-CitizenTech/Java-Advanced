@@ -44,7 +44,7 @@ dependencies {
     // Mensageria Assíncrona (RabbitMQ - Opção A)
     implementation 'org.springframework.boot:spring-boot-starter-amqp'
 
-    // Segurança & Autenticação JWT RSA (Padrão Challenge Clyvo 4)
+    // Segurança & Autenticação JWT RSA
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 

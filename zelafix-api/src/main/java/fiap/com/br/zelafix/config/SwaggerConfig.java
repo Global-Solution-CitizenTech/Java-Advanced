@@ -32,7 +32,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
                 @Tag(name = "Usuarios", description = "Perfil e gestao de usuarios munícipes e gestores"),
                 @Tag(name = "Chamados", description = "CRUD de ocorrencias de zeladoria, paginacao e filtros"),
                 @Tag(name = "Votos & Apoios", description = "Mecanismo de votacao comunitaria assincrona"),
-                @Tag(name = "Comentarios", description = "Comentarios publicos da comunidade nos chamados"),
                 @Tag(name = "Categorias", description = "Catalogo de categorias de zeladoria urbana"),
                 @Tag(name = "Status", description = "Estados do ciclo de vida dos chamados")
         }
