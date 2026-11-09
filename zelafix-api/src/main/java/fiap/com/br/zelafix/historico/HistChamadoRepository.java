@@ -6,7 +6,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface HistStatusRepository extends JpaRepository<HistStatus, Long> {
-    List<HistStatus> findByChamadoIdChamadoOrderByDtMudancaDesc(Long idChamado);
+public interface HistChamadoRepository extends JpaRepository<HistChamado, Long> {
+    List<HistChamado> findByChamadoIdChamadoOrderByDtMudancaDesc(Long idChamado);
 }
-

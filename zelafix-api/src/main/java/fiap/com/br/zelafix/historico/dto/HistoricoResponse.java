@@ -1,6 +1,6 @@
 package fiap.com.br.zelafix.historico.dto;
 
-import fiap.com.br.zelafix.historico.HistStatus;
+import fiap.com.br.zelafix.historico.HistChamado;
 
 public record HistoricoResponse(
         String id,
@@ -9,13 +9,13 @@ public record HistoricoResponse(
         String observacao,
         String autorNome
 ) {
-    public static HistoricoResponse fromEntity(HistStatus h) {
+    public static HistoricoResponse fromEntity(HistChamado h) {
         return new HistoricoResponse(
                 String.valueOf(h.getIdHist()),
-                h.getDtMudanca().toString(),
-                h.getStatus().getNmStatus(),
+                h.getDtMudanca() != null ? h.getDtMudanca().toString() : null,
+                h.getStatus() != null ? h.getStatus().getNmStatus() : "ABERTO",
                 h.getObservacoes(),
-                h.getUsuario().getNmUsuario()
+                h.getUsuario() != null ? h.getUsuario().getNmUsuario() : "Sistema"
         );
     }
 }

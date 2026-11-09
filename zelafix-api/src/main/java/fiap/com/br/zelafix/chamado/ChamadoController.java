@@ -13,7 +13,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -27,8 +29,12 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/chamados")
@@ -59,14 +65,38 @@ public class ChamadoController {
         return chamadoService.buscarPorId(id, email);
     }
 
-    @PostMapping
+    @GetMapping(value = "/{id}/foto", produces = {MediaType.IMAGE_JPEG_VALUE, MediaType.IMAGE_PNG_VALUE})
+    @Operation(summary = "[PÚBLICO] Obter a imagem fotográfica da ocorrência armazenada em BLOB no Oracle")
+    public ResponseEntity<byte[]> buscarFotoChamado(@PathVariable Long id) {
+        Chamado chamado = chamadoService.buscarEntidadePorId(id);
+        if (chamado.getFoto() == null || chamado.getFoto().length == 0) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"chamado-" + id + ".jpg\"")
+                .body(chamado.getFoto());
+    }
+
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "[PROTEGIDO] Abrir novo chamado de zeladoria (dispara triagem assíncrona com RabbitMQ + Spring AI)")
+    @Operation(summary = "[PROTEGIDO] Abrir novo chamado com payload JSON (foto em base64 ou URL)")
     public ChamadoResponse criar(
             @RequestBody @Valid ChamadoCreateRequest request,
             @AuthenticationPrincipal Jwt jwt
     ) {
         return chamadoService.criar(request, jwt.getSubject());
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "[PROTEGIDO] Abrir novo chamado enviando foto via MultipartFile (armazenada em BLOB)")
+    public ChamadoResponse criarComMultipart(
+            @RequestPart("dados") @Valid ChamadoCreateRequest request,
+            @RequestPart(value = "foto", required = false) MultipartFile foto,
+            @AuthenticationPrincipal Jwt jwt
+    ) throws IOException {
+        byte[] bytes = (foto != null && !foto.isEmpty()) ? foto.getBytes() : null;
+        return chamadoService.criarComFotoBytes(request, bytes, jwt.getSubject());
     }
 
     @PutMapping("/{id}")

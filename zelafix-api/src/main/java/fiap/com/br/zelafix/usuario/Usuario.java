@@ -21,7 +21,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,7 +41,7 @@ public class Usuario {
     @Column(name = "nm_usuario", length = 100, nullable = false)
     private String nmUsuario;
 
-    @Column(name = "email", length = 50, nullable = false, unique = true)
+    @Column(name = "email", length = 100, nullable = false, unique = true)
     private String email;
 
     @Column(name = "senha", length = 60, nullable = false)
@@ -52,21 +51,16 @@ public class Usuario {
     @Column(name = "cargo", length = 10, nullable = false)
     private CargoUsuario cargo;
 
-    @Column(name = "cpf", length = 14)
-    private String cpf;
-
-    @Column(name = "avatar_url", length = 255)
-    private String avatarUrl;
-
-    @Column(name = "dt_cadastro")
-    @Builder.Default
-    private LocalDateTime dtCadastro = LocalDateTime.now();
-
     @ManyToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
-    @JoinColumn(name = "endereco_id_endereco", nullable = true)
+    @JoinColumn(name = "endereco_id_endereco", nullable = false)
     private Endereco endereco;
 
     @OneToMany(mappedBy = "usuario", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<Telefone> telefones = new ArrayList<>();
+
+    // Getters auxiliares transitórios para compatibilidade com DTOs e telas
+    public String getNome() {
+        return this.nmUsuario;
+    }
 }

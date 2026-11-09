@@ -2,7 +2,6 @@ package fiap.com.br.zelafix.chamado.dto;
 
 import fiap.com.br.zelafix.categoria.Categoria;
 import fiap.com.br.zelafix.chamado.Chamado;
-import fiap.com.br.zelafix.chamado.UrgenciaChamado;
 import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import jakarta.validation.Valid;
@@ -38,17 +37,17 @@ public record ChamadoUpdateRequest(
         if (categoria != null) {
             chamado.setCategoria(categoria);
         }
-        if (prioridade != null && !prioridade.isBlank()) {
-            chamado.setPrioridade(UrgenciaChamado.fromString(prioridade));
-        }
-        if (fotoUrl != null && !fotoUrl.isBlank()) {
-            chamado.setFotoUrl(fotoUrl.trim());
-        }
-        if (feedbackResolucao != null) {
-            chamado.setFeedbackResolucao(feedbackResolucao.trim());
-        }
         if (endereco != null) {
             chamado.setEndereco(endereco);
+        }
+        if (fotoUrl != null && !fotoUrl.isBlank()) {
+            if (fotoUrl.startsWith("data:image")) {
+                try {
+                    chamado.setFoto(java.util.Base64.getDecoder().decode(fotoUrl.replaceAll("^data:image/\\w+;base64,", "")));
+                } catch (Exception ignored) {}
+            } else {
+                chamado.setFoto(fotoUrl.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
         }
     }
 }

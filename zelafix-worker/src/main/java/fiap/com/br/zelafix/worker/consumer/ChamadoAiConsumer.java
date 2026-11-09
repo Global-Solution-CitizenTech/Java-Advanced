@@ -9,13 +9,14 @@ import fiap.com.br.zelafix.worker.repository.ChamadoWorkerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
  * Consumidor Assíncrono RabbitMQ para Triagem Inteligente com Spring AI (Opção A).
  *
  * Escuta a fila 'chamado.triagem.queue', recebe o evento gerado pela API quando o cidadão
- * abre uma ocorrência, aciona o serviço de IA Generativa e atualiza os dados no banco.
+ * abre uma ocorrência, aciona a IA Generativa e registra o parecer no histórico do chamado.
  */
 @Slf4j
 @Component
@@ -25,6 +26,7 @@ public class ChamadoAiConsumer {
     private final ZelaFixAiService aiService;
     private final ChamadoWorkerRepository chamadoWorkerRepository;
     private final ObjectMapper objectMapper;
+    private final JdbcTemplate jdbcTemplate;
 
     @RabbitListener(queues = RabbitWorkerConfig.QUEUE_CHAMADO_TRIAGEM)
     public void processarTriagem(String messageJson) {
@@ -51,14 +53,25 @@ public class ChamadoAiConsumer {
                 message.bairro()
         );
 
-        chamadoWorkerRepository.findById(message.idChamado()).ifPresentOrElse(chamado -> {
-            chamado.setPrioridade(resultado.prioridade());
-            chamado.setOrgaoResponsavel(resultado.orgaoResponsavel());
-            chamado.setParecerIa(resultado.parecerIa());
-            chamadoWorkerRepository.save(chamado);
+        String observacao = String.format("[Triagem Spring AI - Órgão: %s | Urgência: %s]",
+                resultado.orgaoResponsavel(), resultado.prioridade());
+        if (observacao.length() > 255) {
+            observacao = observacao.substring(0, 255);
+        }
 
-            log.info(">>> [ZelaFix Worker] Triagem por IA concluída e salva no banco para o chamado ID: {}. Prioridade: {}, Órgão: {}",
-                    chamado.getIdChamado(), chamado.getPrioridade(), chamado.getOrgaoResponsavel());
-        }, () -> log.warn(">>> [ZelaFix Worker] Chamado ID {} não localizado no banco para triagem.", message.idChamado()));
+        log.info(">>> [ZelaFix Worker] Triagem por IA concluída para o chamado ID: {}. Parecer: {}",
+                message.idChamado(), resultado.parecerIa());
+
+        try {
+            // Registra o parecer da IA no hist_chamado conforme regra do Edital GS2
+            jdbcTemplate.update("""
+                INSERT INTO hist_chamado (dt_mudanca, observacoes, chamado_id_chamado, usuario_id_usuario, status_id_status)
+                SELECT SYSDATE, ?, c.id_chamado, c.usuario_id_usuario, 2
+                FROM chamado c WHERE c.id_chamado = ?
+            """, observacao, message.idChamado());
+            log.info(">>> [ZelaFix Worker] Histórico de triagem registrado no Oracle para chamado ID: {}", message.idChamado());
+        } catch (Exception e) {
+            log.warn(">>> [ZelaFix Worker] Aviso ao persistir histórico no banco relacional: {}", e.getMessage());
+        }
     }
 }

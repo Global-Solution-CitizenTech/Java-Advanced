@@ -22,24 +22,24 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "hist_status")
+@Table(name = "hist_chamado")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class HistStatus {
+public class HistChamado {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_hist")
     private Long idHist;
 
-    @Column(name = "observacoes", length = 255)
-    private String observacoes;
-
     @Column(name = "dt_mudanca", nullable = false)
     private LocalDateTime dtMudanca;
+
+    @Column(name = "observacoes", length = 255, nullable = false)
+    private String observacoes;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "chamado_id_chamado", nullable = false)
@@ -53,8 +53,8 @@ public class HistStatus {
     @JoinColumn(name = "status_id_status", nullable = false)
     private Status status;
 
-    public static HistStatus inicial(Chamado chamado, Usuario usuario, Status status) {
-        return HistStatus.builder()
+    public static HistChamado inicial(Chamado chamado, Usuario usuario, Status status) {
+        return HistChamado.builder()
                 .chamado(chamado)
                 .usuario(usuario)
                 .status(status)

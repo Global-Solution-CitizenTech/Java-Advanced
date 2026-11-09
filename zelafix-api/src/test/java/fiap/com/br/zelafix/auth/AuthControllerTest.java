@@ -57,6 +57,7 @@ class AuthControllerTest {
                 .id(1L)
                 .rua("Rua dos Pinheiros")
                 .numero("720")
+                .referencia("Em frente à praça")
                 .cep("05422001")
                 .bairro(bairro)
                 .build();

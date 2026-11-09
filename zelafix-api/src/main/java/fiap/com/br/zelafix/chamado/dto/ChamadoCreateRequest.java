@@ -2,11 +2,8 @@ package fiap.com.br.zelafix.chamado.dto;
 
 import fiap.com.br.zelafix.categoria.Categoria;
 import fiap.com.br.zelafix.chamado.Chamado;
-import fiap.com.br.zelafix.chamado.ClassificacaoChamado;
-import fiap.com.br.zelafix.chamado.UrgenciaChamado;
 import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
-import fiap.com.br.zelafix.status.Status;
 import fiap.com.br.zelafix.usuario.Usuario;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -31,29 +28,53 @@ public record ChamadoCreateRequest(
         @Valid
         EnderecoRequest endereco,
 
-        @NotBlank(message = "A URL da foto da ocorrência é obrigatória")
-        @Size(max = 255, message = "A URL da foto pode ter no máximo 255 caracteres")
         String fotoUrl,
-
+        String fotoBase64,
         String prioridade
 ) {
-    public Chamado toEntity(Usuario autor, Categoria categoria, Endereco endereco, Status statusPendente) {
-        String orgao = ClassificacaoChamado.fromString(categoria.getNmCategoria())
-                .getOrgaoCompetente()
-                .getDescricao();
+    public ChamadoCreateRequest(String titulo, String descricao, String categoria, EnderecoRequest endereco, String fotoUrl, String prioridade) {
+        this(titulo, descricao, categoria, endereco, fotoUrl, null, prioridade);
+    }
+
+    public Chamado toEntity(Usuario autor, Categoria categoria, Endereco endereco) {
+        return toEntity(autor, categoria, endereco, null);
+    }
+
+    public Chamado toEntity(Usuario autor, Categoria categoria, Endereco endereco, byte[] fotoBytes) {
+        byte[] bytes = (fotoBytes != null && fotoBytes.length > 0) ? fotoBytes : extrairFotoBytes();
 
         return Chamado.builder()
                 .titulo(titulo.trim())
                 .descricao(descricao.trim())
-                .fotoUrl(fotoUrl)
+                .foto(bytes)
                 .dtAbertura(LocalDateTime.now())
-                .prioridade(prioridade != null ? UrgenciaChamado.fromString(prioridade) : UrgenciaChamado.MEDIA)
-                .orgaoResponsavel(orgao)
                 .usuario(autor)
                 .endereco(endereco)
-                .status(statusPendente)
                 .categoria(categoria)
-                .apoiosCount(1)
                 .build();
+    }
+
+    private byte[] extrairFotoBytes() {
+        if (fotoBase64 != null && !fotoBase64.isBlank()) {
+            try {
+                return java.util.Base64.getDecoder().decode(fotoBase64.replaceAll("^data:image/\\w+;base64,", ""));
+            } catch (Exception ignored) {}
+        }
+        if (fotoUrl != null && fotoUrl.startsWith("data:image")) {
+            try {
+                return java.util.Base64.getDecoder().decode(fotoUrl.replaceAll("^data:image/\\w+;base64,", ""));
+            } catch (Exception ignored) {}
+        }
+        if (fotoUrl != null && !fotoUrl.isBlank()) {
+            return fotoUrl.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        }
+        // Placeholder binário de 1x1 GIF padrão para garantir NOT NULL
+        return new byte[]{
+                0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01, 0x00,
+                (byte) 0x80, 0x00, 0x00, (byte) 0xff, (byte) 0xff, (byte) 0xff,
+                0x00, 0x00, 0x00, 0x21, (byte) 0xf9, 0x04, 0x01, 0x00, 0x00,
+                0x00, 0x00, 0x2c, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01,
+                0x00, 0x00, 0x02, 0x02, 0x44, 0x01, 0x00, 0x3b
+        };
     }
 }

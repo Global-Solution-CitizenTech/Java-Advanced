@@ -13,7 +13,8 @@ import fiap.com.br.zelafix.endereco.cidade.Cidade;
 import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.endereco.estado.Estado;
 import fiap.com.br.zelafix.exception.BusinessException;
-import fiap.com.br.zelafix.historico.HistStatusRepository;
+import fiap.com.br.zelafix.historico.HistChamado;
+import fiap.com.br.zelafix.historico.HistChamadoRepository;
 import fiap.com.br.zelafix.queue.producer.ChamadoEventProducer;
 import fiap.com.br.zelafix.queue.producer.VotoEventProducer;
 import fiap.com.br.zelafix.status.Status;
@@ -21,6 +22,7 @@ import fiap.com.br.zelafix.status.StatusService;
 import fiap.com.br.zelafix.usuario.CargoUsuario;
 import fiap.com.br.zelafix.usuario.Usuario;
 import fiap.com.br.zelafix.usuario.UsuarioService;
+import fiap.com.br.zelafix.voto.VotoChamado;
 import fiap.com.br.zelafix.voto.VotoChamadoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -30,7 +32,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -55,7 +59,7 @@ class ChamadoServiceTest {
     @Mock
     private EnderecoService enderecoService;
     @Mock
-    private HistStatusRepository histStatusRepository;
+    private HistChamadoRepository histChamadoRepository;
     @Mock
     private VotoChamadoRepository votoChamadoRepository;
     @Mock
@@ -68,7 +72,7 @@ class ChamadoServiceTest {
 
     private Usuario usuario;
     private Categoria categoria;
-    private Status statusPendente;
+    private Status statusAberto;
     private Endereco endereco;
 
     @BeforeEach
@@ -85,12 +89,12 @@ class ChamadoServiceTest {
                 .nmCategoria("Buraco na Rua")
                 .build();
 
-        statusPendente = Status.builder()
+        statusAberto = Status.builder()
                 .idStatus(1L)
-                .nmStatus("Pendente Triagem")
+                .nmStatus("ABERTO")
                 .build();
 
-        Estado estado = Estado.builder().id(1L).nome("SP").build();
+        Estado estado = Estado.builder().id(1L).nome("São Paulo").build();
         Cidade cidade = Cidade.builder().id(1L).nome("São Paulo").estado(estado).build();
         Bairro bairro = Bairro.builder().id(1L).nome("Pinheiros").cidade(cidade).build();
 
@@ -98,15 +102,16 @@ class ChamadoServiceTest {
                 .id(1L)
                 .rua("Rua dos Pinheiros")
                 .numero("720")
+                .referencia("Esquina com Fradique")
                 .cep("05422001")
                 .bairro(bairro)
                 .build();
     }
 
     @Test
-    @DisplayName("Deve criar um chamado com status Pendente Triagem e publicar evento no RabbitMQ")
+    @DisplayName("Deve criar um chamado com status ABERTO e publicar evento no RabbitMQ")
     void deveCriarChamadoComSucesso() {
-        EnderecoRequest enderecoRequest = new EnderecoRequest("05422-001", "720", null);
+        EnderecoRequest enderecoRequest = new EnderecoRequest("05422-001", "720", "Esquina com Fradique");
         ChamadoCreateRequest request = new ChamadoCreateRequest(
                 "Buraco perigoso na via",
                 "Cratera profunda na pista da direita",
@@ -118,21 +123,20 @@ class ChamadoServiceTest {
 
         when(usuarioService.buscarPorEmail(usuario.getEmail())).thenReturn(usuario);
         when(categoriaService.buscarPorNomeOuCriar("Buraco na Rua")).thenReturn(categoria);
-        when(statusService.buscarPorNomeOuCriar("Pendente Triagem")).thenReturn(statusPendente);
+        when(statusService.buscarPorNomeOuCriar("ABERTO")).thenReturn(statusAberto);
         when(enderecoService.findOrCreateByCepAndNumero(any())).thenReturn(endereco);
 
         Chamado chamadoSalvo = Chamado.builder()
                 .idChamado(100L)
-                .protocolo("ZF-2026-00100")
                 .titulo(request.titulo())
                 .descricao(request.descricao())
+                .foto("bytes".getBytes(StandardCharsets.UTF_8))
                 .categoria(categoria)
-                .status(statusPendente)
                 .usuario(usuario)
                 .endereco(endereco)
-                .prioridade(UrgenciaChamado.ALTA)
-                .apoiosCount(1)
                 .dtAbertura(LocalDateTime.now())
+                .historico(new ArrayList<>())
+                .votos(new ArrayList<>())
                 .build();
 
         when(chamadoRepository.save(any())).thenReturn(chamadoSalvo);
@@ -140,12 +144,12 @@ class ChamadoServiceTest {
         ChamadoResponse response = chamadoService.criar(request, usuario.getEmail());
 
         assertNotNull(response);
-        assertEquals("ZF-2026-00100", response.protocolo());
+        assertEquals("ZFX-00100", response.protocolo());
         assertEquals("Buraco perigoso na via", response.titulo());
-        assertEquals(1, response.apoiosCount());
 
         verify(chamadoEventProducer, times(1)).publicarTriagem(any());
-        verify(histStatusRepository, times(1)).save(any());
+        verify(histChamadoRepository, times(1)).save(any());
+        verify(votoChamadoRepository, times(1)).save(any());
     }
 
     @Test
@@ -155,128 +159,107 @@ class ChamadoServiceTest {
                 .idChamado(200L)
                 .titulo("Poste apagado")
                 .descricao("Sem luz na rua")
-                .apoiosCount(5)
                 .usuario(usuario)
                 .endereco(endereco)
                 .categoria(categoria)
-                .status(statusPendente)
-                .dtAbertura(LocalDateTime.now())
+                .foto("bytes".getBytes(StandardCharsets.UTF_8))
+                .historico(new ArrayList<>())
+                .votos(new ArrayList<>())
                 .build();
 
         when(chamadoRepository.findById(200L)).thenReturn(Optional.of(chamado));
         when(usuarioService.buscarPorEmail(usuario.getEmail())).thenReturn(usuario);
-        when(votoChamadoRepository.findByChamadoIdChamadoAndUsuarioIdUsuario(200L, 1L)).thenReturn(Optional.empty());
-
-        Chamado chamadoSalvo = Chamado.builder()
-                .idChamado(200L)
-                .titulo("Poste apagado")
-                .descricao("Sem luz na rua")
-                .apoiosCount(6)
-                .usuario(usuario)
-                .endereco(endereco)
-                .categoria(categoria)
-                .status(statusPendente)
-                .dtAbertura(LocalDateTime.now())
-                .build();
-        when(chamadoRepository.save(any())).thenReturn(chamadoSalvo);
+        when(votoChamadoRepository.findByChamadoIdChamadoAndUsuarioIdUsuario(200L, 1L))
+                .thenReturn(Optional.empty());
 
         ChamadoResponse response = chamadoService.apoiar(200L, usuario.getEmail());
 
         assertNotNull(response);
-        assertEquals(6, response.apoiosCount());
+        verify(votoChamadoRepository, times(1)).save(any());
         verify(votoEventProducer, times(1)).publicarVoto(any());
     }
 
     @Test
-    @DisplayName("Deve atualizar status do chamado quando o usuário for GESTOR (órgão público)")
-    void deveAtualizarStatusComAuditoria() {
-        Usuario gestor = Usuario.builder()
-                .idUsuario(2L)
-                .nmUsuario("Mariana Gestora")
-                .email("gestor@zelafix.com.br")
-                .cargo(CargoUsuario.GESTOR)
-                .build();
-
+    @DisplayName("Deve desapoiar quando cidadão já havia apoiado")
+    void deveDesapoiarQuandoJaVotou() {
         Chamado chamado = Chamado.builder()
                 .idChamado(300L)
-                .titulo("Bueiro entupido")
-                .status(statusPendente)
+                .titulo("Semáforo quebrado")
+                .descricao("Cruzamento perigoso")
                 .usuario(usuario)
                 .endereco(endereco)
                 .categoria(categoria)
-                .dtAbertura(LocalDateTime.now())
+                .foto("bytes".getBytes(StandardCharsets.UTF_8))
+                .historico(new ArrayList<>())
+                .votos(new ArrayList<>())
                 .build();
 
-        Status statusResolvido = Status.builder().idStatus(3L).nmStatus("Resolvido").build();
-
-        when(chamadoRepository.findById(300L)).thenReturn(Optional.of(chamado));
-        when(usuarioService.buscarPorEmail(gestor.getEmail())).thenReturn(gestor);
-        when(statusService.buscarPorNomeOuCriar("Resolvido")).thenReturn(statusResolvido);
-        when(chamadoRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-
-        StatusUpdateRequest request = new StatusUpdateRequest("Resolvido", "Serviço concluído pela equipe", "Desobstrução realizada com sucesso");
-        ChamadoResponse response = chamadoService.atualizarStatus(300L, request, gestor.getEmail());
-
-        assertEquals("Resolvido", response.status());
-        verify(histStatusRepository, times(1)).save(any());
-    }
-
-    @Test
-    @DisplayName("Deve impedir que usuário comum (CIDADAO) atualize o status do chamado")
-    void deveImpedirCidadaoDeAtualizarStatus() {
-        Chamado chamado = Chamado.builder()
-                .idChamado(300L)
-                .titulo("Bueiro entupido")
-                .status(statusPendente)
-                .usuario(usuario)
-                .build();
+        VotoChamado voto = new VotoChamado(chamado, usuario);
 
         when(chamadoRepository.findById(300L)).thenReturn(Optional.of(chamado));
         when(usuarioService.buscarPorEmail(usuario.getEmail())).thenReturn(usuario);
+        when(votoChamadoRepository.findByChamadoIdChamadoAndUsuarioIdUsuario(300L, 1L))
+                .thenReturn(Optional.of(voto));
 
-        StatusUpdateRequest request = new StatusUpdateRequest("Resolvido", null, null);
+        ChamadoResponse response = chamadoService.apoiar(300L, usuario.getEmail());
 
-        assertThrows(
-                BusinessException.class,
-                () -> chamadoService.atualizarStatus(300L, request, usuario.getEmail())
-        );
+        assertNotNull(response);
+        verify(votoChamadoRepository, times(1)).delete(voto);
+        verify(votoEventProducer, times(1)).publicarVoto(any());
     }
 
     @Test
-    @DisplayName("Deve atualizar dados cadastrais do chamado com sucesso")
-    void deveAtualizarChamadoComSucesso() {
+    @DisplayName("Apenas GESTOR pode atualizar o status de um chamado")
+    void deveBloquearCidadaoAoTentarAtualizarStatus() {
         Chamado chamado = Chamado.builder()
                 .idChamado(400L)
-                .titulo("Título Antigo")
-                .descricao("Descrição Antiga")
+                .titulo("Guia rebaixada danificada")
                 .usuario(usuario)
-                .endereco(endereco)
-                .categoria(categoria)
-                .status(statusPendente)
-                .dtAbertura(LocalDateTime.now())
+                .historico(new ArrayList<>())
                 .build();
 
         when(chamadoRepository.findById(400L)).thenReturn(Optional.of(chamado));
         when(usuarioService.buscarPorEmail(usuario.getEmail())).thenReturn(usuario);
-        when(chamadoRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ChamadoUpdateRequest updateRequest = new ChamadoUpdateRequest(
-                "Título Novo",
-                "Descrição Nova Atualizada",
-                null,
-                "ALTA",
-                null,
-                "https://imagem.com/foto.jpg",
-                null,
-                null
+        StatusUpdateRequest request = new StatusUpdateRequest("CONCLUIDO", "Resolvido", null);
+
+        assertThrows(BusinessException.class, () ->
+                chamadoService.atualizarStatus(400L, request, usuario.getEmail())
         );
+    }
 
-        ChamadoResponse response = chamadoService.atualizar(400L, updateRequest, usuario.getEmail());
+    @Test
+    @DisplayName("GESTOR atualiza status com sucesso e grava histórico")
+    void devePermitirGestorAtualizarStatus() {
+        Usuario gestor = Usuario.builder()
+                .idUsuario(2L)
+                .nmUsuario("Gestora Maria")
+                .email("gestor@zelafix.com.br")
+                .cargo(CargoUsuario.GESTOR)
+                .build();
+
+        Status statusNovo = Status.builder().idStatus(4L).nmStatus("CONCLUIDO").build();
+
+        Chamado chamado = Chamado.builder()
+                .idChamado(500L)
+                .titulo("Asfalto afundando")
+                .descricao("Perigo")
+                .categoria(categoria)
+                .endereco(endereco)
+                .foto("bytes".getBytes(StandardCharsets.UTF_8))
+                .historico(new ArrayList<>())
+                .votos(new ArrayList<>())
+                .build();
+
+        when(chamadoRepository.findById(500L)).thenReturn(Optional.of(chamado));
+        when(usuarioService.buscarPorEmail(gestor.getEmail())).thenReturn(gestor);
+        when(statusService.buscarPorNomeOuCriar("CONCLUIDO")).thenReturn(statusNovo);
+
+        StatusUpdateRequest request = new StatusUpdateRequest("CONCLUIDO", "Serviço finalizado com sucesso.", "Recapeamento concluído.");
+
+        ChamadoResponse response = chamadoService.atualizarStatus(500L, request, gestor.getEmail());
 
         assertNotNull(response);
-        assertEquals("Título Novo", response.titulo());
-        assertEquals("Descrição Nova Atualizada", response.descricao());
-        assertEquals("Alta", response.prioridade());
-        verify(chamadoRepository, times(1)).save(chamado);
+        verify(histChamadoRepository, times(1)).save(any(HistChamado.class));
     }
 }

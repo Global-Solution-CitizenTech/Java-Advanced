@@ -107,7 +107,13 @@ public class EnderecoService {
         endereco.setNumero(request.numero());
         endereco.setRua(rua);
         endereco.setBairro(bairro);
-        endereco.setComplemento(request.complemento());
+        String ref = (request.referencia() != null && !request.referencia().isBlank())
+                ? request.referencia()
+                : (request.complemento() != null && !request.complemento().isBlank() ? request.complemento() : "Sem referência");
+        if (ref.length() > 50) {
+            ref = ref.substring(0, 50);
+        }
+        endereco.setReferencia(ref);
         return endereco;
     }
 }

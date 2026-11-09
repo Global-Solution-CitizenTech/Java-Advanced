@@ -11,8 +11,8 @@ import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.EnderecoService;
 import fiap.com.br.zelafix.exception.BusinessException;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
-import fiap.com.br.zelafix.historico.HistStatus;
-import fiap.com.br.zelafix.historico.HistStatusRepository;
+import fiap.com.br.zelafix.historico.HistChamado;
+import fiap.com.br.zelafix.historico.HistChamadoRepository;
 import fiap.com.br.zelafix.queue.dto.ChamadoTriagemMessage;
 import fiap.com.br.zelafix.queue.dto.VotoMessage;
 import fiap.com.br.zelafix.queue.producer.ChamadoEventProducer;
@@ -43,7 +43,7 @@ public class ChamadoService {
     private final CategoriaService categoriaService;
     private final StatusService statusService;
     private final EnderecoService enderecoService;
-    private final HistStatusRepository histStatusRepository;
+    private final HistChamadoRepository histChamadoRepository;
     private final VotoChamadoRepository votoChamadoRepository;
     private final ChamadoEventProducer chamadoEventProducer;
     private final VotoEventProducer votoEventProducer;
@@ -75,15 +75,21 @@ public class ChamadoService {
 
     @Transactional
     public ChamadoResponse criar(ChamadoCreateRequest request, String userEmail) {
+        return criarComFotoBytes(request, null, userEmail);
+    }
+
+    @Transactional
+    public ChamadoResponse criarComFotoBytes(ChamadoCreateRequest request, byte[] fotoBytes, String userEmail) {
         Usuario autor = usuarioService.buscarPorEmail(userEmail);
         Categoria categoria = categoriaService.buscarPorNomeOuCriar(request.categoria());
         Endereco endereco = enderecoService.findOrCreateByCepAndNumero(request.endereco());
-        Status statusPendente = statusService.buscarPorNomeOuCriar("Pendente Triagem");
+        Status statusInicial = statusService.buscarPorNomeOuCriar("ABERTO");
 
-        Chamado salvo = chamadoRepository.save(request.toEntity(autor, categoria, endereco, statusPendente));
+        Chamado entity = request.toEntity(autor, categoria, endereco, fotoBytes);
+        Chamado salvo = chamadoRepository.save(entity);
 
         votoChamadoRepository.save(new VotoChamado(salvo, autor));
-        histStatusRepository.save(HistStatus.inicial(salvo, autor, statusPendente));
+        histChamadoRepository.save(HistChamado.inicial(salvo, autor, statusInicial));
 
         chamadoEventProducer.publicarTriagem(new ChamadoTriagemMessage(
                 salvo.getIdChamado(),
@@ -124,12 +130,11 @@ public class ChamadoService {
             throw new BusinessException("Apenas servidores de órgãos públicos (GESTOR) têm permissão para dar prosseguimento ou atualizar o status do chamado.");
         }
 
-        String statusAnterior = chamado.getStatus().getNmStatus();
+        String statusAnterior = (chamado.getStatus() != null) ? chamado.getStatus().getNmStatus() : "ABERTO";
         Status novoStatus = statusService.buscarPorNomeOuCriar(request.novoStatus());
-        chamado.atualizarStatus(novoStatus, request.feedbackResolucao());
 
-        histStatusRepository.save(request.toHistorico(chamado, gestor, novoStatus, statusAnterior));
-        return ChamadoResponse.fromEntity(chamadoRepository.save(chamado), gestor.getIdUsuario());
+        histChamadoRepository.save(request.toHistorico(chamado, gestor, novoStatus, statusAnterior));
+        return ChamadoResponse.fromEntity(chamado, gestor.getIdUsuario());
     }
 
     @Transactional
@@ -141,15 +146,13 @@ public class ChamadoService {
 
         if (votoExistente.isPresent()) {
             votoChamadoRepository.delete(votoExistente.get());
-            chamado.decrementarApoio();
             votoEventProducer.publicarVoto(new VotoMessage(id, usuario.getIdUsuario(), "REMOVER"));
         } else {
             votoChamadoRepository.save(new VotoChamado(chamado, usuario));
-            chamado.incrementarApoio();
             votoEventProducer.publicarVoto(new VotoMessage(id, usuario.getIdUsuario(), "VOTAR"));
         }
 
-        return ChamadoResponse.fromEntity(chamadoRepository.save(chamado), usuario.getIdUsuario());
+        return ChamadoResponse.fromEntity(chamado, usuario.getIdUsuario());
     }
 
     @Transactional
@@ -160,12 +163,11 @@ public class ChamadoService {
 
     public EstatisticasResponse obterEstatisticas() {
         long total = chamadoRepository.count();
-        long abertos = chamadoRepository.countByStatusNmStatusIgnoreCase("Aberto")
-                + chamadoRepository.countByStatusNmStatusIgnoreCase("Pendente Triagem");
-        long emAndamento = chamadoRepository.countByStatusNmStatusIgnoreCase("Em Andamento");
-        long resolvidos = chamadoRepository.countByStatusNmStatusIgnoreCase("Resolvido")
-                + chamadoRepository.countByStatusNmStatusIgnoreCase("Concluído");
-        long rejeitados = chamadoRepository.countByStatusNmStatusIgnoreCase("Rejeitado");
+        long abertos = chamadoRepository.countByStatusNmStatusIgnoreCase("ABERTO");
+        long emAndamento = chamadoRepository.countByStatusNmStatusIgnoreCase("EM_ANALISE")
+                + chamadoRepository.countByStatusNmStatusIgnoreCase("EM_EXECUCAO");
+        long resolvidos = chamadoRepository.countByStatusNmStatusIgnoreCase("CONCLUIDO");
+        long rejeitados = chamadoRepository.countByStatusNmStatusIgnoreCase("REJEITADO");
 
         long totalApoios = votoChamadoRepository.count();
 

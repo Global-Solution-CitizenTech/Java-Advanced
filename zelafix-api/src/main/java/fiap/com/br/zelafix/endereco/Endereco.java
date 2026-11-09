@@ -45,8 +45,8 @@ public class Endereco {
     @Column(name = "rua", nullable = false, length = 100)
     private String rua;
 
-    @Column(name = "complemento", length = 30)
-    private String complemento;
+    @Column(name = "referencia", nullable = false, length = 50)
+    private String referencia;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "bairro_id_bairro", nullable = false)
@@ -56,4 +56,15 @@ public class Endereco {
     @JsonIgnore
     @Builder.Default
     private Set<Usuario> usuarios = new HashSet<>();
+
+    // Getter de compatibilidade transitória com código anterior
+    public String getComplemento() {
+        return this.referencia;
+    }
+
+    public void setComplemento(String complemento) {
+        if (complemento != null && !complemento.isBlank()) {
+            this.referencia = complemento.length() > 50 ? complemento.substring(0, 50) : complemento;
+        }
+    }
 }

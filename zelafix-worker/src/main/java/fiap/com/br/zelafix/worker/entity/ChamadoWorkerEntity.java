@@ -13,9 +13,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Entidade de Chamado utilizada pelo Worker para atualizações assíncronas dos pareceres de IA
- * e agregação em lote de votos/apoios.
- * Mapeada diretamente para a tabela 'chamado' do citizenTech.ddl.
+ * Entidade de Chamado utilizada pelo Worker.
+ * 100% fiel à tabela 'chamado' em 3FN do citizenTech.ddl (sem colunas inexistentes).
  */
 @Entity
 @Table(name = "chamado")
@@ -31,24 +30,9 @@ public class ChamadoWorkerEntity {
     @Column(name = "id_chamado")
     private Long idChamado;
 
-    @Column(name = "protocolo", length = 30)
-    private String protocolo;
-
-    @Column(name = "titulo", length = 100)
+    @Column(name = "titulo", length = 100, nullable = false)
     private String titulo;
 
-    @Column(name = "descricao", length = 1000)
+    @Column(name = "descricao", length = 1000, nullable = false)
     private String descricao;
-
-    @Column(name = "prioridade", length = 20)
-    private String prioridade;
-
-    @Column(name = "parecer_ia", length = 1000)
-    private String parecerIa;
-
-    @Column(name = "orgao_responsavel", length = 100)
-    private String orgaoResponsavel;
-
-    @Column(name = "apoios_count")
-    private Integer apoiosCount;
 }

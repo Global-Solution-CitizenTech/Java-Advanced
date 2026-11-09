@@ -43,7 +43,6 @@ public record UsuarioRequest(
                 .email(email.trim().toLowerCase())
                 .senha(senhaCodificada)
                 .cargo(cargo != null ? cargo : CargoUsuario.CIDADAO)
-                .cpf(cpf)
                 .endereco(endereco)
                 .telefones(new ArrayList<>())
                 .build();
@@ -52,9 +51,6 @@ public record UsuarioRequest(
     public void aplicarEm(Usuario usuario, Endereco endereco, PasswordEncoder passwordEncoder) {
         if (nome != null && !nome.isBlank()) {
             usuario.setNmUsuario(nome.trim());
-        }
-        if (cpf != null && !cpf.isBlank()) {
-            usuario.setCpf(cpf.trim());
         }
         if (senha != null && !senha.isBlank() && passwordEncoder != null) {
             usuario.setSenha(passwordEncoder.encode(senha));

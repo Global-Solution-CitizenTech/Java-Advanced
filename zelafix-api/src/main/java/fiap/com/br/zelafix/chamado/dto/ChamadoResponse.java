@@ -29,6 +29,8 @@ public record ChamadoResponse(
         List<HistoricoResponse> historico
 ) {
     public static ChamadoResponse fromEntity(Chamado c, Long currentUserId) {
+        if (c == null) return null;
+
         boolean apoiado = false;
         if (currentUserId != null && c.getVotos() != null) {
             apoiado = c.getVotos().stream()
@@ -39,24 +41,29 @@ public record ChamadoResponse(
                 ? c.getHistorico().stream().map(HistoricoResponse::fromEntity).toList()
                 : Collections.emptyList();
 
+        String statusNome = (c.getStatus() != null) ? c.getStatus().getNmStatus() : "ABERTO";
+        String catNome = (c.getCategoria() != null) ? c.getCategoria().getNmCategoria() : "Geral";
+        String prioDesc = (c.getPrioridade() != null) ? c.getPrioridade().getDescricao() : "Média";
+        String fotoRota = c.getIdChamado() != null ? "/chamados/" + c.getIdChamado() + "/foto" : "/chamados/foto";
+
         return new ChamadoResponse(
                 String.valueOf(c.getIdChamado()),
                 c.getProtocolo(),
                 c.getTitulo(),
                 c.getDescricao(),
-                c.getCategoria().getNmCategoria(),
-                c.getStatus().getNmStatus(),
-                c.getPrioridade() != null ? c.getPrioridade().getDescricao() : null,
+                catNome,
+                statusNome,
+                prioDesc,
                 c.getApoiosCount(),
                 apoiado,
                 c.getParecerIa(),
                 c.getOrgaoResponsavel(),
                 EnderecoResponse.fromEntity(c.getEndereco()),
-                c.getFotoUrl(),
+                fotoRota,
                 c.getDtAbertura() != null ? c.getDtAbertura().toString() : null,
                 c.getDtConclusao() != null ? c.getDtConclusao().toString() : null,
-                String.valueOf(c.getUsuario().getIdUsuario()),
-                c.getUsuario().getNmUsuario(),
+                c.getUsuario() != null ? String.valueOf(c.getUsuario().getIdUsuario()) : null,
+                c.getUsuario() != null ? c.getUsuario().getNmUsuario() : null,
                 c.getFeedbackResolucao(),
                 hist
         );
