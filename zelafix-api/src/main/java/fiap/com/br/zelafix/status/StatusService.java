@@ -1,9 +1,10 @@
 package fiap.com.br.zelafix.status;
 
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
-import fiap.com.br.zelafix.status.dto.StatusResponse;
+import fiap.com.br.zelafix.status.dto.StatusRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -13,22 +14,34 @@ public class StatusService {
 
     private final StatusRepository statusRepository;
 
-    public List<StatusResponse> listarTodos() {
-        return statusRepository.findAll().stream()
-                .map(StatusResponse::fromEntity)
-                .toList();
+    public List<Status> findAll() {
+        return statusRepository.findAll();
     }
 
-    public Status buscarPorId(Long id) {
+    public Status findById(Long id) {
         return statusRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Status não encontrado com id: " + id));
     }
 
-    public Status buscarPorNomeOuCriar(String nome) {
-        return statusRepository.findByNmStatusIgnoreCase(nome.trim())
-                .orElseGet(() -> statusRepository.save(Status.builder()
-                        .nmStatus(nome.trim())
-                        .build()));
+    public Status findByNameOrCreate(String nome) {
+        return statusRepository.findByNmStatusIgnoreCase(nome)
+                .orElseGet(() -> statusRepository.save(new StatusRequest(nome).toEntity()));
+    }
+
+    @Transactional
+    public Status create(StatusRequest request) {
+        return statusRepository.save(request.toEntity());
+    }
+
+    @Transactional
+    public Status update(Long id, StatusRequest request) {
+        Status status = findById(id);
+        status.setNmStatus(request.nome().toUpperCase());
+        return statusRepository.save(status);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        statusRepository.delete(findById(id));
     }
 }
-

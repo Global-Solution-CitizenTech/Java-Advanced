@@ -20,7 +20,7 @@ public class AuthService implements UserDetailsService {
         Usuario user = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado: " + email));
 
-        String role = user.getCargo() != null ? user.getCargo().name() : "CIDADAO";
+        String role = user.getCargo().name();
 
         return User
                 .withUsername(user.getEmail())

@@ -1,9 +1,10 @@
 package fiap.com.br.zelafix.categoria;
 
-import fiap.com.br.zelafix.categoria.dto.CategoriaResponse;
+import fiap.com.br.zelafix.categoria.dto.CategoriaRequest;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -13,21 +14,34 @@ public class CategoriaService {
 
     private final CategoriaRepository categoriaRepository;
 
-    public List<CategoriaResponse> listarTodas() {
-        return categoriaRepository.findAll().stream()
-                .map(CategoriaResponse::fromEntity)
-                .toList();
+    public List<Categoria> findAll() {
+        return categoriaRepository.findAll();
     }
 
-    public Categoria buscarPorId(Long id) {
+    public Categoria findById(Long id) {
         return categoriaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada com id: " + id));
     }
 
-    public Categoria buscarPorNomeOuCriar(String nome) {
-        return categoriaRepository.findByNmCategoriaIgnoreCase(nome.trim())
-                .orElseGet(() -> categoriaRepository.save(Categoria.builder()
-                        .nmCategoria(nome.trim())
-                        .build()));
+    public Categoria findByNameOrCreate(String nome) {
+        return categoriaRepository.findByNmCategoriaIgnoreCase(nome)
+                .orElseGet(() -> categoriaRepository.save(new CategoriaRequest(nome).toEntity()));
+    }
+
+    @Transactional
+    public Categoria create(CategoriaRequest request) {
+        return categoriaRepository.save(request.toEntity());
+    }
+
+    @Transactional
+    public Categoria update(Long id, CategoriaRequest request) {
+        Categoria categoria = findById(id);
+        categoria.setNmCategoria(request.nome());
+        return categoriaRepository.save(categoria);
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        categoriaRepository.delete(findById(id));
     }
 }

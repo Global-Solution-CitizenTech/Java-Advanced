@@ -32,7 +32,7 @@ public class TokenService {
                 .subject(user.getEmail())
                 .claim("userId", user.getIdUsuario())
                 .claim("nome", user.getNmUsuario())
-                .claim("role", user.getCargo() != null ? user.getCargo().name() : "CIDADAO")
+                .claim("role", user.getCargo().name())
                 .build();
 
         return encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
