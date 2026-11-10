@@ -1,0 +1,126 @@
+# =============================================================================
+# FIAP - GLOBAL SOLUTION 2026/2 | CITIZENTECH & CIDADES SUSTENTÁVEIS (ODS 11)
+# Disciplina: DevOps Tools & Cloud Computing
+# Projeto: ZelaFix — Zeladoria Urbana Colaborativa
+# Esteira Unificada de CI/CD (Continuous Integration & Continuous Deployment)
+# Stack: Java 21 LTS | Spring Boot 4.1.1 | Gradle Wrapper | Azure App Services (API + Worker)
+# =============================================================================
+
+trigger:
+  branches:
+    include:
+      - main
+
+variables:
+  # Nome da Service Connection criada nas configurações de projeto do Azure DevOps
+  azureSubscription: 'ZelaFix-Connection'
+  
+  # Nomes dos Azure Web Apps criados via script-provisionamento.sh
+  webAppName: 'app-zelafix-561432'
+  webAppWorkerName: 'app-zelafix-worker-561432'
+  
+  # Pool de agentes: utilize 'Default' para Self-Hosted Agent local (sem limite de minutos)
+  # Ou altere para 'Azure Pipelines' com vmImage: 'windows-latest' ou 'ubuntu-latest'
+  poolName: 'Default'
+
+stages:
+# ------------------------------------------------------------------------------
+# ETAPA 1: CI - Build, Testes Automatizados e Empacotamento de Artefatos
+# ------------------------------------------------------------------------------
+- stage: Build
+  displayName: 'CI - Build e Testes Automatizados (API + Worker)'
+  jobs:
+  - job: BuildAndTest
+    displayName: 'Compilação Gradle, Suíte de Testes e Empacotamento'
+    pool:
+      name: $(poolName)
+    steps:
+    # 1. Executar Gradle Wrapper para compilar, rodar testes e gerar os bootJars
+    - script: |
+        call gradlew.bat clean test bootJar --no-daemon
+      displayName: 'Executar Gradle (clean test bootJar)'
+      env:
+        JAVA_HOME: 'C:\Program Files\Java\jdk-21.0.12'
+        ORACLE_URL: $(ORACLE_URL)
+        ORACLE_USER: $(ORACLE_USER)
+        ORACLE_PASSWORD: $(ORACLE_PASSWORD)
+        FLYWAY_ENABLED: 'false'
+        PORT: '8080'
+
+    # 2. Publicar resultados dos Testes JUnit no painel interativo do Azure DevOps
+    - task: PublishTestResults@2
+      displayName: 'Publicar Relatório de Testes JUnit'
+      condition: succeededOrFailed()
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: '**/build/test-results/test/TEST-*.xml'
+        failTaskOnFailedTests: true
+
+    # 3. Copiar os arquivos JAR compilados para a pasta de staging
+    - powershell: |
+        # 1. Localizar e copiar o JAR da API
+        $apiJar = Get-ChildItem -Path "$(System.DefaultWorkingDirectory)\zelafix-api\build\libs" -Filter "*.jar" | Where-Object { $_.Name -notmatch "plain" } | Select-Object -First 1
+        if (-not $apiJar) {
+            $apiJar = Get-ChildItem -Path "$(System.DefaultWorkingDirectory)" -Recurse -Filter "*api*.jar" | Where-Object { $_.FullName -match "libs" -and $_.Name -notmatch "plain" } | Select-Object -First 1
+        }
+        Write-Host ">>> Binário da API localizado: $($apiJar.FullName)"
+        Copy-Item -Path $apiJar.FullName -Destination "$(Build.ArtifactStagingDirectory)\zelafix-api.jar" -Force
+        Copy-Item -Path $apiJar.FullName -Destination "$(Build.ArtifactStagingDirectory)\app.jar" -Force
+
+        # 2. Localizar e copiar o JAR do Worker
+        $workerJar = Get-ChildItem -Path "$(System.DefaultWorkingDirectory)\zelafix-worker\build\libs" -Filter "*.jar" | Where-Object { $_.Name -notmatch "plain" } | Select-Object -First 1
+        if (-not $workerJar) {
+            $workerJar = Get-ChildItem -Path "$(System.DefaultWorkingDirectory)" -Recurse -Filter "*worker*.jar" | Where-Object { $_.FullName -match "libs" -and $_.Name -notmatch "plain" } | Select-Object -First 1
+        }
+        Write-Host ">>> Binário do Worker localizado: $($workerJar.FullName)"
+        Copy-Item -Path $workerJar.FullName -Destination "$(Build.ArtifactStagingDirectory)\zelafix-worker.jar" -Force
+      displayName: 'Copiar JARs da API e do Worker para Staging'
+
+    # 4. Publicar os Artefatos da Build no container 'drop' do Azure DevOps
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publicar Artefatos da Build (drop)'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+
+# ------------------------------------------------------------------------------
+# ETAPA 2: CD - Deploy Automático nos Azure Web Apps (API + Worker)
+# ------------------------------------------------------------------------------
+- stage: Deploy
+  displayName: 'CD - Deploy Automático nos Azure Web Apps (API + Worker)'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: DeployAppServices
+    displayName: 'Deploy para Azure Web Apps'
+    environment: 'production'
+    pool:
+      name: $(poolName)
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          # 1. Baixar os artefatos executáveis publicados na etapa de CI
+          - download: current
+            artifact: drop
+
+          # 2. Deploy do Pacote JAR da API no Azure Web App (Porta 8080)
+          - task: AzureWebApp@1
+            displayName: 'Deploy da API (zelafix-api) no Azure App Service'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              appType: 'webAppLinux'
+              appName: '$(webAppName)'
+              package: '$(Pipeline.Workspace)/drop/zelafix-api.jar'
+              startUpCommand: 'java -Dserver.port=8080 -jar /home/site/wwwroot/zelafix-api.jar'
+
+          # 3. Deploy do Pacote JAR do Worker no Azure Web App (Porta 8081)
+          - task: AzureWebApp@1
+            displayName: 'Deploy do Worker (zelafix-worker) no Azure App Service'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              appType: 'webAppLinux'
+              appName: '$(webAppWorkerName)'
+              package: '$(Pipeline.Workspace)/drop/zelafix-worker.jar'
+              startUpCommand: 'java -Dserver.port=8081 -jar /home/site/wwwroot/zelafix-worker.jar'
