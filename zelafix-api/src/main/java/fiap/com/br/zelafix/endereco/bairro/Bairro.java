@@ -36,7 +36,7 @@ public class Bairro {
     @Column(name = "id_bairro")
     private Long id;
 
-    @Column(name = "nm_bairro", nullable = false, length = 30)
+    @Column(name = "nm_bairro", nullable = false, length = 50)
     private String nome;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

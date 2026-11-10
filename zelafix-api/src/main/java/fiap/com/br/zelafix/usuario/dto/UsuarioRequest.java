@@ -55,7 +55,7 @@ public record UsuarioRequest(
                 .usuario(usuario)
                 .build();
 
-        usuario.getTelefones().add(telefone);
+        usuario.setTelefone(telefone);
         return usuario;
     }
 }

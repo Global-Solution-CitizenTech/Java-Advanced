@@ -13,16 +13,13 @@ public record UsuarioResponse(
         EnderecoResponse endereco
 ) {
     public static UsuarioResponse fromEntity(Usuario usuario) {
-        var telefone = (usuario.getTelefones() != null && !usuario.getTelefones().isEmpty())
-                ? usuario.getTelefones().getFirst()
-                : null;
         return new UsuarioResponse(
                 usuario.getIdUsuario(),
                 usuario.getNmUsuario(),
                 usuario.getEmail(),
                 usuario.getCargo().name(),
-                telefone != null ? telefone.getNumDdd() : null,
-                telefone != null ? telefone.getNumTel() : null,
+                usuario.getTelefone().getNumDdd(),
+                usuario.getTelefone().getNumTel(),
                 EnderecoResponse.fromEntity(usuario.getEndereco())
         );
     }

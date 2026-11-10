@@ -36,7 +36,7 @@ public class Cidade {
     @Column(name = "id_cidade")
     private Long id;
 
-    @Column(name = "nm_cidade", nullable = false, length = 30)
+    @Column(name = "nm_cidade", nullable = false, length = 50)
     private String nome;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

@@ -94,19 +94,24 @@ public class UsuarioService {
     }
 
     private void aplicarEm(Usuario usuario, UsuarioRequest req) {
+        String novoEmail = req.email().trim().toLowerCase();
+        if (!usuario.getEmail().equalsIgnoreCase(novoEmail) && usuarioRepository.existsByEmail(novoEmail)) {
+            throw new BusinessException("E-mail já cadastrado: " + req.email());
+        }
+
         usuario.setNmUsuario(req.nome().trim());
-        usuario.setEmail(req.email().trim().toLowerCase());
+        usuario.setEmail(novoEmail);
         usuario.setSenha(passwordEncoder.encode(req.senha()));
-        if (usuario.getTelefones() != null && !usuario.getTelefones().isEmpty()) {
-            usuario.getTelefones().getFirst().setNumDdd(req.ddd().trim());
-            usuario.getTelefones().getFirst().setNumTel(req.numeroTelefone().trim());
+        if (usuario.getTelefone() != null) {
+            usuario.getTelefone().setNumDdd(req.ddd().trim());
+            usuario.getTelefone().setNumTel(req.numeroTelefone().trim());
         } else {
             Telefone tel = Telefone.builder()
                     .numDdd(req.ddd().trim())
                     .numTel(req.numeroTelefone().trim())
                     .usuario(usuario)
                     .build();
-            usuario.getTelefones().add(tel);
+            usuario.setTelefone(tel);
         }
         usuario.setEndereco(enderecoService.findOrCreateByCepAndNumero(req.endereco()));
     }

@@ -13,19 +13,15 @@ public record EnderecoResponse(
         String estado
 ) {
     public static EnderecoResponse fromEntity(Endereco endereco) {
-        String bairro = endereco.getBairro().getNome();
-        String cidade = endereco.getBairro().getCidade().getNome();
-        String estado = endereco.getBairro().getCidade().getEstado().getNome();
-
         return new EnderecoResponse(
                 endereco.getId(),
                 endereco.getCep(),
                 endereco.getNumero(),
                 endereco.getRua(),
                 endereco.getReferencia(),
-                bairro,
-                cidade,
-                estado
+                endereco.getBairro().getNome(),
+                endereco.getBairro().getCidade().getNome(),
+                endereco.getBairro().getCidade().getEstado().getNome()
         );
     }
 }

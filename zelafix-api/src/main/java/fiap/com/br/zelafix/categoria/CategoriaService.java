@@ -1,6 +1,7 @@
 package fiap.com.br.zelafix.categoria;
 
 import fiap.com.br.zelafix.categoria.dto.CategoriaRequest;
+import fiap.com.br.zelafix.exception.BusinessException;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,13 +31,23 @@ public class CategoriaService {
 
     @Transactional
     public Categoria create(CategoriaRequest request) {
-        return categoriaRepository.save(request.toEntity());
+        String nome = request.nome().trim();
+        if (categoriaRepository.findByNmCategoriaIgnoreCase(nome).isPresent()) {
+            throw new BusinessException("Categoria já cadastrada com o nome: " + nome);
+        }
+        return categoriaRepository.save(new Categoria(null, nome));
     }
 
     @Transactional
     public Categoria update(Long id, CategoriaRequest request) {
         Categoria categoria = findById(id);
-        categoria.setNmCategoria(request.nome());
+        String novoNome = request.nome().trim();
+        categoriaRepository.findByNmCategoriaIgnoreCase(novoNome).ifPresent(existente -> {
+            if (!existente.getIdCategoria().equals(id)) {
+                throw new BusinessException("Já existe uma categoria cadastrada com o nome: " + novoNome);
+            }
+        });
+        categoria.setNmCategoria(novoNome);
         return categoriaRepository.save(categoria);
     }
 
