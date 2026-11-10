@@ -94,7 +94,7 @@ class UsuarioControllerTest {
                 .build();
 
         EnderecoRequest endReq = new EnderecoRequest("01001-000", "100", "Praça da Sé", "Centro");
-        request = new UsuarioRequest("Enzo Munícipe", "enzo@zelafix.com.br", "Senha@123", CargoUsuario.CIDADAO, "11", "987654321", endReq);
+        request = new UsuarioRequest("Enzo Munícipe", "enzo@zelafix.com.br", "Senha@123", "CIDADAO", "11", "987654321", endReq);
     }
 
     @Test

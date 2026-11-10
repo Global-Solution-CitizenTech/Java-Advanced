@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.data.core.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -177,6 +179,14 @@ public class GlobalExceptionHandler {
         }
         return error(HttpStatus.BAD_REQUEST,
                 "Erro de integridade de dados. Verifique os valores e chaves únicas.", request);
+    }
+
+    @ExceptionHandler({ConcurrencyFailureException.class, ObjectOptimisticLockingFailureException.class})
+    public ResponseEntity<ApiErrorResponse> handleConcurrency(
+            Exception exception, HttpServletRequest request) {
+        log.warn("Conflito de concorrência detectado: {}", exception.getMessage());
+        return error(HttpStatus.CONFLICT,
+                "Conflito de concorrência detectado. Operação simultânea em andamento, tente novamente em instantes.", request);
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

@@ -259,6 +259,20 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("Deve capturar conflito de concorrência e retornar 409 Conflict")
+    void deveTratarConcurrencyException() {
+        org.springframework.orm.ObjectOptimisticLockingFailureException ex =
+                new org.springframework.orm.ObjectOptimisticLockingFailureException("VotoChamado", 123L);
+
+        ResponseEntity<GlobalExceptionHandler.ApiErrorResponse> response =
+                exceptionHandler.handleConcurrency(ex, request);
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertEquals(409, response.getBody().status());
+        assertTrue(response.getBody().message().contains("concorrência"));
+    }
+
+    @Test
     @DisplayName("Deve capturar exceção genérica e retornar 500 com mensagem amigável")
     void deveTratarGenericException() {
         Exception ex = new NullPointerException("Erro inesperado de ponteiro");

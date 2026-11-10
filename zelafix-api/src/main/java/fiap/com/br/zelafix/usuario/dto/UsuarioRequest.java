@@ -5,6 +5,7 @@ import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.telefone.Telefone;
 import fiap.com.br.zelafix.usuario.CargoUsuario;
 import fiap.com.br.zelafix.usuario.Usuario;
+import fiap.com.br.zelafix.validation.EnumValidation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -26,7 +27,9 @@ public record UsuarioRequest(
         @Size(min = 6, max = 60, message = "Senha deve ter entre 6 e 60 caracteres.")
         String senha,
 
-        CargoUsuario cargo,
+        @NotBlank(message = "O cargo é obrigatório.")
+        @EnumValidation(enumClass = CargoUsuario.class, message = "Cargo inválido. Valores aceitos: CIDADAO, GESTOR, ADMIN")
+        String cargo,
 
         @NotBlank(message = "O DDD é obrigatório.")
         @Pattern(regexp = "^\\d{2}$", message = "DDD deve conter exatamente 2 dígitos numéricos.")
@@ -45,7 +48,7 @@ public record UsuarioRequest(
                 .nmUsuario(nome.trim())
                 .email(email.trim().toLowerCase())
                 .senha(senhaCodificada)
-                .cargo(cargo)
+                .cargo(CargoUsuario.valueOf(cargo.trim().toUpperCase()))
                 .endereco(endereco)
                 .build();
 

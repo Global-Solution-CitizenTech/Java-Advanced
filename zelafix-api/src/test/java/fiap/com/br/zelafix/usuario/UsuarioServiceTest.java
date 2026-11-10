@@ -90,7 +90,7 @@ class UsuarioServiceTest {
                 .build();
 
         EnderecoRequest endReq = new EnderecoRequest("01001-000", "100", "Praça da Sé", "Praça da Sé");
-        request = new UsuarioRequest("Carlos Munícipe", "cidadao@zelafix.com.br", "Senha@123", CargoUsuario.CIDADAO, "11", "987654321", endReq);
+        request = new UsuarioRequest("Carlos Munícipe", "cidadao@zelafix.com.br", "Senha@123", "CIDADAO", "11", "987654321", endReq);
     }
 
     @Test
@@ -186,7 +186,7 @@ class UsuarioServiceTest {
     @DisplayName("Deve lançar BusinessException ao atualizar e-mail para um já existente de outro usuário")
     void deveLancarExcecaoAoAtualizarParaEmailJaCadastrado() {
         UsuarioRequest reqNovoEmail = new UsuarioRequest("Carlos Alterado", "outro@zelafix.com.br", "Senha@123",
-                CargoUsuario.CIDADAO, "11", "987654321", request.endereco());
+                "CIDADAO", "11", "987654321", request.endereco());
 
         when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioCidadao));
         when(usuarioRepository.existsByEmail("outro@zelafix.com.br")).thenReturn(true);
