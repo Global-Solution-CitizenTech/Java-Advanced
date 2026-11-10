@@ -13,9 +13,11 @@ import java.util.Optional;
 public interface HistChamadoRepository extends JpaRepository<HistChamado, Long> {
 
     @EntityGraph(attributePaths = {"usuario", "status"})
-    List<HistChamado> findByChamadoIdChamadoOrderByDtMudancaDesc(Long idChamado);
+    List<HistChamado> findByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(Long idChamado);
 
-    Optional<HistChamado> findFirstByChamadoIdChamadoOrderByDtMudancaDesc(Long idChamado);
+    Optional<HistChamado> findFirstByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(Long idChamado);
+
+    void deleteByChamadoIdChamado(Long idChamado);
 
     @EntityGraph(attributePaths = {"status"})
     @Query("""

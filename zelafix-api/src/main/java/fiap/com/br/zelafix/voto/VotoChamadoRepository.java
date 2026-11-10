@@ -14,6 +14,7 @@ public interface VotoChamadoRepository extends JpaRepository<VotoChamado, Long> 
     boolean existsByChamadoIdChamadoAndUsuarioIdUsuario(Long idChamado, Long idUsuario);
     Optional<VotoChamado> findByChamadoIdChamadoAndUsuarioIdUsuario(Long idChamado, Long idUsuario);
     long countByChamadoIdChamado(Long idChamado);
+    void deleteByChamadoIdChamado(Long idChamado);
 
     @Query("""
         SELECT v.chamado.idChamado, COUNT(v)

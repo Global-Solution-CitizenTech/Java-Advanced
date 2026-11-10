@@ -113,7 +113,10 @@ public class ChamadoService {
 
     @Transactional
     public void delete(Long id) {
-        chamadoRepository.delete(findChamadoById(id));
+        Chamado chamado = findChamadoById(id);
+        votoChamadoRepository.deleteByChamadoIdChamado(id);
+        histChamadoRepository.deleteByChamadoIdChamado(id);
+        chamadoRepository.delete(chamado);
     }
 
     // =========================================================================
@@ -130,6 +133,16 @@ public class ChamadoService {
         histChamadoRepository.save(request.toEntity(chamado, operador, novoStatus));
 
         return toResponse(chamado, operador.getIdUsuario(), true);
+    }
+
+    @Transactional
+    public void aplicarTriagemIa(Long idChamado, String prioridade, String orgao, String parecer) {
+        histChamadoRepository.findFirstByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(idChamado)
+                .ifPresent(hist -> {
+                    String obs = String.format("[Triagem IA - %s | %s] %s", prioridade, orgao, parecer);
+                    hist.setObservacoes(obs.length() > 255 ? obs.substring(0, 252) + "..." : obs);
+                    histChamadoRepository.save(hist);
+                });
     }
 
     // =========================================================================
@@ -257,14 +270,14 @@ public class ChamadoService {
     }
 
     private ChamadoResponse toResponse(Chamado c, Long userId, boolean incluirHistorico) {
-        String status = histChamadoRepository.findFirstByChamadoIdChamadoOrderByDtMudancaDesc(c.getIdChamado())
+        String status = histChamadoRepository.findFirstByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(c.getIdChamado())
                 .map(h -> h.getStatus().getNmStatus())
                 .orElse(StatusChamadoEnum.PENDENTE.name());
         long apoios = votoChamadoRepository.countByChamadoIdChamado(c.getIdChamado());
         boolean apoiado = votoChamadoRepository.existsByChamadoIdChamadoAndUsuarioIdUsuario(c.getIdChamado(), userId);
 
         List<HistoricoResponse> historico = incluirHistorico
-                ? histChamadoRepository.findByChamadoIdChamadoOrderByDtMudancaDesc(c.getIdChamado()).stream().map(HistoricoResponse::new).toList()
+                ? histChamadoRepository.findByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(c.getIdChamado()).stream().map(HistoricoResponse::new).toList()
                 : List.of();
 
         return ChamadoResponse.fromEntity(c, status, apoios, apoiado, historico);

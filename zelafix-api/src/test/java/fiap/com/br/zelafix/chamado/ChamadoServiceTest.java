@@ -307,6 +307,8 @@ class ChamadoServiceTest {
 
         chamadoService.delete(700L);
 
+        verify(votoChamadoRepository).deleteByChamadoIdChamado(700L);
+        verify(histChamadoRepository).deleteByChamadoIdChamado(700L);
         verify(chamadoRepository, times(1)).delete(chamado);
     }
 
@@ -334,5 +336,22 @@ class ChamadoServiceTest {
         assertEquals("PENDENTE", resultado.getContent().get(1).status());
         assertEquals(0L, resultado.getContent().get(1).totalVotos());
         assertEquals(false, resultado.getContent().get(1).apoiadoPorMim());
+    }
+
+    @Test
+    @DisplayName("Deve aplicar parecer da triagem da IA no histórico mais recente")
+    void deveAplicarTriagemIa() {
+        HistChamado hist = HistChamado.builder()
+                .idHist(1L)
+                .observacoes("Abertura")
+                .build();
+
+        when(histChamadoRepository.findFirstByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(100L))
+                .thenReturn(Optional.of(hist));
+
+        chamadoService.aplicarTriagemIa(100L, "ALTA", "Secretaria de Obras", "Reparo emergencial");
+
+        verify(histChamadoRepository).save(hist);
+        assertEquals("[Triagem IA - ALTA | Secretaria de Obras] Reparo emergencial", hist.getObservacoes());
     }
 }
