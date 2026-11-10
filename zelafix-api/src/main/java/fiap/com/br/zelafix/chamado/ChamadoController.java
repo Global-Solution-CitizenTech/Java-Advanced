@@ -4,6 +4,7 @@ import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
 import fiap.com.br.zelafix.chamado.dto.StatusRequest;
+import fiap.com.br.zelafix.util.ImageMimeTypeDetector;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -19,6 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.util.MimeType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -62,12 +64,15 @@ public class ChamadoController {
         return chamadoService.findDetailsById(id, jwt.getSubject());
     }
 
-    @GetMapping(value = "/{id}/foto", produces = {MediaType.IMAGE_JPEG_VALUE, MediaType.IMAGE_PNG_VALUE})
-    @Operation(summary = "Obter a imagem fotográfica da ocorrência armazenada em BLOB no Oracle")
+    @GetMapping("/{id}/foto")
+    @Operation(summary = "Obter a imagem fotográfica da ocorrência armazenada em BLOB no Oracle com Content-Type dinâmico")
     public ResponseEntity<byte[]> getPhoto(@PathVariable Long id) {
+        byte[] foto = chamadoService.getPhoto(id);
+        MimeType mimeType = ImageMimeTypeDetector.detectar(foto);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"chamado-" + id + ".jpg\"")
-                .body(chamadoService.getPhoto(id));
+                .contentType(MediaType.asMediaType(mimeType))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+                .body(foto);
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
