@@ -5,6 +5,8 @@ import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
+import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -29,6 +31,13 @@ public class RabbitWorkerConfig {
     @Bean
     public ObjectMapper objectMapper() {
         return new ObjectMapper();
+    }
+
+    @Bean
+    public MessageConverter jsonMessageConverter() {
+        JacksonJsonMessageConverter converter = new JacksonJsonMessageConverter("*");
+        converter.setAlwaysConvertToInferredType(true);
+        return converter;
     }
 
     // Fila durável de triagem por IA

@@ -1,6 +1,5 @@
 package fiap.com.br.zelafix.worker.consumer;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import fiap.com.br.zelafix.worker.config.RabbitWorkerConfig;
 import fiap.com.br.zelafix.worker.queue.dto.VotoMessage;
 import lombok.RequiredArgsConstructor;
@@ -22,26 +21,19 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class VotoConsumer {
 
-    private final ObjectMapper objectMapper;
-
     // ConcurrentHashMap thread-safe para acumular os votos em memória
     // Chave: ID do chamado, Valor: saldo líquido acumulado de apoios
     private final ConcurrentHashMap<Long, Integer> votes = new ConcurrentHashMap<>();
 
     @RabbitListener(queues = RabbitWorkerConfig.QUEUE_CHAMADO_VOTO)
-    public void consumeVoto(String messageJson) {
-        try {
-            VotoMessage message = objectMapper.readValue(messageJson, VotoMessage.class);
-            consumeVoto(message);
-        } catch (Exception e) {
-            log.error(">>> [ZelaFix Worker] Erro ao processar mensagem de voto JSON: {}", e.getMessage());
-        }
-    }
-
     public void consumeVoto(VotoMessage message) {
+        if (message == null || message.idChamado() == null) {
+            log.warn("Mensagem de voto nula ou sem idChamado descartada: {}", message);
+            return;
+        }
         int delta = "REMOVER".equalsIgnoreCase(message.operacao()) ? -1 : 1;
         votes.merge(message.idChamado(), delta, Integer::sum);
-        log.info(">>> [ZelaFix Worker] Voto ({}) recebido para o chamado ID: {}, saldo no buffer: {}",
+        log.info("Voto ({}) recebido para o chamado ID: {}, saldo no buffer: {}",
                 message.operacao(), message.idChamado(), votes.get(message.idChamado()));
     }
 
@@ -49,9 +41,9 @@ public class VotoConsumer {
     public void flush() {
         if (votes.isEmpty()) return;
 
-        log.info(">>> [ZelaFix Worker] Flush dos votos: consolidando lote acumulado no buffer...");
+        log.info("Flush dos votos: consolidando lote acumulado no buffer...");
         votes.forEach((chamadoId, totalVotos) -> {
-            log.info(">>> [ZelaFix Worker] Chamado ID {} consolidado com saldo de {} apoios no buffer.", chamadoId, totalVotos);
+            log.info("Chamado ID {} consolidado com saldo de {} apoios no buffer.", chamadoId, totalVotos);
         });
         votes.clear();
     }

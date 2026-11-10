@@ -1,10 +1,11 @@
 package fiap.com.br.zelafix.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
+import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -29,8 +30,10 @@ public class RabbitConfig {
     public static final String ROUTING_KEY_CHAMADO_VOTO = "chamado.voto.key"; // Routing Key para votos
 
     @Bean
-    public ObjectMapper objectMapper() {
-        return new ObjectMapper();
+    public MessageConverter jsonMessageConverter() {
+        JacksonJsonMessageConverter converter = new JacksonJsonMessageConverter("*");
+        converter.setAlwaysConvertToInferredType(true);
+        return converter;
     }
 
     // Queue (Fila durável) que armazena mensagens de ocorrências para triagem de IA
