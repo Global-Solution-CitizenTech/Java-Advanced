@@ -8,10 +8,22 @@ import org.springframework.amqp.core.Queue;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:oracle:thin:@localhost:1521/xe",
+        "spring.datasource.username=test",
+        "spring.datasource.password=test",
+        "spring.jpa.hibernate.ddl-auto=none",
+        "spring.flyway.enabled=false",
+        "spring.rabbitmq.listener.simple.auto-startup=false"
+})
 class RabbitConfigTest {
+
+    @MockitoBean
+    private javax.sql.DataSource dataSource;
 
     @Autowired
     private DirectExchange zelafixExchange;

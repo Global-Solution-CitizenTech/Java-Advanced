@@ -28,9 +28,19 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:oracle:thin:@localhost:1521/xe",
+        "spring.datasource.username=test",
+        "spring.datasource.password=test",
+        "spring.jpa.hibernate.ddl-auto=none",
+        "spring.flyway.enabled=false",
+        "spring.rabbitmq.listener.simple.auto-startup=false"
+})
 @AutoConfigureMockMvc
 class AuthControllerTest {
+
+    @MockitoBean
+    private javax.sql.DataSource dataSource;
 
     @Autowired
     private MockMvc mockMvc;
@@ -70,7 +80,7 @@ class AuthControllerTest {
                 .email("cidadao@zelafix.com.br")
                 .cargo(CargoUsuario.CIDADAO)
                 .endereco(endereco)
-                .telefones(java.util.List.of(mockTelefone))
+                .telefone(mockTelefone)
                 .build();
 
         when(authenticationManager.authenticate(any()))
