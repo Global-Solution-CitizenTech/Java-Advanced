@@ -1,80 +1,166 @@
 package fiap.com.br.zelafix.worker.ai;
 
 import fiap.com.br.zelafix.worker.ai.dto.TriagemIaResult;
+import fiap.com.br.zelafix.worker.ai.enums.DepartamentoGoverno;
+import fiap.com.br.zelafix.worker.ai.enums.PrioridadeChamado;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Answers;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.api.Advisor;
+
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class ZelaFixAiServiceTest {
+
+    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
+    private ChatClient.Builder builder;
+
+    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
+    private ChatClient chatClient;
 
     private ZelaFixAiService aiService;
 
     @BeforeEach
     void setUp() {
-        // Inicializa sem ChatClient (simulando ambiente offline / fallback gracioso)
-        aiService = new ZelaFixAiService(null);
+        when(builder.defaultSystem(anyString()).defaultAdvisors(any(Advisor[].class)).build()).thenReturn(chatClient);
+        aiService = new ZelaFixAiService(builder);
     }
 
     @Test
-    @DisplayName("Deve classificar como URGENTE e Defesa Civil quando houver risco de desabamento ou alagamento")
-    void deveClassificarComoUrgenteParaRiscoGrave() {
+    @DisplayName("Deve inicializar o ChatClient com o System Prompt e executar triagem tipada com Enums e imagem")
+    void deveExecutarTriagemComSucesso() {
+        TriagemIaResult esperado = new TriagemIaResult(
+                PrioridadeChamado.URGENTE,
+                DepartamentoGoverno.DEFESA_CIVIL,
+                "Risco iminente de desabamento identificado."
+        );
+
+        when(chatClient.prompt().user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any()).call().entity(TriagemIaResult.class))
+                .thenReturn(esperado);
+
         TriagemIaResult resultado = aiService.analisarChamado(
                 "Segurança Pública",
-                "Risco iminente de desabamento de muro",
-                "Muro de contenção rachou após chuva torrencial com perigo de queda",
-                "Grajaú"
+                "Risco de desabamento",
+                "Muro rachado",
+                "Grajaú",
+                new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0} // JPEG
         );
 
         assertNotNull(resultado);
-        assertEquals("URGENTE", resultado.prioridade());
-        assertEquals("Coordenação Municipal de Defesa Civil", resultado.orgaoResponsavel());
+        assertEquals(PrioridadeChamado.URGENTE, resultado.prioridade());
+        assertEquals(DepartamentoGoverno.DEFESA_CIVIL, resultado.orgaoResponsavel());
+        assertEquals("Risco iminente de desabamento identificado.", resultado.parecerIa());
     }
 
     @Test
-    @DisplayName("Deve classificar como ALTA e Obras quando houver buraco ou problema de asfalto/esgoto")
-    void deveClassificarComoAltaParaBuracoNaVia() {
+    @DisplayName("Deve executar triagem apenas textual usando a sobrecarga sem foto")
+    void deveExecutarTriagemApenasTextual() {
+        TriagemIaResult esperado = new TriagemIaResult(
+                PrioridadeChamado.BAIXA,
+                DepartamentoGoverno.SUBPREFEITURA,
+                "Solicitação de poda preventiva em árvore saudável."
+        );
+
+        when(chatClient.prompt().user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any()).call().entity(TriagemIaResult.class))
+                .thenReturn(esperado);
+
         TriagemIaResult resultado = aiService.analisarChamado(
-                "Pavimentação",
-                "Buraco profundo na via principal",
-                "Asfalto cedeu e está danificando veículos na avenida",
-                "Pinheiros"
+                "Árvores",
+                "Poda preventiva",
+                "Galhos tocando a fiação",
+                "Perdizes"
         );
 
         assertNotNull(resultado);
-        assertEquals("ALTA", resultado.prioridade());
-        assertEquals("Secretaria Municipal de Infraestrutura Urbana e Obras", resultado.orgaoResponsavel());
+        assertEquals(PrioridadeChamado.BAIXA, resultado.prioridade());
+        assertEquals(DepartamentoGoverno.SUBPREFEITURA, resultado.orgaoResponsavel());
     }
 
     @Test
-    @DisplayName("Deve classificar como MEDIA e Ilume quando houver poste ou lâmpada apagada")
-    void deveClassificarComoMediaParaIluminacaoPublica() {
+    @DisplayName("Deve processar foto PNG com detecção correta de MediaType")
+    void deveProcessarFotoPng() {
+        byte[] pngBytes = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+        TriagemIaResult esperado = new TriagemIaResult(
+                PrioridadeChamado.MEDIA,
+                DepartamentoGoverno.SECRETARIA_OBRAS,
+                "Bueiro entupido."
+        );
+
+        when(chatClient.prompt().user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any()).call().entity(TriagemIaResult.class))
+                .thenReturn(esperado);
+
         TriagemIaResult resultado = aiService.analisarChamado(
-                "Iluminação Pública",
-                "Poste com luz piscando",
-                "Lâmpada do poste em frente ao número 100 está queimada",
-                "Moema"
+                "Drenagem",
+                "Bueiro entupido",
+                "Acúmulo de folhas",
+                "Santana",
+                pngBytes
         );
 
         assertNotNull(resultado);
-        assertEquals("MEDIA", resultado.prioridade());
-        assertEquals("Departamento de Iluminação Pública (Ilume)", resultado.orgaoResponsavel());
+        assertEquals(PrioridadeChamado.MEDIA, resultado.prioridade());
     }
 
     @Test
-    @DisplayName("Deve classificar como BAIXA e Subprefeitura para ocorrências regulares de limpeza")
-    void deveClassificarComoBaixaParaZeladoriaRegular() {
+    @DisplayName("Deve processar foto WebP do formato mobile")
+    void deveProcessarFotoWebp() {
+        byte[] webpBytes = new byte[]{'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'};
+        TriagemIaResult esperado = new TriagemIaResult(
+                PrioridadeChamado.ALTA,
+                DepartamentoGoverno.CET_TRANSITO,
+                "Semáforo apagado em cruzamento."
+        );
+
+        when(chatClient.prompt().user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any()).call().entity(TriagemIaResult.class))
+                .thenReturn(esperado);
+
         TriagemIaResult resultado = aiService.analisarChamado(
-                "Limpeza Comunitária",
-                "Pintura de guia apagada",
-                "A guia da calçada precisa de repintura",
-                "Vila Mariana"
+                "Trânsito",
+                "Semáforo apagado",
+                "Cruzamento perigoso",
+                "Consolação",
+                webpBytes
         );
 
         assertNotNull(resultado);
-        assertEquals("BAIXA", resultado.prioridade());
-        assertEquals("Subprefeitura Regional", resultado.orgaoResponsavel());
+        assertEquals(PrioridadeChamado.ALTA, resultado.prioridade());
+        assertEquals(DepartamentoGoverno.CET_TRANSITO, resultado.orgaoResponsavel());
+    }
+
+    @Test
+    @DisplayName("Deve executar análise mesmo se bytes da foto forem vazios (zero bytes)")
+    void deveExecutarComBytesVazios() {
+        TriagemIaResult esperado = new TriagemIaResult(
+                PrioridadeChamado.BAIXA,
+                DepartamentoGoverno.SUBPREFEITURA,
+                "Limpeza urbana solicitada."
+        );
+
+        when(chatClient.prompt().user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any()).call().entity(TriagemIaResult.class))
+                .thenReturn(esperado);
+
+        TriagemIaResult resultado = aiService.analisarChamado(
+                "Limpeza",
+                "Lixo acumulado",
+                "Entulho na calçada",
+                "Lapa",
+                new byte[0]
+        );
+
+        assertNotNull(resultado);
+        assertEquals(PrioridadeChamado.BAIXA, resultado.prioridade());
     }
 }
