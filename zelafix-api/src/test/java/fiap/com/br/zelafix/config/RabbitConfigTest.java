@@ -32,10 +32,16 @@ class RabbitConfigTest {
     private Queue triagemQueue;
 
     @Autowired
+    private Queue triagemConcluidaQueue;
+
+    @Autowired
     private Queue votoQueue;
 
     @Autowired
     private Binding triagemBinding;
+
+    @Autowired
+    private Binding triagemConcluidaBinding;
 
     @Autowired
     private Binding votoBinding;
@@ -49,11 +55,17 @@ class RabbitConfigTest {
         assertNotNull(triagemQueue);
         assertEquals(RabbitConfig.QUEUE_CHAMADO_TRIAGEM, triagemQueue.getName());
 
+        assertNotNull(triagemConcluidaQueue);
+        assertEquals(RabbitConfig.QUEUE_CHAMADO_TRIAGEM_CONCLUIDA, triagemConcluidaQueue.getName());
+
         assertNotNull(votoQueue);
         assertEquals(RabbitConfig.QUEUE_CHAMADO_VOTO, votoQueue.getName());
 
         assertNotNull(triagemBinding);
         assertEquals(RabbitConfig.ROUTING_KEY_CHAMADO_TRIAGEM, triagemBinding.getRoutingKey());
+
+        assertNotNull(triagemConcluidaBinding);
+        assertEquals(RabbitConfig.ROUTING_KEY_CHAMADO_TRIAGEM_CONCLUIDA, triagemConcluidaBinding.getRoutingKey());
 
         assertNotNull(votoBinding);
         assertEquals(RabbitConfig.ROUTING_KEY_CHAMADO_VOTO, votoBinding.getRoutingKey());

@@ -26,6 +26,9 @@ public class RabbitConfig {
     public static final String QUEUE_CHAMADO_TRIAGEM = "chamado.triagem.queue"; // Fila de triagem por IA
     public static final String ROUTING_KEY_CHAMADO_TRIAGEM = "chamado.triagem.key"; // Routing Key para triagem
 
+    public static final String QUEUE_CHAMADO_TRIAGEM_CONCLUIDA = "chamado.triagem-concluida.queue"; // Fila de retorno da triagem por IA
+    public static final String ROUTING_KEY_CHAMADO_TRIAGEM_CONCLUIDA = "chamado.triagem-concluida.key"; // Routing Key para retorno
+
     public static final String QUEUE_CHAMADO_VOTO = "chamado.voto.queue"; // Fila de agregação de votos
     public static final String ROUTING_KEY_CHAMADO_VOTO = "chamado.voto.key"; // Routing Key para votos
 
@@ -70,6 +73,21 @@ public class RabbitConfig {
                 .bind(votoQueue())
                 .to(zelafixExchange())
                 .with(ROUTING_KEY_CHAMADO_VOTO);
+    }
+
+    // Fila durável de retorno da triagem por IA (Worker -> API)
+    @Bean
+    public Queue triagemConcluidaQueue() {
+        return new Queue(QUEUE_CHAMADO_TRIAGEM_CONCLUIDA, true);
+    }
+
+    // Liga a Fila de Retorno à Exchange com a Routing Key
+    @Bean
+    public Binding triagemConcluidaBinding() {
+        return BindingBuilder
+                .bind(triagemConcluidaQueue())
+                .to(zelafixExchange())
+                .with(ROUTING_KEY_CHAMADO_TRIAGEM_CONCLUIDA);
     }
 
     /*
