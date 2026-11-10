@@ -36,3 +36,7 @@ ehthumbs.db
 # User Uploads (Runtime Files)
 **/uploads/*
 !**/uploads/.gitkeep
+
+# Python artifacts
+__pycache__/
+*.py[cod]
