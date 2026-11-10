@@ -5,13 +5,15 @@
 
 ---
 
-## 👥 Integrantes do Grupo
+## 👥 Integrantes do Grupo (Ordem Alfabética Estrita)
 
 | RM | Nome Completo | Turma |
 | :---: | :--- | :---: |
-| **RM554744** | Enzo De Oliveira Silva | 2TDSS |
-| **RM554904** | Lucca de Gouveia | 2TDSS |
-| **RM554707** | Marcos Vinicius | 2TDSS |
+| **RM561432** | Enzo Okuizumi Miranda de Souza | 2TDSPG |
+| **RM563428** | Gustavo Keiji Okada | 2TDSPG |
+| **RM566422** | Lucas Barros Gouveia | 2TDSPG |
+| **RM562290** | Luna de Carvalho Guimarães | 2TDSPG |
+| **RM564836** | Milton Jakson de Sousa Marcelino | 2TDSPG |
 
 ---
 
