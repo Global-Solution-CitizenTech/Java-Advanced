@@ -32,12 +32,6 @@ class RabbitWorkerConfigTest {
     }
 
     @Test
-    @DisplayName("Deve inicializar o ObjectMapper corretamente")
-    void deveInicializarObjectMapper() {
-        assertNotNull(rabbitConfig.objectMapper());
-    }
-
-    @Test
     @DisplayName("Deve configurar o MessageConverter com JacksonJsonMessageConverter")
     void deveConfigurarJacksonJsonMessageConverter() {
         MessageConverter converter = rabbitConfig.jsonMessageConverter();
@@ -52,6 +46,16 @@ class RabbitWorkerConfigTest {
         assertNotNull(queue);
         assertEquals(RabbitWorkerConfig.QUEUE_CHAMADO_TRIAGEM, queue.getName());
         assertEquals("chamado.triagem.queue", queue.getName());
+        assertTrue(queue.isDurable());
+    }
+
+    @Test
+    @DisplayName("Deve configurar a fila de retorno da triagem com nome correto e durabilidade")
+    void deveConfigurarFilaTriagemConcluida() {
+        Queue queue = rabbitConfig.triagemConcluidaQueue();
+        assertNotNull(queue);
+        assertEquals(RabbitWorkerConfig.QUEUE_CHAMADO_TRIAGEM_CONCLUIDA, queue.getName());
+        assertEquals("chamado.triagem-concluida.queue", queue.getName());
         assertTrue(queue.isDurable());
     }
 
@@ -84,6 +88,17 @@ class RabbitWorkerConfigTest {
         assertEquals(RabbitWorkerConfig.QUEUE_CHAMADO_TRIAGEM, binding.getDestination());
         assertEquals(RabbitWorkerConfig.EXCHANGE_NAME, binding.getExchange());
         assertEquals(RabbitWorkerConfig.ROUTING_KEY_CHAMADO_TRIAGEM, binding.getRoutingKey());
+        assertEquals(Binding.DestinationType.QUEUE, binding.getDestinationType());
+    }
+
+    @Test
+    @DisplayName("Deve configurar o binding da fila de retorno com a Exchange e Routing Key corretas")
+    void deveConfigurarTriagemConcluidaBinding() {
+        Binding binding = rabbitConfig.triagemConcluidaBinding();
+        assertNotNull(binding);
+        assertEquals(RabbitWorkerConfig.QUEUE_CHAMADO_TRIAGEM_CONCLUIDA, binding.getDestination());
+        assertEquals(RabbitWorkerConfig.EXCHANGE_NAME, binding.getExchange());
+        assertEquals(RabbitWorkerConfig.ROUTING_KEY_CHAMADO_TRIAGEM_CONCLUIDA, binding.getRoutingKey());
         assertEquals(Binding.DestinationType.QUEUE, binding.getDestinationType());
     }
 

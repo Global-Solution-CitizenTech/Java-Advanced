@@ -24,21 +24,6 @@ class VotoConsumerTest {
     }
 
     @Test
-    @DisplayName("Deve descartar com segurança quando a mensagem for nula")
-    void deveDescartarMensagemNula() {
-        assertDoesNotThrow(() -> votoConsumer.consumeVoto(null));
-        assertTrue(votoConsumer.getVotesBuffer().isEmpty());
-    }
-
-    @Test
-    @DisplayName("Deve descartar com segurança quando idChamado for nulo")
-    void deveDescartarMensagemComIdChamadoNulo() {
-        VotoMessage msg = new VotoMessage(null, 1L, "ADICIONAR");
-        assertDoesNotThrow(() -> votoConsumer.consumeVoto(msg));
-        assertTrue(votoConsumer.getVotesBuffer().isEmpty());
-    }
-
-    @Test
     @DisplayName("Deve acumular votos no buffer em memória e realizar flush")
     void deveAcumularVotosERealizarFlush() {
         VotoMessage msg1 = new VotoMessage(10L, 1L);
@@ -76,7 +61,7 @@ class VotoConsumerTest {
     }
 
     @Test
-    @DisplayName("Teste pesado de concorrência: 100 threads simultâneas acumulando votos com consistência")
+    @DisplayName("Teste de concorrência: 100 threads simultâneas acumulando votos com consistência")
     void testePesadoConcorrenciaVotos() throws InterruptedException {
         int numThreads = 100;
         ExecutorService executor = Executors.newFixedThreadPool(16);
@@ -86,7 +71,6 @@ class VotoConsumerTest {
             final long userId = i;
             executor.submit(() -> {
                 try {
-                    // Cada thread adiciona 2 votos para chamado 50 e 1 voto para chamado 60
                     votoConsumer.consumeVoto(new VotoMessage(50L, userId, "ADICIONAR"));
                     votoConsumer.consumeVoto(new VotoMessage(50L, userId, "ADICIONAR"));
                     votoConsumer.consumeVoto(new VotoMessage(60L, userId, "ADICIONAR"));

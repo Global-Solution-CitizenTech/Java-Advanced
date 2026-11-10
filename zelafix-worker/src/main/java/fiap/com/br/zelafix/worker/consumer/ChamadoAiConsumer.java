@@ -4,17 +4,18 @@ import fiap.com.br.zelafix.worker.ai.ZelaFixAiService;
 import fiap.com.br.zelafix.worker.ai.dto.TriagemIaResult;
 import fiap.com.br.zelafix.worker.config.RabbitWorkerConfig;
 import fiap.com.br.zelafix.worker.queue.dto.ChamadoTriagemMessage;
+import fiap.com.br.zelafix.worker.queue.dto.TriagemFeedbackMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
 /**
  * Consumidor Assíncrono RabbitMQ para Triagem Inteligente com Spring AI.
  *
- * Escuta a fila 'chamado.triagem.queue', recebe o evento tipado gerado pela API,
- * aciona o modelo multimodal Qwen 3.8 27B e persiste o parecer no histórico do chamado.
+ * Escuta a fila 'chamado.triagem.queue', analisa o chamado via LLM
+ * e publica o parecer na fila de retorno 'chamado.triagem-concluida.queue'.
  */
 @Slf4j
 @Component
@@ -22,62 +23,32 @@ import org.springframework.stereotype.Component;
 public class ChamadoAiConsumer {
 
     private final ZelaFixAiService aiService;
-    private final JdbcTemplate jdbcTemplate;
+    private final RabbitTemplate rabbitTemplate;
 
     @RabbitListener(queues = RabbitWorkerConfig.QUEUE_CHAMADO_TRIAGEM)
     public void processarTriagem(ChamadoTriagemMessage message) {
-        if (message == null || message.idChamado() == null) {
-            log.warn("Mensagem de triagem nula ou sem idChamado descartada: {}", message);
-            return;
-        }
         log.info("Processando triagem assíncrona com Spring AI para o chamado ID: {}", message.idChamado());
-
-        byte[] fotoBytes = carregarFoto(message.idChamado());
 
         TriagemIaResult resultado = aiService.analisarChamado(
                 message.categoria(),
                 message.titulo(),
                 message.descricao(),
-                message.bairro(),
-                fotoBytes
+                message.bairro()
         );
 
-        atualizarHistoricoChamado(message.idChamado(), resultado);
-    }
-
-    private byte[] carregarFoto(Long idChamado) {
-        try {
-            return jdbcTemplate.queryForObject(
-                    "SELECT foto FROM chamado WHERE id_chamado = ?",
-                    (rs, rowNum) -> rs.getBytes("foto"),
-                    idChamado
-            );
-        } catch (Exception e) {
-            log.debug("Foto não encontrada para o chamado ID {}: {}", idChamado, e.getMessage());
-            return null;
-        }
-    }
-
-    private void atualizarHistoricoChamado(Long idChamado, TriagemIaResult resultado) {
-        String observacao = String.format("[Triagem IA - %s | %s] %s",
-                resultado.prioridade(),
+        var feedback = new TriagemFeedbackMessage(
+                message.idChamado(),
+                resultado.prioridade().name(),
                 resultado.orgaoResponsavel().getNomeOficial(),
-                resultado.parecerIa());
+                resultado.parecerIa()
+        );
 
-        if (observacao.length() > 255) {
-            observacao = observacao.substring(0, 252) + "...";
-        }
+        rabbitTemplate.convertAndSend(
+                RabbitWorkerConfig.EXCHANGE_NAME,
+                RabbitWorkerConfig.ROUTING_KEY_CHAMADO_TRIAGEM_CONCLUIDA,
+                feedback
+        );
 
-        log.info("Triagem por IA concluída para o chamado ID {}: {}", idChamado, observacao);
-
-        jdbcTemplate.update("""
-            UPDATE hist_chamado
-            SET observacoes = ?
-            WHERE id_hist = (
-                SELECT MAX(h.id_hist)
-                FROM hist_chamado h
-                WHERE h.chamado_id_chamado = ?
-            )
-        """, observacao, idChamado);
+        log.info("Triagem IA concluída e publicada na fila de retorno para o chamado ID: {}", message.idChamado());
     }
 }

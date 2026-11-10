@@ -56,7 +56,7 @@ public class ZelaFixAiService {
         return chatClient.prompt()
                 .user(u -> {
                     u.text(userPrompt);
-                    if (fotoBytes != null && fotoBytes.length > 0) {
+                    if (fotoBytes != null && fotoBytes.length > 32) {
                         MimeType mimeType = ImageMimeTypeDetector.detectar(fotoBytes);
                         u.media(mimeType, new ByteArrayResource(fotoBytes));
                     }
