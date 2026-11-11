@@ -45,7 +45,8 @@ stages:
         ORACLE_URL: $(ORACLE_URL)
         ORACLE_USER: $(ORACLE_USER)
         ORACLE_PASSWORD: $(ORACLE_PASSWORD)
-        FLYWAY_ENABLED: 'false'
+        SPRING_RABBITMQ_ADDRESSES: $(RABBITMQ_URI)
+        GROQ_MODEL: $(GROQ_MODEL)
         PORT: '8080'
 
     # 2. Publicar resultados dos Testes JUnit no painel interativo do Azure DevOps

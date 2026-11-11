@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest(properties = {
-        "spring.ai.openai.base-url=${GROQ_BASE_URL:https://api.groq.com/openai}",
+        "spring.ai.openai.base-url=${GROQ_BASE_URL:https://api.groq.com/openai/v1}",
         "spring.ai.openai.api-key=${GROQ_API_KEY:test-key}",
         "spring.ai.openai.chat.options.model=${GROQ_MODEL:qwen/qwen3.8-27b}",
         "spring.rabbitmq.listener.simple.auto-startup=false"
