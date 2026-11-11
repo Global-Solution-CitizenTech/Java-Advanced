@@ -12,7 +12,7 @@ import org.springframework.web.service.annotation.HttpExchange;
 )
 public interface ViaCepService {
 
-    @Cacheable(value = "viacep", key = "#cep")
+    @Cacheable(value = "viacep", key = "#cep", unless = "#result == null || #result.erro() == true")
     @GetExchange("/{cep}/json")
     ViaCepResponse getEnderecoPorCep(@PathVariable("cep") String cep);
 }

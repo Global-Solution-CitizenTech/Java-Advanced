@@ -8,7 +8,6 @@ import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
 import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.EnderecoService;
-import fiap.com.br.zelafix.exception.BusinessException;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
 import fiap.com.br.zelafix.historico.HistChamado;
 import fiap.com.br.zelafix.historico.HistChamadoRepository;
@@ -176,10 +175,10 @@ public class ChamadoService {
     public EstatisticasResponse getStatistics() {
         return EstatisticasResponse.of(
                 chamadoRepository.count(),
-                chamadoRepository.countByStatusNmStatusIgnoreCase("PENDENTE") + chamadoRepository.countByStatusNmStatusIgnoreCase("ABERTO"),
-                chamadoRepository.countByStatusNmStatusIgnoreCase("EM_ANALISE") + chamadoRepository.countByStatusNmStatusIgnoreCase("EM_EXECUCAO"),
-                chamadoRepository.countByStatusNmStatusIgnoreCase("CONCLUIDO"),
-                chamadoRepository.countByStatusNmStatusIgnoreCase("REJEITADO"),
+                chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.PENDENTE.name()) + chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.ABERTO.name()),
+                chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.EM_ANALISE.name()) + chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.EM_EXECUCAO.name()),
+                chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.CONCLUIDO.name()),
+                chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.REJEITADO.name()),
                 votoChamadoRepository.count()
         );
     }
@@ -195,13 +194,13 @@ public class ChamadoService {
 
     private void validarPermissaoEdicao(Chamado chamado, Usuario usuario) {
         if (!chamado.getUsuario().getIdUsuario().equals(usuario.getIdUsuario()) && usuario.getCargo() != CargoUsuario.ADMIN) {
-            throw new BusinessException("Você não tem permissão para editar este chamado.");
+            throw new IllegalArgumentException("Você não tem permissão para editar este chamado.");
         }
     }
 
     private void validarPermissaoGestao(Usuario operador) {
         if (operador.getCargo() != CargoUsuario.GESTOR && operador.getCargo() != CargoUsuario.ADMIN) {
-            throw new BusinessException("Apenas funcionários da prefeitura ou administradores têm permissão para atualizar o status do chamado.");
+            throw new IllegalArgumentException("Apenas funcionários da prefeitura ou administradores têm permissão para atualizar o status do chamado.");
         }
     }
 

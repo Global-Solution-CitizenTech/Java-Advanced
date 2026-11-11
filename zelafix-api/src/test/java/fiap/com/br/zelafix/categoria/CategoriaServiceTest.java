@@ -1,7 +1,6 @@
 package fiap.com.br.zelafix.categoria;
 
 import fiap.com.br.zelafix.categoria.dto.CategoriaRequest;
-import fiap.com.br.zelafix.exception.BusinessException;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -113,12 +112,12 @@ class CategoriaServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar BusinessException ao tentar criar categoria com nome duplicado")
+    @DisplayName("Deve lançar IllegalArgumentException ao tentar criar categoria com nome duplicado")
     void deveLancarExcecaoAoCriarCategoriaComNomeDuplicado() {
         CategoriaRequest req = new CategoriaRequest("Buraco na via");
         when(categoriaRepository.findByNmCategoriaIgnoreCase("Buraco na via")).thenReturn(Optional.of(categoriaAsfalto));
 
-        BusinessException ex = assertThrows(BusinessException.class, () -> categoriaService.create(req));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> categoriaService.create(req));
         assertEquals("Categoria já cadastrada com o nome: Buraco na via", ex.getMessage());
     }
 
@@ -137,7 +136,7 @@ class CategoriaServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar BusinessException ao atualizar para nome que já pertence a outra categoria")
+    @DisplayName("Deve lançar IllegalArgumentException ao atualizar para nome que já pertence a outra categoria")
     void deveLancarExcecaoAoAtualizarParaNomeExistenteDeOutraCategoria() {
         Categoria outra = new Categoria(2L, "Iluminação");
         CategoriaRequest req = new CategoriaRequest("Iluminação");
@@ -145,7 +144,7 @@ class CategoriaServiceTest {
         when(categoriaRepository.findById(1L)).thenReturn(Optional.of(categoriaAsfalto));
         when(categoriaRepository.findByNmCategoriaIgnoreCase("Iluminação")).thenReturn(Optional.of(outra));
 
-        BusinessException ex = assertThrows(BusinessException.class, () -> categoriaService.update(1L, req));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> categoriaService.update(1L, req));
         assertEquals("Já existe uma categoria cadastrada com o nome: Iluminação", ex.getMessage());
     }
 

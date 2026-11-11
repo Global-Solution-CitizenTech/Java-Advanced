@@ -11,7 +11,6 @@ import fiap.com.br.zelafix.endereco.bairro.Bairro;
 import fiap.com.br.zelafix.endereco.cidade.Cidade;
 import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.endereco.estado.Estado;
-import fiap.com.br.zelafix.exception.BusinessException;
 import fiap.com.br.zelafix.historico.HistChamado;
 import fiap.com.br.zelafix.historico.HistChamadoRepository;
 import fiap.com.br.zelafix.queue.dto.ChamadoTriagemMessage;
@@ -227,7 +226,7 @@ class ChamadoServiceTest {
 
         ChamadoStatusRequest request = new ChamadoStatusRequest("CONCLUIDO", "Resolvido");
 
-        assertThrows(BusinessException.class, () ->
+        assertThrows(IllegalArgumentException.class, () ->
                 chamadoService.updateStatus(400L, request, usuario.getEmail())
         );
     }

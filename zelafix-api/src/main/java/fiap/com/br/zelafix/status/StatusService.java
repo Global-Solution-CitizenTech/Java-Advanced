@@ -1,6 +1,5 @@
 package fiap.com.br.zelafix.status;
 
-import fiap.com.br.zelafix.exception.BusinessException;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
 import fiap.com.br.zelafix.status.dto.StatusRequest;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +38,7 @@ public class StatusService {
     public Status create(StatusRequest request) {
         String nome = request.nome().trim().toUpperCase();
         if (statusRepository.findByNmStatusIgnoreCase(nome).isPresent()) {
-            throw new BusinessException("Status já cadastrado com o nome: " + nome);
+            throw new IllegalArgumentException("Status já cadastrado com o nome: " + nome);
         }
         return statusRepository.save(request.toEntity());
     }
@@ -51,7 +50,7 @@ public class StatusService {
         String novoNome = request.nome().trim().toUpperCase();
         statusRepository.findByNmStatusIgnoreCase(novoNome).ifPresent(existente -> {
             if (!existente.getIdStatus().equals(id)) {
-                throw new BusinessException("Já existe um status cadastrado com o nome: " + novoNome);
+                throw new IllegalArgumentException("Já existe um status cadastrado com o nome: " + novoNome);
             }
         });
         status.setNmStatus(novoNome);

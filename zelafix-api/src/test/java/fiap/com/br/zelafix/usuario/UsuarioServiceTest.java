@@ -6,7 +6,6 @@ import fiap.com.br.zelafix.endereco.bairro.Bairro;
 import fiap.com.br.zelafix.endereco.cidade.Cidade;
 import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.endereco.estado.Estado;
-import fiap.com.br.zelafix.exception.BusinessException;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
 import fiap.com.br.zelafix.telefone.Telefone;
 import fiap.com.br.zelafix.usuario.dto.UsuarioRequest;
@@ -109,11 +108,11 @@ class UsuarioServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar BusinessException ao tentar cadastrar usuário com e-mail duplicado")
+    @DisplayName("Deve lançar IllegalArgumentException ao tentar cadastrar usuário com e-mail duplicado")
     void deveLancarExcecaoParaEmailDuplicado() {
         when(usuarioRepository.existsByEmail("cidadao@zelafix.com.br")).thenReturn(true);
 
-        assertThrows(BusinessException.class, () -> usuarioService.create(request));
+        assertThrows(IllegalArgumentException.class, () -> usuarioService.create(request));
     }
 
     @Test
@@ -166,7 +165,7 @@ class UsuarioServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar BusinessException ao atualizar e-mail para um já existente de outro usuário")
+    @DisplayName("Deve lançar IllegalArgumentException ao atualizar e-mail para um já existente de outro usuário")
     void deveLancarExcecaoAoAtualizarParaEmailJaCadastrado() {
         UsuarioRequest reqNovoEmail = new UsuarioRequest("Carlos Alterado", "outro@zelafix.com.br", "Senha@123",
                 "CIDADAO", "11", "987654321", request.endereco());
@@ -174,7 +173,7 @@ class UsuarioServiceTest {
         when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioCidadao));
         when(usuarioRepository.existsByEmail("outro@zelafix.com.br")).thenReturn(true);
 
-        BusinessException ex = assertThrows(BusinessException.class, () -> usuarioService.update(1L, reqNovoEmail));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> usuarioService.update(1L, reqNovoEmail));
         assertEquals("E-mail já cadastrado: outro@zelafix.com.br", ex.getMessage());
     }
 
@@ -197,7 +196,7 @@ class UsuarioServiceTest {
         when(usuarioRepository.findById(2L)).thenReturn(Optional.of(usuarioAdmin));
         when(usuarioRepository.countByCargo(CargoUsuario.ADMIN)).thenReturn(1L);
 
-        assertThrows(BusinessException.class, () -> usuarioService.updateCargo(2L, "GESTOR"));
+        assertThrows(IllegalArgumentException.class, () -> usuarioService.updateCargo(2L, "GESTOR"));
     }
 
     @Test
@@ -218,7 +217,7 @@ class UsuarioServiceTest {
         when(usuarioRepository.findById(2L)).thenReturn(Optional.of(usuarioAdmin));
         when(usuarioRepository.countByCargo(CargoUsuario.ADMIN)).thenReturn(1L);
 
-        assertThrows(BusinessException.class, () -> usuarioService.delete(2L));
+        assertThrows(IllegalArgumentException.class, () -> usuarioService.delete(2L));
     }
 
     @Test
@@ -227,7 +226,7 @@ class UsuarioServiceTest {
         when(usuarioRepository.findByEmail("admin@zelafix.com.br")).thenReturn(Optional.of(usuarioAdmin));
         when(usuarioRepository.countByCargo(CargoUsuario.ADMIN)).thenReturn(1L);
 
-        assertThrows(BusinessException.class, () -> usuarioService.delete("admin@zelafix.com.br"));
+        assertThrows(IllegalArgumentException.class, () -> usuarioService.delete("admin@zelafix.com.br"));
     }
 
     @Test

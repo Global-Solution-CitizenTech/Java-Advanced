@@ -2,7 +2,6 @@ package fiap.com.br.zelafix.usuario;
 
 import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.EnderecoService;
-import fiap.com.br.zelafix.exception.BusinessException;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
 import fiap.com.br.zelafix.usuario.dto.UsuarioRequest;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +35,7 @@ public class UsuarioService {
     @Transactional
     public Usuario create(UsuarioRequest req) {
         if (usuarioRepository.existsByEmail(req.email().trim().toLowerCase())) {
-            throw new BusinessException("E-mail já cadastrado: " + req.email());
+            throw new IllegalArgumentException("E-mail já cadastrado: " + req.email());
         }
         Endereco endereco = enderecoService.findOrCreateByCepAndNumero(req.endereco());
         Usuario usuario = req.toEntity(endereco, passwordEncoder.encode(req.senha()));
@@ -63,7 +62,7 @@ public class UsuarioService {
         CargoUsuario novoCargo = CargoUsuario.valueOf(cargoStr.trim().toUpperCase());
 
         if (usuario.getCargo() == CargoUsuario.ADMIN && novoCargo != CargoUsuario.ADMIN && usuarioRepository.countByCargo(CargoUsuario.ADMIN) <= 1) {
-            throw new BusinessException("Não é possível rebaixar o único administrador do sistema.");
+            throw new IllegalArgumentException("Não é possível rebaixar o único administrador do sistema.");
         }
 
         usuario.setCargo(novoCargo);
@@ -82,7 +81,7 @@ public class UsuarioService {
 
     private void deleteUsuario(Usuario usuario) {
         if (usuario.getCargo() == CargoUsuario.ADMIN && usuarioRepository.countByCargo(CargoUsuario.ADMIN) <= 1) {
-            throw new BusinessException("Não é possível excluir o único administrador do sistema.");
+            throw new IllegalArgumentException("Não é possível excluir o único administrador do sistema.");
         }
         usuarioRepository.delete(usuario);
     }
@@ -95,7 +94,7 @@ public class UsuarioService {
     private void aplicarEm(Usuario usuario, UsuarioRequest req) {
         String novoEmail = req.email().trim().toLowerCase();
         if (!usuario.getEmail().equalsIgnoreCase(novoEmail) && usuarioRepository.existsByEmail(novoEmail)) {
-            throw new BusinessException("E-mail já cadastrado: " + req.email());
+            throw new IllegalArgumentException("E-mail já cadastrado: " + req.email());
         }
 
         usuario.setNmUsuario(req.nome().trim());

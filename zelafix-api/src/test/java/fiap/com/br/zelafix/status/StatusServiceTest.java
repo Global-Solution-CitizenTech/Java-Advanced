@@ -1,6 +1,5 @@
 package fiap.com.br.zelafix.status;
 
-import fiap.com.br.zelafix.exception.BusinessException;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
 import fiap.com.br.zelafix.status.dto.StatusRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -110,12 +109,12 @@ class StatusServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar BusinessException ao tentar criar status com nome duplicado")
+    @DisplayName("Deve lançar IllegalArgumentException ao tentar criar status com nome duplicado")
     void deveLancarExcecaoAoCriarStatusComNomeDuplicado() {
         StatusRequest req = new StatusRequest("ABERTO");
         when(statusRepository.findByNmStatusIgnoreCase("ABERTO")).thenReturn(Optional.of(statusAberto));
 
-        BusinessException ex = assertThrows(BusinessException.class, () -> statusService.create(req));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> statusService.create(req));
         assertEquals("Status já cadastrado com o nome: ABERTO", ex.getMessage());
     }
 
@@ -134,7 +133,7 @@ class StatusServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar BusinessException ao atualizar status para nome de outro status existente")
+    @DisplayName("Deve lançar IllegalArgumentException ao atualizar status para nome de outro status existente")
     void deveLancarExcecaoAoAtualizarParaNomeExistenteDeOutroStatus() {
         Status outro = new Status(2L, "CANCELADO");
         StatusRequest req = new StatusRequest("CANCELADO");
@@ -142,7 +141,7 @@ class StatusServiceTest {
         when(statusRepository.findById(1L)).thenReturn(Optional.of(statusAberto));
         when(statusRepository.findByNmStatusIgnoreCase("CANCELADO")).thenReturn(Optional.of(outro));
 
-        BusinessException ex = assertThrows(BusinessException.class, () -> statusService.update(1L, req));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> statusService.update(1L, req));
         assertEquals("Já existe um status cadastrado com o nome: CANCELADO", ex.getMessage());
     }
 

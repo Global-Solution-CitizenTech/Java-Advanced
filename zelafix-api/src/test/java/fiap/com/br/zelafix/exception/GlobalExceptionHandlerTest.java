@@ -104,9 +104,9 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("Deve tratar BusinessException e retornar 400")
-    void deveTratarBusinessException() {
-        BusinessException ex = new BusinessException("Não é possível rebaixar único admin");
+    @DisplayName("Deve tratar IllegalArgumentException e retornar 400")
+    void deveTratarIllegalArgumentException() {
+        IllegalArgumentException ex = new IllegalArgumentException("Não é possível rebaixar único admin");
 
         ResponseEntity<GlobalExceptionHandler.ApiErrorResponse> response =
                 exceptionHandler.handleBusinessException(ex, request);
