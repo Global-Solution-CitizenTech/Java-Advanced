@@ -4,7 +4,7 @@ import fiap.com.br.zelafix.categoria.Categoria;
 import fiap.com.br.zelafix.categoria.CategoriaService;
 import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
-import fiap.com.br.zelafix.chamado.dto.StatusRequest;
+import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
 import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.EnderecoService;
 import fiap.com.br.zelafix.endereco.bairro.Bairro;
@@ -14,6 +14,7 @@ import fiap.com.br.zelafix.endereco.estado.Estado;
 import fiap.com.br.zelafix.exception.BusinessException;
 import fiap.com.br.zelafix.historico.HistChamado;
 import fiap.com.br.zelafix.historico.HistChamadoRepository;
+import fiap.com.br.zelafix.queue.dto.ChamadoTriagemMessage;
 import fiap.com.br.zelafix.queue.dto.TriagemFeedbackMessage;
 import fiap.com.br.zelafix.queue.producer.ChamadoEventProducer;
 import fiap.com.br.zelafix.queue.producer.VotoEventProducer;
@@ -42,6 +43,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -148,8 +150,11 @@ class ChamadoServiceTest {
         assertNotNull(response);
         assertEquals(100L, response.idChamado());
         assertEquals("Buraco perigoso na via", response.titulo());
+        assertEquals("PENDENTE", response.status());
 
-        verify(chamadoEventProducer, times(1)).publicarTriagem(any());
+        ArgumentCaptor<ChamadoTriagemMessage> triagemCaptor = ArgumentCaptor.forClass(ChamadoTriagemMessage.class);
+        verify(chamadoEventProducer, times(1)).publicarTriagem(triagemCaptor.capture());
+        assertArrayEquals(chamadoSalvo.getFoto(), triagemCaptor.getValue().foto());
         verify(histChamadoRepository, times(1)).save(any());
         verify(votoChamadoRepository, times(1)).save(any());
     }
@@ -220,7 +225,7 @@ class ChamadoServiceTest {
         when(chamadoRepository.findById(400L)).thenReturn(Optional.of(chamado));
         when(usuarioService.findByEmail(usuario.getEmail())).thenReturn(usuario);
 
-        StatusRequest request = new StatusRequest("CONCLUIDO", "Resolvido");
+        ChamadoStatusRequest request = new ChamadoStatusRequest("CONCLUIDO", "Resolvido");
 
         assertThrows(BusinessException.class, () ->
                 chamadoService.updateStatus(400L, request, usuario.getEmail())
@@ -254,7 +259,7 @@ class ChamadoServiceTest {
         when(usuarioService.findByEmail(gestor.getEmail())).thenReturn(gestor);
         when(statusService.findByNameOrCreate("CONCLUIDO")).thenReturn(statusNovo);
 
-        StatusRequest request = new StatusRequest("CONCLUIDO", "Serviço finalizado com sucesso.");
+        ChamadoStatusRequest request = new ChamadoStatusRequest("CONCLUIDO", "Serviço finalizado com sucesso.");
 
         ChamadoResponse response = chamadoService.updateStatus(500L, request, gestor.getEmail());
 
@@ -289,7 +294,7 @@ class ChamadoServiceTest {
         when(usuarioService.findByEmail(admin.getEmail())).thenReturn(admin);
         when(statusService.findByNameOrCreate("CONCLUIDO")).thenReturn(statusNovo);
 
-        StatusRequest request = new StatusRequest("CONCLUIDO", "Resolvido por intervenção direta de admin.");
+        ChamadoStatusRequest request = new ChamadoStatusRequest("CONCLUIDO", "Resolvido por intervenção direta de admin.");
 
         ChamadoResponse response = chamadoService.updateStatus(600L, request, admin.getEmail());
 
