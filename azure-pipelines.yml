@@ -51,7 +51,6 @@ stages:
         RABBITMQ_PASSWORD: $(RABBITMQ_PASSWORD)
         GROQ_API_KEY: $(GROQ_API_KEY)
         GROQ_MODEL: $(GROQ_MODEL)
-        FLYWAY_ENABLED: 'false'
         PORT: '8080'
 
     # 2. Publicar resultados dos Testes JUnit no painel interativo do Azure DevOps
