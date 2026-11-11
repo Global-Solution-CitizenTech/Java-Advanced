@@ -22,8 +22,8 @@ public class ChamadoTriagemFeedbackConsumer {
     private final ChamadoService chamadoService;
 
     @RabbitListener(queues = RabbitConfig.QUEUE_CHAMADO_TRIAGEM_CONCLUIDA)
-    public void receberFeedbackTriagem(TriagemFeedbackMessage message) {
-        log.info("Recebido parecer da IA para chamado ID {}: [{}] {}", message.idChamado(), message.prioridade(), message.orgao());
-        chamadoService.aplicarTriagemIa(message.idChamado(), message.prioridade(), message.orgao(), message.parecer());
+    public void receberFeedbackTriagem(TriagemFeedbackMessage feedback) {
+        log.info("Recebido parecer da IA para chamado ID {}: [{}] {}", feedback.idChamado(), feedback.prioridade(), feedback.orgao());
+        chamadoService.aplicarTriagemIa(feedback);
     }
 }

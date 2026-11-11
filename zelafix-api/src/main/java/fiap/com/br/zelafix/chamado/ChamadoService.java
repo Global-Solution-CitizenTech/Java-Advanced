@@ -14,6 +14,7 @@ import fiap.com.br.zelafix.historico.HistChamado;
 import fiap.com.br.zelafix.historico.HistChamadoRepository;
 import fiap.com.br.zelafix.historico.dto.HistoricoResponse;
 import fiap.com.br.zelafix.queue.dto.ChamadoTriagemMessage;
+import fiap.com.br.zelafix.queue.dto.TriagemFeedbackMessage;
 import fiap.com.br.zelafix.queue.dto.VotoMessage;
 import fiap.com.br.zelafix.queue.producer.ChamadoEventProducer;
 import fiap.com.br.zelafix.queue.producer.VotoEventProducer;
@@ -136,13 +137,15 @@ public class ChamadoService {
     }
 
     @Transactional
+    public void aplicarTriagemIa(TriagemFeedbackMessage feedback) {
+        histChamadoRepository
+                .findFirstByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(feedback.idChamado())
+                .ifPresent(base -> histChamadoRepository.save(feedback.toEntity(base)));
+    }
+
+    @Transactional
     public void aplicarTriagemIa(Long idChamado, String prioridade, String orgao, String parecer) {
-        histChamadoRepository.findFirstByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(idChamado)
-                .ifPresent(hist -> {
-                    String obs = String.format("[Triagem IA - %s | %s] %s", prioridade, orgao, parecer);
-                    hist.setObservacoes(obs.length() > 255 ? obs.substring(0, 252) + "..." : obs);
-                    histChamadoRepository.save(hist);
-                });
+        aplicarTriagemIa(new TriagemFeedbackMessage(idChamado, prioridade, orgao, parecer));
     }
 
     // =========================================================================

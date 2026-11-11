@@ -4,8 +4,6 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import fiap.com.br.zelafix.worker.ai.enums.DepartamentoGoverno;
 import fiap.com.br.zelafix.worker.ai.enums.PrioridadeChamado;
 
-import java.io.Serializable;
-
 public record TriagemIaResult(
         @JsonPropertyDescription("Nível de prioridade da ocorrência urbana")
         PrioridadeChamado prioridade,
@@ -15,4 +13,4 @@ public record TriagemIaResult(
 
         @JsonPropertyDescription("Parecer técnico sucinto (máximo 150 caracteres) justificando a classificação e o risco observado")
         String parecerIa
-) implements Serializable {}
+) {}

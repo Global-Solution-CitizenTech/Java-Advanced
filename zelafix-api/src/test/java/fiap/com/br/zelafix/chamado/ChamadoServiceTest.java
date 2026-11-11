@@ -14,6 +14,7 @@ import fiap.com.br.zelafix.endereco.estado.Estado;
 import fiap.com.br.zelafix.exception.BusinessException;
 import fiap.com.br.zelafix.historico.HistChamado;
 import fiap.com.br.zelafix.historico.HistChamadoRepository;
+import fiap.com.br.zelafix.queue.dto.TriagemFeedbackMessage;
 import fiap.com.br.zelafix.queue.producer.ChamadoEventProducer;
 import fiap.com.br.zelafix.queue.producer.VotoEventProducer;
 import fiap.com.br.zelafix.status.Status;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -341,17 +343,30 @@ class ChamadoServiceTest {
     @Test
     @DisplayName("Deve aplicar parecer da triagem da IA no histórico mais recente")
     void deveAplicarTriagemIa() {
+        Chamado chamado = Chamado.builder().idChamado(100L).build();
+        Usuario usuario = Usuario.builder().idUsuario(1L).build();
+        Status status = Status.builder().idStatus(1L).nmStatus("ABERTO").build();
+
         HistChamado hist = HistChamado.builder()
                 .idHist(1L)
+                .chamado(chamado)
+                .usuario(usuario)
+                .status(status)
                 .observacoes("Abertura")
                 .build();
 
         when(histChamadoRepository.findFirstByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(100L))
                 .thenReturn(Optional.of(hist));
 
-        chamadoService.aplicarTriagemIa(100L, "ALTA", "Secretaria de Obras", "Reparo emergencial");
+        var feedback = new TriagemFeedbackMessage(100L, "ALTA", "Secretaria de Obras", "Reparo emergencial");
+        chamadoService.aplicarTriagemIa(feedback);
 
-        verify(histChamadoRepository).save(hist);
-        assertEquals("[Triagem IA - ALTA | Secretaria de Obras] Reparo emergencial", hist.getObservacoes());
+        ArgumentCaptor<HistChamado> captor = ArgumentCaptor.forClass(HistChamado.class);
+        verify(histChamadoRepository).save(captor.capture());
+        HistChamado salvo = captor.getValue();
+        assertEquals("[Triagem IA - ALTA | Secretaria de Obras] Reparo emergencial", salvo.getObservacoes());
+        assertEquals(chamado, salvo.getChamado());
+        assertEquals(usuario, salvo.getUsuario());
+        assertEquals(status, salvo.getStatus());
     }
 }

@@ -32,11 +32,6 @@ class ChamadoTriagemFeedbackConsumerTest {
 
         feedbackConsumer.receberFeedbackTriagem(message);
 
-        verify(chamadoService).aplicarTriagemIa(
-                42L,
-                "URGENTE",
-                "Secretaria Municipal de Infraestrutura Urbana e Obras",
-                "Cratera profunda na pista. Risco iminente de acidentes."
-        );
+        verify(chamadoService).aplicarTriagemIa(message);
     }
 }

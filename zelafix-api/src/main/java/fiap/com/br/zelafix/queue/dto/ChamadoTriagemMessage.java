@@ -2,7 +2,6 @@ package fiap.com.br.zelafix.queue.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import fiap.com.br.zelafix.chamado.Chamado;
-import java.io.Serializable;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ChamadoTriagemMessage(
@@ -11,7 +10,7 @@ public record ChamadoTriagemMessage(
         String descricao,
         String categoria,
         String bairro
-) implements Serializable {
+) {
 
     public static ChamadoTriagemMessage from(Chamado chamado) {
         return new ChamadoTriagemMessage(
