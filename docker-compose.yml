@@ -1,3 +1,19 @@
+# =============================================================================
+# FIAP - GLOBAL SOLUTION 2026/2 | CITIZENTECH & CIDADES SUSTENTÁVEIS (ODS 11)
+# Projeto: ZelaFix — Zeladoria Urbana Colaborativa
+# 
+# NOTA DE ARQUITETURA & AMBIENTE:
+# Este docker-compose.yml destina-se EXCLUSIVAMENTE ao ambiente de desenvolvimento
+# local (DevEx offline / testes unitários locais do desenvolvedor).
+#
+# Em PRODUÇÃO / NUVEM (Microsoft Azure):
+#   - API REST: Azure App Service Linux (app-zelafix-561432)
+#   - Worker IA: Azure App Service Linux (app-zelafix-worker-561432)
+#   - Mensageria: Azure Container Instances (zelafix-rabbitmq-561432)
+#   - Banco de Dados: Oracle Enterprise 19c (FIAP On-Premises)
+#   - IA Multimodal: Groq API (Qwen 3.8 27B Vision)
+# =============================================================================
+
 services:
   oracle:
     image: gvenzl/oracle-free:slim-faststart
