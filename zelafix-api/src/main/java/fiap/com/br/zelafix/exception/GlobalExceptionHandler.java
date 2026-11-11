@@ -86,7 +86,7 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.NOT_FOUND, exception.getMessage(), request);
     }
 
-    @ExceptionHandler({BusinessException.class, IllegalArgumentException.class})
+    @ExceptionHandler({BusinessException.class, IllegalArgumentException.class, IllegalStateException.class})
     public ResponseEntity<ApiErrorResponse> handleBusinessException(
             Exception exception, HttpServletRequest request) {
         log.warn("Violação de regra de negócio: {}", exception.getMessage());

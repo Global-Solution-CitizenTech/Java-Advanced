@@ -117,6 +117,19 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("Deve tratar IllegalStateException e retornar 400")
+    void deveTratarIllegalStateException() {
+        IllegalStateException ex = new IllegalStateException("Estado inválido para transição");
+
+        ResponseEntity<GlobalExceptionHandler.ApiErrorResponse> response =
+                exceptionHandler.handleBusinessException(ex, request);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals(400, response.getBody().status());
+        assertEquals("Estado inválido para transição", response.getBody().message());
+    }
+
+    @Test
     @DisplayName("Deve tratar AuthenticationException e retornar 401")
     void deveTratarAuthenticationException() {
         BadCredentialsException ex = new BadCredentialsException("Senha incorreta");
