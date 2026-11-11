@@ -4,6 +4,8 @@ import fiap.com.br.zelafix.categoria.dto.CategoriaRequest;
 import fiap.com.br.zelafix.exception.BusinessException;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,30 +17,35 @@ public class CategoriaService {
 
     private final CategoriaRepository categoriaRepository;
 
+    @Cacheable("categorias")
     public List<Categoria> findAll() {
         return categoriaRepository.findAll();
     }
 
+    @Cacheable("categorias")
     public Categoria findById(Long id) {
         return categoriaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada com id: " + id));
     }
 
+    @Cacheable("categorias")
     public Categoria findByNameOrCreate(String nome) {
         return categoriaRepository.findByNmCategoriaIgnoreCase(nome)
                 .orElseGet(() -> categoriaRepository.save(new CategoriaRequest(nome).toEntity()));
     }
 
     @Transactional
+    @CacheEvict(value = "categorias", allEntries = true)
     public Categoria create(CategoriaRequest request) {
         String nome = request.nome().trim();
         if (categoriaRepository.findByNmCategoriaIgnoreCase(nome).isPresent()) {
             throw new BusinessException("Categoria já cadastrada com o nome: " + nome);
         }
-        return categoriaRepository.save(new Categoria(null, nome));
+        return categoriaRepository.save(request.toEntity());
     }
 
     @Transactional
+    @CacheEvict(value = "categorias", allEntries = true)
     public Categoria update(Long id, CategoriaRequest request) {
         Categoria categoria = findById(id);
         String novoNome = request.nome().trim();
@@ -52,6 +59,7 @@ public class CategoriaService {
     }
 
     @Transactional
+    @CacheEvict(value = "categorias", allEntries = true)
     public void delete(Long id) {
         categoriaRepository.delete(findById(id));
     }

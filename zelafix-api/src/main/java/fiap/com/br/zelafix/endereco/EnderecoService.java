@@ -66,14 +66,12 @@ public class EnderecoService {
 
     private Endereco buildEndereco(EnderecoRequest request) {
         ViaCepResponse dados = obterDadosCep(request.cep());
-        Bairro bairro = obterOuCriarBairro(dados);
-        return request.toEntity(normalizarTexto(dados.logradouro()), bairro);
+        return request.toEntity(normalizarTexto(dados.logradouro()), obterOuCriarBairro(dados));
     }
 
     private Endereco aplicarEndereco(Endereco endereco, EnderecoRequest request) {
         ViaCepResponse dados = obterDadosCep(request.cep());
-        Bairro bairro = obterOuCriarBairro(dados);
-        return aplicarEm(endereco, request, normalizarTexto(dados.logradouro()), bairro);
+        return aplicarEm(endereco, request, normalizarTexto(dados.logradouro()), obterOuCriarBairro(dados));
     }
 
     private ViaCepResponse obterDadosCep(String cep) {
