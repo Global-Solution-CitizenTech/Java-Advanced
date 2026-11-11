@@ -21,10 +21,12 @@ O backend do ecossistema **ZelaFix** é estruturado em **dois microsserviços au
 │  - Gateway RESTful de domínio e autenticação                                                           │
 │  - Spring Security 6 com JWT RSA (Nimbus) & RBAC (ROLE_CIDADAO, ROLE_GESTOR, ROLE_ADMIN)               │
 │  - Persistência exclusiva no Banco Relacional Oracle FIAP via Spring Data JPA                          │
-│  - Validação estrita na borda (Jakarta Bean Validation nos Request DTOs)                               │
+│  - Validação estrita na borda (Jakarta Bean Validation nos Request DTOs + @DddValidation)              │
 │  - Tratamento global de erros padronizado RFC 7807 (GlobalExceptionHandler)                           │
-│  - Produtor RabbitMQ: publica ocorrências e votos no zelafix.direct                                    │
-│  - Consumidor RabbitMQ: consome retornos de triagem IA e persiste no Oracle                           │
+│  - Caching declarativo de catálogo com @Cacheable/@CacheEvict (Categoria e Status)                     │
+│  - Timeouts HTTP configurados no cliente declarativo ViaCepService                                     │
+│  - Produtor RabbitMQ: publica ocorrências com foto obrigatória e votos no zelafix.direct               │
+│  - Consumidor RabbitMQ: consome retornos de triagem IA e persiste no Oracle via TriagemFeedbackMessage │
 └───────────────────────┬────────────────────────────────────────────────────────▲───────────────────────┘
                         │                                                        │
                         │ chamado.triagem.key                                    │ chamado.triagem-concluida.key
@@ -42,9 +44,9 @@ O backend do ecossistema **ZelaFix** é estruturado em **dois microsserviços au
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │  zelafix-worker (Porta 8081) — Stateless Heavy Worker                                                  │
 │  - Consumidor assíncrono de alta vazão (RabbitMQ @RabbitListener)                                      │
-│  - Inteligência Artificial Generativa e Multimodal com Spring AI 2.0.1 (OpenAI / Groq LLM)             │
-│  - Triagem técnica automatizada: ZelaFixAiService -> TriagemIaResult (Structured Output)                │
-│  - Suporte a visão multimodal (LLM Vision) com detecção de MIME type (ImageMimeTypeDetector)           │
+│  - Inteligência Artificial Generativa e Multimodal com Spring AI 2.0.1 (Groq LLM / Qwen 3.8 27B)       │
+│  - Triagem técnica multimodal obrigatória: ChamadoAiConsumer -> ZelaFixAiService -> TriagemIaResult    │
+│  - Suporte a visão computacional com detecção de MIME type via magic bytes (ImageMimeTypeDetector)     │
 │  - Agregador de votos em buffer volátil concorrente (ConcurrentHashMap com flush periódico)            │
 │  - ZERO CONEXÃO COM BANCO DE DADOS: 100% Stateless, sem JDBC, sem JPA, sem Oracle, sem locks          │
 │  - Produtor de feedback: devolve parecer técnico para chamado.triagem-concluida.queue                  │
@@ -63,7 +65,7 @@ Uma das decisões arquiteturais mais críticas do projeto é a **completa ausên
    - Como o worker é estritamente *stateless*, novas instâncias do `zelafix-worker` podem ser inicializadas instantaneamente em contêineres sem preocupações com consumo de conexões simultâneas da licença do Oracle FIAP.
 3. **Fluxo Bidirecional via Mensageria (Feedback Pattern):**
    - O worker **não escreve diretamente nas tabelas**. Quando conclui a inferência técnica via LLM, o worker empacota o resultado em um payload JSON (`TriagemFeedbackMessage`) e o publica de volta na fila `chamado.triagem-concluida.queue`.
-   - A `zelafix-api`, que é a detentora legal e única proprietária do schema relacional, consome o feedback via `TriagemFeedbackConsumer` e realiza a transação ACID no Oracle com auditoria histórica (`HistChamado`).
+   - A `zelafix-api`, que é a detentora legal e única proprietária do schema relacional, consome o feedback via `ChamadoTriagemFeedbackConsumer` e realiza a transação ACID no Oracle com auditoria histórica (`HistChamado`).
 4. **Agregação Volátil de Votos (Padrão Paredão):**
    - O `VotoConsumer` armazena deltas de apoios em memória utilizando `ConcurrentHashMap<Long, Integer>`. O flush periódico a cada 3 segundos (`@Scheduled`) consolida os lotes em log e libera a memória, permitindo absorção de rajadas sem bater no banco.
 
@@ -75,7 +77,7 @@ Toda a comunicação assíncrona entre os dois serviços é orquestrada por uma 
 
 | Fila | Routing Key | Produtor | Consumidor | Tipo de Payload | Finalidade |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `chamado.triagem.queue` | `chamado.triagem.key` | `zelafix-api` | `zelafix-worker` | `ChamadoTriagemMessage` | Dispara a triagem técnica inteligente com Spring AI logo após o munícipe registrar uma nova ocorrência. |
+| `chamado.triagem.queue` | `chamado.triagem.key` | `zelafix-api` | `zelafix-worker` | `ChamadoTriagemMessage` | Dispara a triagem técnica inteligente com Spring AI levando obrigatoriamente a foto da ocorrência em bytes. |
 | `chamado.triagem-concluida.queue` | `chamado.triagem-concluida.key` | `zelafix-worker` | `zelafix-api` | `TriagemFeedbackMessage` | Devolve o parecer da IA (prioridade, órgão competente e parecer técnico) para que a API atualize o banco de dados. |
 | `chamado.voto.queue` | `chamado.voto.key` | `zelafix-api` | `zelafix-worker` | `VotoMessage` | Notifica apoios/votos em ocorrências para agregação em lote em alta vazão. |
 
@@ -85,55 +87,74 @@ Toda a comunicação assíncrona entre os dois serviços é orquestrada por uma 
 
 ---
 
-## 🧠 4. Spring AI e Triagem Inteligente Multimodal (`ZelaFixAiService`)
+## 🧠 4. Spring AI e Triagem Inteligente Multimodal Obrigatória (`ZelaFixAiService`)
 
-O serviço `ZelaFixAiService` no worker encapsula a comunicação com a API LLM (Groq / OpenAI):
+No ZelaFix, todo chamado registrado na plataforma requer foto da ocorrência (`BLOB NOT NULL` no banco de dados):
 
 - **Injeção Idiomática do `ChatClient`:**
   - Injeção direta de `ChatClient.Builder` no construtor.
   - Configuração do `SYSTEM_PROMPT` padrão e `SimpleLoggerAdvisor` para observabilidade de prompts no console.
-- **Suporte Híbrido: Visão Multimodal & Triagem Textual:**
-  - `analisarChamado(String categoria, String titulo, String descricao, String bairro)`: para análise quando não há imagem anexa.
-  - `analisarChamado(String categoria, String titulo, String descricao, String bairro, byte[] fotoBytes)`: para triagem multimodal quando o cidadão anexa foto da ocorrência.
-  - **Detecção de MimeType com `ImageMimeTypeDetector`:** Analisa os magic numbers do header dos bytes para inferir `image/jpeg`, `image/png`, `image/webp` ou `image/gif`, anexando como `ByteArrayResource` no `ChatClient.prompt().user(u -> u.media(...))`.
+- **Fluxo Multimodal Estrito:**
+  - A imagem da ocorrência (`byte[] foto`) é transportada no payload de `ChamadoTriagemMessage` diretamente para o `zelafix-worker`.
+  - `ChamadoAiConsumer` delega a análise de forma direta sem ramificações sem foto:
+    ```java
+    TriagemIaResult resultado = aiService.analisarChamado(
+            message.categoria(),
+            message.titulo(),
+            message.descricao(),
+            message.bairro(),
+            message.foto()
+    );
+    ```
+- **Detecção Automática de MimeType (`ImageMimeTypeDetector`):**
+  - Analisa os *magic numbers* dos primeiros bytes da imagem (`image/jpeg`, `image/png`, `image/webp`, `image/gif`) para anexar dinamicamente como `ByteArrayResource` no `ChatClient.prompt().user(u -> u.media(...))`.
 - **Structured Output Tipado:**
   - Retorno mapeado automaticamente para o record `TriagemIaResult`:
     ```java
     public record TriagemIaResult(
         PrioridadeChamado prioridade,        // BAIXA, MEDIA, ALTA, URGENTE
-        DepartamentoGoverno orgaoResponsavel, // SUBPREFEITURA, DEFESA_CIVIL, CET_TRANSITO, etc.
+        DepartamentoGoverno orgaoResponsavel, // SECRETARIA_OBRAS, DEFESA_CIVIL, CET_TRANSITO, etc.
         String parecerIa                     // Parecer técnico objetivo (até 150 caracteres)
     ) {}
     ```
 
 ---
 
-## 🧹 5. Convenções de Código Limpo e Padrão Ponytail
+## 🧹 5. Convenções de Código Limpo e Padrão Clyvo 4 / Ponytail
 
-Para manter o código sustentável, seguro e legível por humanos e agentes de IA, todos os módulos devem obedecer às seguintes regras:
+Para manter o código sustentável, seguro e harmonioso, todos os módulos obedecem às seguintes regras:
 
 ### 5.1 Fronteira de Confiança (Validação na Borda)
 - **Bean Validation no Controller:** Todo payload HTTP de entrada é validado na borda via `@Valid` e anotações nos Request DTOs (`@NotBlank`, `@NotNull`, `@Size`, `@Email`, `@DddValidation`, etc.).
-- **Proibição de Código Defensivo Redundante:** Não polua Services, mappers ou métodos de domínio com `if (dto.campo() == null || dto.campo().isBlank())` quando o atributo já possui validação no DTO. Confie plenamente no contrato validado.
-- **Onde o `null` é Legítimo:** Apenas em atributos que são genuinamente opcionais na modelagem de negócio (ex: complemento de logradouro, filtros opcionais em queries).
+- **Proibição de Código Defensivo Redundante:** Não polua Services, mappers ou métodos de domínio com checagens nulas de campos que já foram validados na borda.
+- **Modelagem Fiel ao DDL:** Não adicionar campos fantasmas que não existem nas tabelas do banco (ex: `dt_nascimento` não existe na tabela `usuario`).
 
-### 5.2 Java Records e Factory Methods em DTOs
-- **Java Records:** Todos os DTOs (Request, Response e Queue Messages) devem ser declarados como `public record`.
-- **Response DTOs:** Devem conter métodos estáticos de fábrica idiomáticos:
-  - `public static XResponse from(XEntity entity)` (ou `fromEntity`)
-  - `public static EstatisticasResponse of(...)`
-  - Acesso direto aos getters das entidades relacionadas obrigatórias, sem cascatas de validação nula defensiva.
-- **Request DTOs:** Podem expor métodos de conveniência para aplicar alterações nas entidades JPA, como `request.applyTo(chamado, categoria, endereco)`.
+### 5.2 Java Records, DTOs Puros e Métodos de Conversão
+- **Java Records:** Todos os DTOs (Request, Response e Queue Messages) são declarados como `public record`.
+- **Sem Sobrecargas Desnecessárias:**
+  - Os DTOs de Response devem conter unicamente o factory method canônico:
+    - `public static XResponse fromEntity(Entity e)`
+    - `ChamadoResponse.fromEntity(Chamado c, String status, long totalVotos, boolean apoiado, List<HistChamado> historicos)` (recebendo a lista de históricos e montando internamente a resposta).
+    - `HistoricoResponse.fromEntity(HistChamado h)`
+    - `EstatisticasResponse.of(...)`
+- **Request DTOs:** Não devem possuir métodos mutadores de entidades (ex: `applyTo`). A mutação de entidades para edição pertence a métodos privados `aplicarEm` nos respectivos Services.
+- **Conversão DTO -> Entidade:** Feita exclusivamente através de métodos `toEntity(...)` dentro do DTO de Request ou mensagem de fila (ex: `ChamadoRequest.toEntity(...)`, `ChamadoStatusRequest.toEntity(...)`, `VotoMessage.toEntity(...)`, `TriagemFeedbackMessage.toEntity(...)`).
 
-### 5.3 Injeção de Dependências & Transações
-- **Construtores Explícitos / Lombok:** Injeção via construtor com atributos `private final` e `@RequiredArgsConstructor`. Jamais utilize `@Autowired` em campos (`Field Injection`).
+### 5.3 Organização dos Services
+- **Services Enxutos:** Nenhuma classe `*Service` deve conter construtores manuais privados de Responses ou entidades espalhados (`criarVoto`, `criarHistoricoInicial`, `carregarResponse`).
+- **Métodos Privados de Edição:** Manter `private void aplicarEm(Entity entity, RequestDto request)` no final do Service (exatamente como em `PetService.java` do Clyvo 4).
+- **Streams e Mapeamento Inline:** O agrupamento de resultados em lote (ex: `Collectors.toMap`) deve ser feito inline nos métodos de consulta e paginação.
+- **Java Funcional:** Utilizar métodos idiomáticos como `.ifPresentOrElse(...)` para transições condicionais (ex: alternância de votos).
+
+### 5.4 Injeção de Dependências, Caching & Transações
+- **Injeção via Construtor:** Injeção explícita com atributos `private final` e anotação `@RequiredArgsConstructor` do Lombok.
 - **Transacionalidade:**
   - Consultas e listagens puras: `@Transactional(readOnly = true)`.
-  - Escritas, mutações e exclusões: `@Transactional`.
-
-### 5.4 Tratamento Centralizado de Exceções (RFC 7807)
-- Todas as exceções dispostas nos fluxos de negócio lançam exceções semânticas (`ResourceNotFoundException`, `BusinessException`, `IllegalStateException`).
-- O `GlobalExceptionHandler` (`@RestControllerAdvice`) intercepta essas exceções e devolve um `ProblemDetail` estruturado com o status HTTP correspondente (400, 404, 401, 403, 500), sem necessidade de blocos `try-catch` dispersos nos Controllers.
+  - Mutações e escritas: `@Transactional`.
+- **Cache Declarativo do Spring:**
+  - Tabelas de catálogo (`CategoriaService` e `StatusService`) utilizam `@Cacheable` nas consultas e `@CacheEvict(allEntries = true)` nas mutações.
+- **Timeouts de Integrações HTTP:**
+  - Clientes declarativos (`@HttpExchange` / ViaCEP) possuem timeouts explícitos configurados no `application.properties` (`spring.http.clients.connect-timeout=2s` e `read-timeout=4s`).
 
 ---
 
@@ -141,20 +162,22 @@ Para manter o código sustentável, seguro e legível por humanos e agentes de I
 
 | Ação | Comando |
 | :--- | :--- |
-| **Compilar e rodar testes do worker** | `cmd /c "cd Java-Advanced && gradlew.bat :zelafix-worker:test"` |
-| **Compilar e rodar testes da API** | `cmd /c "cd Java-Advanced && gradlew.bat :zelafix-api:test"` |
-| **Executar suite completa de testes** | `cmd /c "cd Java-Advanced && gradlew.bat test"` |
-| **Executar API localmente (porta 8080)** | `cmd /c "cd Java-Advanced && gradlew.bat :zelafix-api:bootRun"` |
-| **Executar Worker localmente (porta 8081)** | `cmd /c "cd Java-Advanced && gradlew.bat :zelafix-worker:bootRun"` |
+| **Compilar e rodar testes do worker** | `powershell -Command "cd Java-Advanced; .\gradlew :zelafix-worker:test"` |
+| **Compilar e rodar testes da API** | `powershell -Command "cd Java-Advanced; .\gradlew :zelafix-api:test"` |
+| **Executar suite completa de testes** | `powershell -Command "cd Java-Advanced; .\gradlew test"` |
+| **Executar API localmente (porta 8080)** | `powershell -Command "cd Java-Advanced; .\gradlew :zelafix-api:bootRun"` |
+| **Executar Worker localmente (porta 8081)** | `powershell -Command "cd Java-Advanced; .\gradlew :zelafix-worker:bootRun"` |
 | **Subir RabbitMQ via Docker Compose** | `docker compose -f Java-Advanced/docker-compose.yml up -d` |
 
 ---
 
 ## ✅ 7. Checklist de Validação do Agente
 
-Antes de marcar uma tarefa como concluída e passar a responsabilidade para o `@verifier`:
+Antes de considerar uma tarefa finalizada:
 - [x] O código compila perfeitamente sem warnings críticos.
-- [x] Todos os testes unitários do módulo passam (`gradlew :<modulo>:test`).
-- [x] Nenhum arquivo temporário de debug ou teste de script solto foi deixado na árvore de diretórios.
-- [x] O `zelafix-worker` não possui dependências de banco de dados, nem arquivos de configuração apontando para Oracle/Hikari, e nenhuma classe implementando `Serializable`.
-- [x] A documentação arquitetural reflete estritamente o código fonte implementado.
+- [x] Todos os testes unitários de ambos os módulos passam (`.\gradlew test`).
+- [x] Nenhum arquivo temporário de debug ou script avulso foi deixado no repositório.
+- [x] O `zelafix-worker` é 100% stateless (sem conexões ou drivers de banco de dados).
+- [x] DTOs de Response não possuem sobrecargas duplicadas e DTOs de Request não possuem mutadores de entidade.
+- [x] Os Services estão enxutos e utilizam `toEntity` dos DTOs e `aplicarEm` privado.
+- [x] A documentação arquitetural reflete estritamente a realidade da base de código.
