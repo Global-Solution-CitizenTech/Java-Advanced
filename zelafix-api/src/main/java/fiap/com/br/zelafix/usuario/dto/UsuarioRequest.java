@@ -5,6 +5,7 @@ import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.telefone.Telefone;
 import fiap.com.br.zelafix.usuario.CargoUsuario;
 import fiap.com.br.zelafix.usuario.Usuario;
+import fiap.com.br.zelafix.validation.DddValidation;
 import fiap.com.br.zelafix.validation.EnumValidation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -33,6 +34,7 @@ public record UsuarioRequest(
 
         @NotBlank(message = "O DDD é obrigatório.")
         @Pattern(regexp = "^\\d{2}$", message = "DDD deve conter exatamente 2 dígitos numéricos.")
+        @DddValidation
         String ddd,
 
         @NotBlank(message = "O número de telefone é obrigatório.")
