@@ -9,8 +9,8 @@ public record HistoricoResponse(
         String observacao,
         String autorNome
 ) {
-    public HistoricoResponse(HistChamado h) {
-        this(
+    public static HistoricoResponse fromEntity(HistChamado h) {
+        return new HistoricoResponse(
                 h.getIdHist(),
                 h.getDtMudanca().toString(),
                 h.getStatus().getNmStatus(),

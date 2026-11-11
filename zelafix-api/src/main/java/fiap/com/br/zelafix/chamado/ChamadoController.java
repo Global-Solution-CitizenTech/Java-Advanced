@@ -2,8 +2,8 @@ package fiap.com.br.zelafix.chamado;
 
 import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
+import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
-import fiap.com.br.zelafix.chamado.dto.StatusRequest;
 import fiap.com.br.zelafix.util.ImageMimeTypeDetector;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -112,7 +112,7 @@ public class ChamadoController {
     @Operation(summary = "[GESTOR / ADMIN] Atualizar status do chamado (ex: CONCLUIDO, EM_EXECUCAO) com registro de histórico")
     public ChamadoResponse updateStatus(
             @PathVariable Long id,
-            @RequestBody @Valid StatusRequest request,
+            @RequestBody @Valid ChamadoStatusRequest request,
             @AuthenticationPrincipal Jwt jwt
     ) {
         return chamadoService.updateStatus(id, request, jwt.getSubject());

@@ -2,6 +2,7 @@ package fiap.com.br.zelafix.chamado.dto;
 
 import fiap.com.br.zelafix.chamado.Chamado;
 import fiap.com.br.zelafix.endereco.dto.EnderecoResponse;
+import fiap.com.br.zelafix.historico.HistChamado;
 import fiap.com.br.zelafix.historico.dto.HistoricoResponse;
 
 import java.time.LocalDateTime;
@@ -23,7 +24,7 @@ public record ChamadoResponse(
         boolean apoiadoPorMim,
         List<HistoricoResponse> historico
 ) {
-    public static ChamadoResponse fromEntity(Chamado c, String status, long totalVotos, boolean apoiado, List<HistoricoResponse> historico) {
+    public static ChamadoResponse fromEntity(Chamado c, String status, long totalVotos, boolean apoiado, List<HistChamado> historicos) {
         return new ChamadoResponse(
                 c.getIdChamado(),
                 c.getTitulo(),
@@ -38,7 +39,7 @@ public record ChamadoResponse(
                 status,
                 totalVotos,
                 apoiado,
-                historico
+                historicos.stream().map(HistoricoResponse::fromEntity).toList()
         );
     }
 }

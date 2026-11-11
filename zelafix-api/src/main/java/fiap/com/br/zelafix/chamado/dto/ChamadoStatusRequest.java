@@ -11,7 +11,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
 
-public record StatusRequest(
+public record ChamadoStatusRequest(
         @NotBlank(message = "O status é obrigatório.")
         @EnumValidation(enumClass = StatusChamadoEnum.class, message = "Status inválido. Valores aceitos: PENDENTE, EM_ANALISE, EM_EXECUCAO, CONCLUIDO, REJEITADO, ABERTO")
         String status,
