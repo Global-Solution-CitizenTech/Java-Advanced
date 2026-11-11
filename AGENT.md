@@ -167,7 +167,7 @@ Para manter o código sustentável, seguro e harmonioso, todos os módulos obede
 | **Executar suite completa de testes** | `powershell -Command "cd Java-Advanced; .\gradlew test"` |
 | **Executar API localmente (porta 8080)** | `powershell -Command "cd Java-Advanced; .\gradlew :zelafix-api:bootRun"` |
 | **Executar Worker localmente (porta 8081)** | `powershell -Command "cd Java-Advanced; .\gradlew :zelafix-worker:bootRun"` |
-| **Subir RabbitMQ via Docker Compose** | `docker compose -f Java-Advanced/docker-compose.yml up -d` |
+| **Mensageria** | RabbitMQ gerenciado no CloudAMQP; defina `SPRING_RABBITMQ_ADDRESSES` (amqps://...) no `.env` |
 
 ---
 
