@@ -72,32 +72,6 @@ class CategoriaServiceTest {
     }
 
     @Test
-    @DisplayName("Deve retornar categoria existente em findByNameOrCreate")
-    void deveRetornarCategoriaExistenteEmFindByNameOrCreate() {
-        when(categoriaRepository.findByNmCategoriaIgnoreCase("Buraco na via"))
-                .thenReturn(Optional.of(categoriaAsfalto));
-
-        Categoria resultado = categoriaService.findByNameOrCreate("Buraco na via");
-
-        assertEquals(1L, resultado.getIdCategoria());
-        assertEquals("Buraco na via", resultado.getNmCategoria());
-    }
-
-    @Test
-    @DisplayName("Deve criar nova categoria em findByNameOrCreate quando não existir")
-    void deveCriarNovaCategoriaEmFindByNameOrCreate() {
-        when(categoriaRepository.findByNmCategoriaIgnoreCase("Iluminação Pública"))
-                .thenReturn(Optional.empty());
-        when(categoriaRepository.save(any(Categoria.class)))
-                .thenReturn(new Categoria(2L, "Iluminação Pública"));
-
-        Categoria resultado = categoriaService.findByNameOrCreate("Iluminação Pública");
-
-        assertNotNull(resultado);
-        assertEquals("Iluminação Pública", resultado.getNmCategoria());
-    }
-
-    @Test
     @DisplayName("Deve criar categoria com sucesso")
     void deveCriarCategoriaComSucesso() {
         CategoriaRequest req = new CategoriaRequest("Sinalização");

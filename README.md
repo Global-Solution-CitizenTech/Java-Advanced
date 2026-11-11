@@ -130,8 +130,8 @@ O banco de dados é inicializado automaticamente com usuários de teste e dados 
 
 | Papel | Nome | E-mail | Senha | Permissões |
 | :--- | :--- | :--- | :--- | :--- |
-| **Cidadão** | Carlos Munícipe | `cidadao@zelafix.com.br` | `Senha@123` | Criar chamados (iniciam como `PENDENTE`), apoiar ocorrências e gerenciar seu perfil. |
-| **Funcionário da Prefeitura** | Mariana Servidora Pública | `gestor@zelafix.com.br` | `Senha@123` | Agente público da prefeitura: atualizar status de resolução dos chamados (`PENDENTE`, `EM_ANALISE`, `EM_EXECUCAO`, `CONCLUIDO`, `REJEITADO`). |
+| **Cidadão** | Carlos Alberto Silva | `carlos.silva@email.com` | `Senha#123` | Criar chamados (iniciam como `PENDENTE`), apoiar ocorrências e gerenciar seu perfil. |
+| **Funcionário da Prefeitura** | Eng. Roberto Santos | `roberto.gestor@subprefeitura.sp.gov.br` | `Senha#123` | Agente público da prefeitura: atualizar status de resolução dos chamados (`EM_ANALISE`, `EM_EXECUCAO`, `CONCLUIDO`, `REJEITADO`). |
 | **Administrador Geral** | Administrador ZelaFix | `admin@zelafix.com.br` | `123mudar` | Acesso administrativo irrestrito: CRUD completo de usuários, chamados, categorias, status, endereços e alteração de perfis/cargos. |
 
 ---
@@ -139,8 +139,8 @@ O banco de dados é inicializado automaticamente com usuários de teste e dados 
 ## 🚀 4. Guia de Execução Local
 
 ### Pré-requisitos
-- **Java 25** (Amazon Corretto 25 configurado no sistema).
-- **Docker & Docker Compose** (para subir o RabbitMQ).
+- **Java 21 LTS** (Amazon Corretto ou Eclipse Temurin 21 configurado no sistema).
+- **Docker & Docker Compose** (para subir o Oracle e o RabbitMQ).
 
 ### Passo 1: Subir o Broker de Mensageria (RabbitMQ)
 Na raiz do diretório `Java-Advanced`, execute:

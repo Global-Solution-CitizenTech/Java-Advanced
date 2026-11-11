@@ -241,7 +241,7 @@ class ChamadoControllerTest {
         );
 
         ChamadoResponse responseMock = criarMockResponse(11L, chamadoReq.titulo(), chamadoReq.descricao());
-        when(chamadoService.create(any(ChamadoRequest.class), anyString())).thenReturn(responseMock);
+        when(chamadoService.create(any(ChamadoRequest.class), org.mockito.ArgumentMatchers.isNull(), anyString())).thenReturn(responseMock);
 
         mockMvc.perform(post("/chamados")
                         .contentType(MediaType.APPLICATION_JSON)

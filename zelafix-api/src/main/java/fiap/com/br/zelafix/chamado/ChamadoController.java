@@ -82,7 +82,7 @@ public class ChamadoController {
             @RequestBody @Valid ChamadoRequest request,
             @AuthenticationPrincipal Jwt jwt
     ) {
-        return chamadoService.create(request, jwt.getSubject());
+        return chamadoService.create(request, null, jwt.getSubject());
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

@@ -10,7 +10,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * Responsabilidades:
  * 1. Consumir eventos de triagem da fila 'chamado.triagem.queue' e executar análise via Spring AI.
  * 2. Consumir votos da fila 'chamado.voto.queue' e agregar via buffer em memória (ConcurrentHashMap)
- *    com flush periódico para o banco de dados.
+ *    com consolidação periódica em log (Stateless).
  */
 @SpringBootApplication
 @EnableScheduling

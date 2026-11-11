@@ -144,7 +144,7 @@ class ChamadoServiceTest {
 
         when(chamadoRepository.save(any())).thenReturn(chamadoSalvo);
 
-        ChamadoResponse response = chamadoService.create(request, usuario.getEmail());
+        ChamadoResponse response = chamadoService.create(request, null, usuario.getEmail());
 
         assertNotNull(response);
         assertEquals(100L, response.idChamado());
@@ -372,5 +372,83 @@ class ChamadoServiceTest {
         assertEquals(chamado, salvo.getChamado());
         assertEquals(usuario, salvo.getUsuario());
         assertEquals(status, salvo.getStatus());
+    }
+
+    @Test
+    @DisplayName("GESTOR tem permissão para editar dados do chamado")
+    void devePermitirGestorEditarChamado() {
+        Usuario gestor = Usuario.builder()
+                .idUsuario(99L)
+                .email("gestor.obras@subprefeitura.sp.gov.br")
+                .cargo(CargoUsuario.GESTOR)
+                .build();
+
+        Chamado chamado = Chamado.builder()
+                .idChamado(150L)
+                .titulo("Título Original")
+                .descricao("Descrição Original")
+                .usuario(usuario) // criado pelo cidadão (id 1)
+                .categoria(categoria)
+                .endereco(endereco)
+                .foto("bytes".getBytes(StandardCharsets.UTF_8))
+                .dtAbertura(LocalDateTime.now())
+                .build();
+
+        ChamadoRequest requestEdicao = new ChamadoRequest(
+                "Título Atualizado pelo Gestor",
+                "Descrição atualizada para obras",
+                1L,
+                new EnderecoRequest("01311000", "50", "Em frente ao parque", "Avenida Paulista"),
+                null
+        );
+
+        when(chamadoRepository.findById(150L)).thenReturn(Optional.of(chamado));
+        when(usuarioService.findByEmail(gestor.getEmail())).thenReturn(gestor);
+        when(categoriaService.findById(1L)).thenReturn(categoria);
+        when(enderecoService.findOrCreateByCepAndNumero(any())).thenReturn(endereco);
+        when(chamadoRepository.save(any())).thenReturn(chamado);
+        HistChamado histMock = HistChamado.builder()
+                .idHist(1L)
+                .dtMudanca(LocalDateTime.now())
+                .usuario(usuario)
+                .status(statusPendente)
+                .observacoes("Histórico inicial")
+                .build();
+        when(histChamadoRepository.findByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(150L))
+                .thenReturn(List.of(histMock));
+
+        ChamadoResponse response = chamadoService.update(150L, requestEdicao, gestor.getEmail());
+
+        assertNotNull(response);
+        assertEquals("Título Atualizado pelo Gestor", chamado.getTitulo());
+        verify(chamadoRepository).save(chamado);
+    }
+
+    @Test
+    @DisplayName("Outro cidadão deve ser bloqueado ao tentar editar chamado alheio")
+    void deveBloquearOutroCidadaoAoEditarChamado() {
+        Usuario outroCidadao = Usuario.builder()
+                .idUsuario(88L)
+                .email("outro.cidadao@email.com")
+                .cargo(CargoUsuario.CIDADAO)
+                .build();
+
+        Chamado chamado = Chamado.builder()
+                .idChamado(151L)
+                .titulo("Título Original")
+                .usuario(usuario) // criado por usuario (id 1)
+                .build();
+
+        ChamadoRequest requestEdicao = new ChamadoRequest(
+                "Invasão de chamado", "Desc", 1L,
+                new EnderecoRequest("01311000", "50", "Referência", "Avenida Paulista"), null
+        );
+
+        when(chamadoRepository.findById(151L)).thenReturn(Optional.of(chamado));
+        when(usuarioService.findByEmail(outroCidadao.getEmail())).thenReturn(outroCidadao);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                chamadoService.update(151L, requestEdicao, outroCidadao.getEmail())
+        );
     }
 }

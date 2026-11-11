@@ -61,10 +61,6 @@ public class ChamadoService {
         return enriquecerPagina(chamados, currentUserId);
     }
 
-    public Chamado findById(Long id) {
-        return findChamadoById(id);
-    }
-
     @Transactional(readOnly = true)
     public ChamadoResponse findDetailsById(Long id, String email) {
         Chamado chamado = findChamadoById(id);
@@ -87,11 +83,6 @@ public class ChamadoService {
     // =========================================================================
     // 2. CICLO DE VIDA DO CHAMADO (ABERTURA, EDIÇÃO, EXCLUSÃO)
     // =========================================================================
-
-    @Transactional
-    public ChamadoResponse create(ChamadoRequest request, String email) {
-        return create(request, null, email);
-    }
 
     @Transactional
     public ChamadoResponse create(ChamadoRequest request, byte[] fotoBytes, String email) {
@@ -193,7 +184,9 @@ public class ChamadoService {
     }
 
     private void validarPermissaoEdicao(Chamado chamado, Usuario usuario) {
-        if (!chamado.getUsuario().getIdUsuario().equals(usuario.getIdUsuario()) && usuario.getCargo() != CargoUsuario.ADMIN) {
+        if (!chamado.getUsuario().getIdUsuario().equals(usuario.getIdUsuario())
+                && usuario.getCargo() != CargoUsuario.GESTOR
+                && usuario.getCargo() != CargoUsuario.ADMIN) {
             throw new IllegalArgumentException("Você não tem permissão para editar este chamado.");
         }
     }

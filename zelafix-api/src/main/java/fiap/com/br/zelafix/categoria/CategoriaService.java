@@ -27,12 +27,6 @@ public class CategoriaService {
                 .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada com id: " + id));
     }
 
-    @Cacheable("categorias")
-    public Categoria findByNameOrCreate(String nome) {
-        return categoriaRepository.findByNmCategoriaIgnoreCase(nome)
-                .orElseGet(() -> categoriaRepository.save(new CategoriaRequest(nome).toEntity()));
-    }
-
     @Transactional
     @CacheEvict(value = "categorias", allEntries = true)
     public Categoria create(CategoriaRequest request) {
