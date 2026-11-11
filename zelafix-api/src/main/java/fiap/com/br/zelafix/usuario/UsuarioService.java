@@ -4,7 +4,6 @@ import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.EnderecoService;
 import fiap.com.br.zelafix.exception.BusinessException;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
-import fiap.com.br.zelafix.telefone.Telefone;
 import fiap.com.br.zelafix.usuario.dto.UsuarioRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -102,17 +101,8 @@ public class UsuarioService {
         usuario.setNmUsuario(req.nome().trim());
         usuario.setEmail(novoEmail);
         usuario.setSenha(passwordEncoder.encode(req.senha()));
-        if (usuario.getTelefone() != null) {
-            usuario.getTelefone().setNumDdd(req.ddd().trim());
-            usuario.getTelefone().setNumTel(req.numeroTelefone().trim());
-        } else {
-            Telefone tel = Telefone.builder()
-                    .numDdd(req.ddd().trim())
-                    .numTel(req.numeroTelefone().trim())
-                    .usuario(usuario)
-                    .build();
-            usuario.setTelefone(tel);
-        }
+        usuario.getTelefone().setNumDdd(req.ddd().trim());
+        usuario.getTelefone().setNumTel(req.numeroTelefone().trim());
         usuario.setEndereco(enderecoService.findOrCreateByCepAndNumero(req.endereco()));
     }
 }

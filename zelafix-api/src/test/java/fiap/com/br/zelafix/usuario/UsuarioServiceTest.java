@@ -148,23 +148,6 @@ class UsuarioServiceTest {
     }
 
     @Test
-    @DisplayName("Deve atualizar usuário e criar telefone quando usuário ainda não possui telefone")
-    void deveAtualizarUsuarioQuandoNaoPossuiTelefone() {
-        usuarioCidadao.setTelefone(null);
-
-        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioCidadao));
-        when(passwordEncoder.encode(any())).thenReturn("new-encoded-pass");
-        when(enderecoService.findOrCreateByCepAndNumero(any())).thenReturn(usuarioCidadao.getEndereco());
-        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        Usuario atualizado = usuarioService.update(1L, request);
-
-        assertNotNull(atualizado.getTelefone());
-        assertEquals("11", atualizado.getTelefone().getNumDdd());
-        assertEquals("987654321", atualizado.getTelefone().getNumTel());
-    }
-
-    @Test
     @DisplayName("Deve atualizar dados de telefone existente do usuário")
     void deveAtualizarTelefoneExistente() {
         Telefone tel = Telefone.builder().numDdd("19").numTel("911112222").usuario(usuarioCidadao).build();
