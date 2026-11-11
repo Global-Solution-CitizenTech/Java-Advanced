@@ -10,7 +10,7 @@ description = 'zelafix-worker'
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
@@ -82,4 +82,8 @@ tasks.named('bootRun') {
             }
         }
     }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs.add('-parameters')
 }
