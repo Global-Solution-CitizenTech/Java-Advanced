@@ -140,14 +140,10 @@ O banco de dados é inicializado automaticamente com usuários de teste e dados 
 
 ### Pré-requisitos
 - **Java 21 LTS** (Amazon Corretto ou Eclipse Temurin 21 configurado no sistema).
-- **Docker & Docker Compose** (para subir o Oracle e o RabbitMQ).
+- **Credenciais em `.env`** na raiz de `Java-Advanced` (baseado em `.env.example`), apontando para o Oracle FIAP e para a instância gerenciada do **RabbitMQ no CloudAMQP** (`SPRING_RABBITMQ_ADDRESSES=amqps://...`).
 
-### Passo 1: Subir o Broker de Mensageria (RabbitMQ)
-Na raiz do diretório `Java-Advanced`, execute:
-```bash
-docker compose up -d
-```
-- O painel web de gestão do RabbitMQ estará acessível em: `http://localhost:15672` (login: `guest` / senha: `guest`).
+### Passo 1: Configurar o `.env`
+Copie `.env.example` para `.env` e preencha `ORACLE_USER`, `ORACLE_PASSWORD`, `SPRING_RABBITMQ_ADDRESSES` (URL `amqps://...` do CloudAMQP) e `GROQ_API_KEY`.
 
 ### Passo 2: Executar o Microsserviço 1 (zelafix-api — Porta 8080)
 Em um terminal:
