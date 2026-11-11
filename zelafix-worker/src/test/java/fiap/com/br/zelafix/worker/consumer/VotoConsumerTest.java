@@ -26,8 +26,8 @@ class VotoConsumerTest {
     @Test
     @DisplayName("Deve acumular votos no buffer em memória e realizar flush")
     void deveAcumularVotosERealizarFlush() {
-        VotoMessage msg1 = new VotoMessage(10L, 1L);
-        VotoMessage msg2 = new VotoMessage(10L, 2L);
+        VotoMessage msg1 = new VotoMessage(10L, 1L, "VOTAR");
+        VotoMessage msg2 = new VotoMessage(10L, 2L, "VOTAR");
 
         votoConsumer.consumeVoto(msg1);
         votoConsumer.consumeVoto(msg2);

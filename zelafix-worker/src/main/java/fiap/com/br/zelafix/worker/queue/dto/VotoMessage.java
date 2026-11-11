@@ -8,8 +8,4 @@ public record VotoMessage(
         Long idUsuario,
         String operacao
 ) {
-
-    public VotoMessage(Long idChamado, Long idUsuario) {
-        this(idChamado, idUsuario, "VOTAR");
-    }
 }

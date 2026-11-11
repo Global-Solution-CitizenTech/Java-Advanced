@@ -33,14 +33,16 @@ class ChamadoAiConsumerTest {
     private ChamadoAiConsumer consumer;
 
     @Test
-    @DisplayName("Deve processar triagem assíncrona chamando o serviço de IA e publicando na fila de retorno")
+    @DisplayName("Deve processar triagem multimodal assíncrona enviando os dados e a foto para o Spring AI")
     void deveProcessarTriagem() {
+        byte[] fotoBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
         ChamadoTriagemMessage message = new ChamadoTriagemMessage(
                 100L,
                 "Cratera perigosa",
                 "Buraco profundo na via",
                 "Pavimentação",
-                "Pinheiros"
+                "Pinheiros",
+                fotoBytes
         );
 
         TriagemIaResult resultado = new TriagemIaResult(
@@ -49,12 +51,12 @@ class ChamadoAiConsumerTest {
                 "Vistoria emergencial recomendada para recapeamento."
         );
 
-        when(aiService.analisarChamado("Pavimentação", "Cratera perigosa", "Buraco profundo na via", "Pinheiros"))
+        when(aiService.analisarChamado("Pavimentação", "Cratera perigosa", "Buraco profundo na via", "Pinheiros", fotoBytes))
                 .thenReturn(resultado);
 
         consumer.processarTriagem(message);
 
-        verify(aiService).analisarChamado("Pavimentação", "Cratera perigosa", "Buraco profundo na via", "Pinheiros");
+        verify(aiService).analisarChamado("Pavimentação", "Cratera perigosa", "Buraco profundo na via", "Pinheiros", fotoBytes);
         verify(rabbitTemplate).convertAndSend(
                 eq(RabbitWorkerConfig.EXCHANGE_NAME),
                 eq(RabbitWorkerConfig.ROUTING_KEY_CHAMADO_TRIAGEM_CONCLUIDA),

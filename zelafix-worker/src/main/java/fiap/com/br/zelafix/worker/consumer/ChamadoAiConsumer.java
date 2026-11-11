@@ -11,12 +11,6 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
 
-/**
- * Consumidor Assíncrono RabbitMQ para Triagem Inteligente com Spring AI.
- *
- * Escuta a fila 'chamado.triagem.queue', analisa o chamado via LLM
- * e publica o parecer na fila de retorno 'chamado.triagem-concluida.queue'.
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -33,7 +27,8 @@ public class ChamadoAiConsumer {
                 message.categoria(),
                 message.titulo(),
                 message.descricao(),
-                message.bairro()
+                message.bairro(),
+                message.foto()
         );
 
         var feedback = new TriagemFeedbackMessage(

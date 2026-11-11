@@ -28,7 +28,7 @@ class ChamadoEventProducerTest {
     @Test
     @DisplayName("Deve publicar evento de triagem com a exchange e routing key corretas")
     void devePublicarEventoDeTriagem() {
-        ChamadoTriagemMessage msg = new ChamadoTriagemMessage(10L, "Asfalto", "Buraco", "Cratera", "Centro");
+        ChamadoTriagemMessage msg = new ChamadoTriagemMessage(10L, "Asfalto", "Buraco", "Cratera", "Centro", new byte[]{1, 2, 3});
 
         producer.publicarTriagem(msg);
 
@@ -42,7 +42,7 @@ class ChamadoEventProducerTest {
     @Test
     @DisplayName("Deve capturar exceção do RabbitMQ sem quebrar o fluxo chamador (fallback resiliente)")
     void deveCapturarFalhaDoRabbitMQComResiliencia() {
-        ChamadoTriagemMessage msg = new ChamadoTriagemMessage(10L, "Asfalto", "Buraco", "Cratera", "Centro");
+        ChamadoTriagemMessage msg = new ChamadoTriagemMessage(10L, "Asfalto", "Buraco", "Cratera", "Centro", new byte[]{1, 2, 3});
 
         doThrow(new AmqpException("Broker connection refused"))
                 .when(rabbitTemplate)

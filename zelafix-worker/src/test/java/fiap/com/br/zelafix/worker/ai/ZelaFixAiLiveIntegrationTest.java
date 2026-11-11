@@ -1,33 +1,28 @@
 package fiap.com.br.zelafix.worker.ai;
 
 import fiap.com.br.zelafix.worker.ai.dto.TriagemIaResult;
+import fiap.com.br.zelafix.worker.ai.util.ImageMimeTypeDetector;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.util.MimeType;
+import org.springframework.util.MimeTypeUtils;
 
-import javax.sql.DataSource;
 import java.io.File;
 import java.nio.file.Files;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:oracle:thin:@localhost:1521/xe",
-        "spring.datasource.username=test",
-        "spring.datasource.password=test",
-        "spring.jpa.hibernate.ddl-auto=none",
-        "spring.ai.openai.base-url=${GROQ_BASE_URL:https://api.groq.com/openai/v1}",
+        "spring.ai.openai.base-url=${GROQ_BASE_URL:https://api.groq.com/openai}",
         "spring.ai.openai.api-key=${GROQ_API_KEY:test-key}",
         "spring.ai.openai.chat.options.model=${GROQ_MODEL:qwen/qwen3.8-27b}",
         "spring.rabbitmq.listener.simple.auto-startup=false"
 })
 class ZelaFixAiLiveIntegrationTest {
-
-    @MockitoBean
-    private DataSource dataSource;
 
     @Autowired
     private ZelaFixAiService aiService;
@@ -51,6 +46,9 @@ class ZelaFixAiLiveIntegrationTest {
         }
         System.out.println("Arquivo de imagem carregado: " + imageFile.getAbsolutePath());
         byte[] fotoBytes = Files.readAllBytes(imageFile.toPath());
+        MimeType detectedMimeType = ImageMimeTypeDetector.detectar(fotoBytes);
+        System.out.println("MimeType detectado via Magic Bytes: " + detectedMimeType + " (" + fotoBytes.length + " bytes)");
+        assertEquals(MimeTypeUtils.IMAGE_PNG, detectedMimeType, "Deve detectar image/png para rua-esburacada.png");
 
         TriagemIaResult resultado = aiService.analisarChamado(
                 "PAVIMENTACAO",

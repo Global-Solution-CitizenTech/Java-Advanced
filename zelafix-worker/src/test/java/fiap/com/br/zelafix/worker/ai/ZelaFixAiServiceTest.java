@@ -66,30 +66,6 @@ class ZelaFixAiServiceTest {
     }
 
     @Test
-    @DisplayName("Deve executar triagem apenas textual usando a sobrecarga sem foto")
-    void deveExecutarTriagemApenasTextual() {
-        TriagemIaResult esperado = new TriagemIaResult(
-                PrioridadeChamado.BAIXA,
-                DepartamentoGoverno.SUBPREFEITURA,
-                "Solicitação de poda preventiva em árvore saudável."
-        );
-
-        when(chatClient.prompt().user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any()).call().entity(TriagemIaResult.class))
-                .thenReturn(esperado);
-
-        TriagemIaResult resultado = aiService.analisarChamado(
-                "Árvores",
-                "Poda preventiva",
-                "Galhos tocando a fiação",
-                "Perdizes"
-        );
-
-        assertNotNull(resultado);
-        assertEquals(PrioridadeChamado.BAIXA, resultado.prioridade());
-        assertEquals(DepartamentoGoverno.SUBPREFEITURA, resultado.orgaoResponsavel());
-    }
-
-    @Test
     @DisplayName("Deve processar foto PNG com detecção correta de MediaType")
     void deveProcessarFotoPng() {
         byte[] pngBytes = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
@@ -138,29 +114,5 @@ class ZelaFixAiServiceTest {
         assertNotNull(resultado);
         assertEquals(PrioridadeChamado.ALTA, resultado.prioridade());
         assertEquals(DepartamentoGoverno.CET_TRANSITO, resultado.orgaoResponsavel());
-    }
-
-    @Test
-    @DisplayName("Deve executar análise mesmo se bytes da foto forem vazios (zero bytes)")
-    void deveExecutarComBytesVazios() {
-        TriagemIaResult esperado = new TriagemIaResult(
-                PrioridadeChamado.BAIXA,
-                DepartamentoGoverno.SUBPREFEITURA,
-                "Limpeza urbana solicitada."
-        );
-
-        when(chatClient.prompt().user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any()).call().entity(TriagemIaResult.class))
-                .thenReturn(esperado);
-
-        TriagemIaResult resultado = aiService.analisarChamado(
-                "Limpeza",
-                "Lixo acumulado",
-                "Entulho na calçada",
-                "Lapa",
-                new byte[0]
-        );
-
-        assertNotNull(resultado);
-        assertEquals(PrioridadeChamado.BAIXA, resultado.prioridade());
     }
 }

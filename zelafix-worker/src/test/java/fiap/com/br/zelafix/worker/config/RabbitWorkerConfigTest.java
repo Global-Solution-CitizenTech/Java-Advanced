@@ -16,6 +16,7 @@ import org.springframework.amqp.support.converter.MessageConverter;
 
 import java.nio.charset.StandardCharsets;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -118,12 +119,14 @@ class RabbitWorkerConfigTest {
     void deveSerializarEDesserializarChamadoTriagemMessage() {
         JacksonJsonMessageConverter converter = (JacksonJsonMessageConverter) rabbitConfig.jsonMessageConverter();
 
+        byte[] fotoBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
         ChamadoTriagemMessage original = new ChamadoTriagemMessage(
                 999L,
                 "Buraco profundo na avenida",
                 "Asfalto cedeu gerando cratera",
                 "Pavimentação",
-                "Pinheiros"
+                "Pinheiros",
+                fotoBytes
         );
 
         Message message = converter.toMessage(original, new MessageProperties());
@@ -141,6 +144,7 @@ class RabbitWorkerConfigTest {
         assertEquals(original.descricao(), deserialized.descricao());
         assertEquals(original.categoria(), deserialized.categoria());
         assertEquals(original.bairro(), deserialized.bairro());
+        assertArrayEquals(original.foto(), deserialized.foto());
     }
 
     @Test
