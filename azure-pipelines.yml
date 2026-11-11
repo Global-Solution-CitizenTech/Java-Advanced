@@ -10,6 +10,7 @@ trigger:
   branches:
     include:
       - main
+      - develop
 
 variables:
   # Nome da Service Connection criada nas configurações de projeto do Azure DevOps
@@ -90,7 +91,7 @@ stages:
 - stage: Deploy
   displayName: 'CD - Deploy Automático nos Azure Web Apps (API + Worker)'
   dependsOn: Build
-  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/develop'))
   jobs:
   - deployment: DeployAppServices
     displayName: 'Deploy para Azure Web Apps'
