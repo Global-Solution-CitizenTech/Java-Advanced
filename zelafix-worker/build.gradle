@@ -31,21 +31,12 @@ ext {
 }
 
 dependencies {
-    // Spring Boot Core & Actuator
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
-
-    // Mensageria Assíncrona (RabbitMQ - Opção A)
     implementation 'org.springframework.boot:spring-boot-starter-amqp'
-
-    // Spring AI (OpenAI LLM Integration - Rubrica 4 da Global Solution)
     implementation 'org.springframework.ai:spring-ai-starter-model-openai'
-
-    // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
-
-    // Testes
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-amqp-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
