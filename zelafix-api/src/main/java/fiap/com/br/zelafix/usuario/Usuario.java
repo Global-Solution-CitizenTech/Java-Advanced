@@ -1,7 +1,7 @@
 package fiap.com.br.zelafix.usuario;
 
 import fiap.com.br.zelafix.endereco.Endereco;
-import fiap.com.br.zelafix.telefone.Telefone;
+import fiap.com.br.zelafix.usuario.telefone.Telefone;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

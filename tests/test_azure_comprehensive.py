@@ -217,13 +217,13 @@ bad_tel_payload["numeroTelefone"] = ""
 r, ms = req("POST", "/usuarios", json=bad_tel_payload)
 record("Tenta Quebrar", "Cadastro com telefone em branco", "POST", "/usuarios", r.status_code, 400, r.status_code == 400, ms)
 
-# 3.5 Cadastro com cargo explícito
+# 3.5 Tentativa de cadastro público forçando cargo ADMIN (deve forçar CIDADAO)
 hacker_payload = dict(novo_usuario_payload)
 hacker_payload["email"] = f"hacker_{unique_id}@test.com"
 hacker_payload["cargo"] = "ADMIN"
 r, ms = req("POST", "/usuarios", json=hacker_payload)
-passed = r.status_code == 201 and "id" in r.json()
-record("Usuários", "Cadastro público com cargo explícito", "POST", "/usuarios", r.status_code, 201, passed, ms)
+passed = r.status_code == 201 and r.json().get("cargo") == "CIDADAO"
+record("Segurança/RBAC", "Cadastro público tentando cargo ADMIN (deve forçar CIDADAO)", "POST", "/usuarios", r.status_code, 201, passed, ms)
 
 # 3.6 GET /usuarios/me (Perfil do usuário autenticado)
 r, ms = req("GET", "/usuarios/me", headers=novo_headers)
@@ -447,7 +447,7 @@ chamado_payload = {
     "titulo": f"Buraco grave e afundamento de asfalto #{unique_id}",
     "descricao": "Cratera profunda de aproximadamente 1 metro na faixa da esquerda causando quebra de suspensão e risco grave de atropelamento.",
     "categoriaId": valid_cat_id,
-    "foto": MINIMAL_PNG_B64,
+    "fotoBase64": MINIMAL_PNG_B64.split(",", 1)[1],
     "endereco": {
         "cep": "01311000",
         "rua": "Avenida Paulista",

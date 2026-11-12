@@ -6,10 +6,11 @@ import fiap.com.br.zelafix.endereco.bairro.Bairro;
 import fiap.com.br.zelafix.endereco.cidade.Cidade;
 import fiap.com.br.zelafix.endereco.estado.Estado;
 import fiap.com.br.zelafix.auth.dto.LoginRequest;
-import fiap.com.br.zelafix.telefone.Telefone;
 import fiap.com.br.zelafix.usuario.CargoUsuario;
 import fiap.com.br.zelafix.usuario.Usuario;
 import fiap.com.br.zelafix.usuario.UsuarioService;
+import fiap.com.br.zelafix.usuario.telefone.Telefone;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
