@@ -17,7 +17,27 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Push para Azure Repos
+      - name: Sincronizar com Azure Repos
         run: |
           git remote add azure "${{ secrets.AZURE_REPOS_URL }}"
-          git push azure HEAD:${{ github.ref_name }} --force
+
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo ">>> Branch 'main' detectada."
+            echo ">>> Verificando sincronização com a branch protegida 'main' no Azure Repos..."
+            if git push azure HEAD:main 2>&1 | tee push_output.log; then
+              echo ">>> Sincronização direta da 'main' concluída com sucesso."
+            else
+              if grep -q "TF402455" push_output.log; then
+                echo ">>> [INFO] O Azure Repos protege a branch 'main' exigindo Pull Request obrigatório (TF402455)."
+                echo ">>> A esteira de produção é promovida via Pull Request no Azure DevOps."
+                exit 0
+              else
+                echo ">>> Falha na sincronização da branch main:"
+                cat push_output.log
+                exit 1
+              fi
+            fi
+          else
+            echo ">>> Sincronizando branch ${{ github.ref_name }} com Azure Repos..."
+            git push azure HEAD:${{ github.ref_name }} --force
+          fi
