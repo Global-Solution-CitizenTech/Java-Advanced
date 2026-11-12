@@ -1,7 +1,8 @@
 # 🏙️ ZelaFix Backend — Microsserviços e Mensageria Assíncrona com RabbitMQ & Spring AI
 > **FIAP — Global Solution 2026/2 | CitizenTech & Cidades Sustentáveis (ODS 11)**  
 > **Disciplina:** Java Advanced  
-> **Opção Distribuída Escolhida:** **Opção A — Mensageria Assíncrona com RabbitMQ** (Padrão Projeto *Paredão*)
+> **Opção Distribuída Escolhida:** **Opção A — Mensageria Assíncrona com RabbitMQ** (Padrão de Arquitetura Distribuída Reativa)  
+> **Deploy em Nuvem:** Azure Web Apps (Linux) via Esteira Automatizada CI/CD Azure DevOps
 
 ---
 
@@ -17,181 +18,269 @@
 
 ---
 
-## 🏛️ 1. Arquitetura Distribuída do Sistema
+## 📂 1. Estrutura do Repositório & Arquitetura Gradle Multi-Project
 
-O backend foi arquitetado em **dois microsserviços autônomos e desacoplados** que se comunicam de forma assíncrona através de mensageria com **RabbitMQ**:
+### Por que adotamos Gradle Multi-Project? *(Justificativa Técnica Corporativa)*
+> *"Adotamos a arquitetura de **Gradle Multi-Project**, que é a boa prática corporativa para microsserviços que compartilham o mesmo ecossistema e ciclo de release. Ela nos permite ter controle centralizado das versões do Spring Boot (4.1.1), Java (21 LTS) e repositórios Maven, compilar e testar toda a esteira de CI/CD de forma atômica no Azure DevOps em um único comando (`call gradlew.bat clean test bootJar`), e ao mesmo tempo manter `zelafix-api` e `zelafix-worker` como artefatos completamente desacoplados, independentes e isolados em tempo de execução."*
 
-1. **`zelafix-api` (Gateway REST, Persistência & Mensageria — Porta 8080):**
-   - API RESTful do domínio consumida pelo aplicativo mobile (**React Native Expo**) e painel web administrativo.
-   - Autenticação e autorização via **Spring Security com tokens Bearer JWT assinados por par de chaves RSA**.
-   - Mapeamento relacional exclusivo com **Spring Data JPA** e paginação (`Pageable`) sobre o schema corporativo Oracle (`citizenTech.ddl`).
-   - Cache declarativo de catálogo (`@Cacheable` / `@CacheEvict` em `Categoria`, `Status` e `ViaCepService`) e timeouts HTTP configurados.
-   - Validações de entrada na borda com **Jakarta Bean Validation** (`@Valid`, `@DddValidation`, `@EnumValidation`) e tratamento centralizado de exceções (`@RestControllerAdvice`).
-   - **Produtor RabbitMQ:** Publica eventos de abertura de ocorrências com foto obrigatória (`chamado.triagem.key`) e votos/apoios da comunidade (`chamado.voto.key`).
-   - **Consumidor RabbitMQ (`ChamadoTriagemFeedbackConsumer`):** Escuta a fila de retorno `chamado.triagem-concluida.queue` e persiste o parecer técnico da IA no histórico do chamado (`HistChamado`).
-
-2. **`zelafix-worker` (Consumidor Assíncrono 100% Stateless & Heavy Worker — Porta 8081):**
-   - Microsserviço de processamento pesado em segundo plano, **100% Stateless e sem qualquer conexão com banco de dados** (zero JDBC/JPA), garantindo isolamento de falhas e escalabilidade horizontal.
-   - **Triagem Inteligente Multimodal via Spring AI:** Escuta a fila `chamado.triagem.queue`, detecta automaticamente o MIME type da foto via *magic numbers* (`ImageMimeTypeDetector`) e aciona o modelo multimodal **`qwen/qwen3.8-27b` (via Groq API / Spring AI)** para análise visual da foto da ocorrência, classificação de urgência (`PrioridadeChamado`), identificação do órgão municipal competente (`DepartamentoGoverno`) e emissão de parecer técnico estruturado (`TriagemIaResult`), devolvendo o resultado na fila `chamado.triagem-concluida.queue`.
-   - **Agregador de Votos (`VotoConsumer`):** Escuta a fila `chamado.voto.queue`, acumula deltas de votos em memória utilizando `ConcurrentHashMap` thread-safe para absorver picos de tráfego (Padrão *Paredão*), e consolida os lotes a cada 3 segundos com `@Scheduled(fixedDelay = 3000) flush()`.
-
-```mermaid
-flowchart TD
-    subgraph ClientLayer ["Camada Cliente"]
-        Mobile["📱 Mobile App (React Native Expo)"]
-        Swagger["🌐 Swagger UI / Web Gestor"]
-    end
-
-    subgraph Service1 ["Microsserviço 1: zelafix-api (Porta 8080)"]
-        AuthController["AuthController (/login)"]
-        UsuarioController["UsuarioController (/usuarios, /usuarios/me)"]
-        ChamadoController["ChamadoController (/chamados, /chamados/{id}/apoiar)"]
-        Security["Spring Security JWT (RSA Nimbus)"]
-        JPA1["Spring Data JPA + Cache (Oracle Database FIAP)"]
-        ChamadoPublisher["ChamadoEventProducer"]
-        VotoPublisher["VotoEventProducer"]
-        FeedbackConsumer["ChamadoTriagemFeedbackConsumer (@RabbitListener)"]
-    end
-
-    subgraph RabbitMQCluster ["RabbitMQ Message Broker (Portas 5672 / 15672)"]
-        Exchange["zelafix.direct (Direct Exchange)"]
-        QueueTriagem["chamado.triagem.queue (Durable)"]
-        QueueFeedback["chamado.triagem-concluida.queue (Durable)"]
-        QueueVoto["chamado.voto.queue (Durable)"]
-    end
-
-    subgraph Service2 ["Microsserviço 2: zelafix-worker (Porta 8081 — 100% Stateless)"]
-        ChamadoAiConsumer["ChamadoAiConsumer (@RabbitListener)"]
-        SpringAI["Spring AI ChatClient (Groq / Qwen 3.8 27B Vision)"]
-        FeedbackProducer["TriagemFeedbackProducer"]
-        VotoConsumer["VotoConsumer (@RabbitListener)"]
-        VoteBuffer["ConcurrentHashMap Buffer (Padrão Paredão)"]
-        Scheduler["@Scheduled(fixedDelay = 3000) Flush Lote"]
-    end
-
-    subgraph Database ["Banco de Dados Relacional (Oracle FIAP)"]
-        Tables["Tabelas Relacionais (citizenTech.ddl)
-        - chamado
-        - hist_status
-        - voto_chamado
-        - usuario"]
-    end
-
-    Mobile -->|REST HTTP + JWT Bearer| ChamadoController
-    Mobile -->|REST HTTP| AuthController
-    Mobile -->|REST HTTP| UsuarioController
-    Swagger -->|REST HTTP| ChamadoController
-
-    ChamadoController --> Security
-    ChamadoController --> JPA1
-    ChamadoController -->|Publica chamado + foto| ChamadoPublisher
-    ChamadoController -->|Publica voto| VotoPublisher
-
-    ChamadoPublisher -->|routingKey: chamado.triagem.key| Exchange
-    VotoPublisher -->|routingKey: chamado.voto.key| Exchange
-
-    Exchange --> QueueTriagem
-    Exchange --> QueueVoto
-
-    QueueTriagem -->|Consome evento + foto| ChamadoAiConsumer
-    ChamadoAiConsumer --> SpringAI
-    SpringAI --> FeedbackProducer
-    FeedbackProducer -->|routingKey: chamado.triagem-concluida.key| Exchange
-    Exchange --> QueueFeedback
-    QueueFeedback -->|Consome parecer IA| FeedbackConsumer
-    FeedbackConsumer -->|Registra HistChamado| JPA1
-
-    QueueVoto -->|Consome voto| VotoConsumer
-    VotoConsumer --> VoteBuffer
-    Scheduler -->|Consolida deltas a cada 3s| VoteBuffer
-
-    JPA1 <--> Database
+### Árvore de Diretórios do Projeto
+```text
+Java-Advanced/
+├── .github/
+│   └── workflows/
+│       └── mirror-to-azure.yml      # Espelhamento automático GitHub ↔ Azure Repos
+├── azure-pipelines.yml               # Pipeline unificado de CI/CD (Azure DevOps)
+├── build.gradle                      # Gradle root: controle centralizado de plugins
+├── settings.gradle                   # Declaração dos submódulos: zelafix-api e zelafix-worker
+├── gradle.properties                 # Configurações de JVM e encoding UTF-8
+├── gradlew / gradlew.bat             # Gradle Wrapper corporativo (Gradle 8.10)
+├── AGENT.md                          # Guia operacional da arquitetura e convenções
+│
+├── zelafix-api/                      # MICROSSERVIÇO 1: Gateway REST & Persistência
+│   ├── Dockerfile                    # Multi-stage build (Temurin 21 JRE Alpine, non-root)
+│   ├── build.gradle                  # Dependências JPA, Oracle, Flyway, Security, RabbitMQ
+│   └── src/
+│       ├── main/
+│       │   ├── java/fiap/com/br/zelafix/
+│       │   │   ├── auth/             # Autenticação JWT RSA, Login & UserDetailsService
+│       │   │   ├── usuario/          # Gestão de munícipes e perfis (Cidadão, Gestor, Admin)
+│       │   │   ├── chamado/          # Ocorrências urbanas, histórico e votos
+│       │   │   ├── categoria/        # Catálogo com cache declarativo (@Cacheable)
+│       │   │   ├── status/           # Máquina de estados de resolução das ocorrências
+│       │   │   ├── endereco/         # Normalização geográfica e integração ViaCEP
+│       │   │   ├── amqp/             # Produtores RabbitMQ e Feedback Consumer da IA
+│       │   │   ├── config/           # SecurityConfig, RabbitConfig, RestClientConfig
+│       │   │   └── exception/        # GlobalExceptionHandler RFC 7807
+│       │   └── resources/
+│       │       ├── application.properties
+│       │       └── db/migration/     # Flyway V1 (DDL), V2 (Seeding), V3 (Admin Inicial)
+│       └── test/                     # Testes unitários e de integração com Spring Boot Test
+│
+└── zelafix-worker/                   # MICROSSERVIÇO 2: Worker Reativo Stateless
+    ├── Dockerfile                    # Multi-stage build leve (sem JDBC/JPA, non-root)
+    ├── build.gradle                  # Dependências Spring AMQP e Spring AI (Groq)
+    └── src/
+        ├── main/
+        │   ├── java/fiap/com/br/zelafix/worker/
+        │   │   ├── consumer/         # ChamadoAiConsumer & VotoConsumer (@RabbitListener)
+        │   │   ├── producer/         # TriagemFeedbackProducer (retorno à API)
+        │   │   ├── service/          # ZelaFixAiService (Spring AI ChatClient multimodal)
+        │   │   ├── util/             # ImageMimeTypeDetector (Magic Bytes detector)
+        │   │   └── config/           # RabbitWorkerConfig & JacksonConfig
+        │   └── resources/
+        │       └── application.properties
+        └── test/                     # Suíte de testes unitários do consumidor de IA
 ```
 
 ---
 
-## 📊 2. Tabela de Conformidade com os Critérios da Global Solution (100 pts)
+## 🏛️ 2. Arquitetura Distribuída Reativa e Divisão de Responsabilidades
+
+O ecossistema **ZelaFix** é operado por **dois microsserviços especializados** interligados por mensageria com **RabbitMQ**:
+
+```
+                              ┌──────────────────────────────────────────────┐
+                              │            Client Layer (Mobile/Web)         │
+                              └──────────────────────┬───────────────────────┘
+                                                     │ HTTP REST / JWT Bearer (RSA)
+                                                     ▼
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  zelafix-api (Porta 8080) — Gateway RESTful de Domínio & Persistência ACID                             │
+│  - Spring Security 6 com JWT RSA (Nimbus) & RBAC (ROLE_CIDADAO, ROLE_GESTOR, ROLE_ADMIN)               │
+│  - Persistência exclusiva no Banco Relacional Oracle FIAP via Spring Data JPA                          │
+│  - Versionamento de banco automático com Flyway Migrations (V1 DDL, V2 Carga, V3 Admin)                │
+│  - Cache declarativo de catálogo com @Cacheable/@CacheEvict (Categoria e Status)                     │
+│  - Cliente declarativo HTTP com timeouts e resiliência (ViaCepService)                                 │
+│  - Produtor RabbitMQ: publica ocorrências com foto obrigatória e votos no zelafix.direct               │
+│  - Consumidor RabbitMQ (Feedback): consome triagens concluídas da IA e persiste no Oracle via JPA      │
+└───────────────────────┬────────────────────────────────────────────────────▲───────────────────────────┘
+                        │                                                    │
+                        │ chamado.triagem.key                                │ chamado.triagem-concluida.key
+                        │ chamado.voto.key                                   │
+                        ▼                                                    │
+┌────────────────────────────────────────────────────────────────────────────┴───────────────────────────┐
+│  RabbitMQ Broker (Porta 5672) — Exchange: zelafix.direct (DirectExchange)                              │
+│  - Fila: chamado.triagem.queue (Durable)                                                               │
+│  - Fila: chamado.triagem-concluida.queue (Durable)                                                     │
+│  - Fila: chamado.voto.queue (Durable)                                                                  │
+└───────────────────────┬────────────────────────────────────────────────────────────────────────────────┘
+                        │
+                        │ Consumo Assíncrono
+                        ▼
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  zelafix-worker (Porta 8081) — Stateless Heavy Worker                                                  │
+│  - Consumidor assíncrono de alta vazão (RabbitMQ @RabbitListener)                                      │
+│  - Inteligência Artificial Generativa e Multimodal com Spring AI (Groq API / Qwen 3.8 27B Vision)       │
+│  - Detecção dinâmica de MIME type via magic bytes (ImageMimeTypeDetector)                              │
+│  - Agregador de votos em buffer volátil thread-safe (ConcurrentHashMap com flush periódico a cada 3s)  │
+│  - 100% Stateless: ZERO CONEXÃO COM BANCO DE DADOS (sem JDBC, sem JPA, sem Oracle, sem locks)         │
+│  - Produtor de retorno: publica parecer técnico estruturado em chamado.triagem-concluida.queue         │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🚫 3. Desacoplamento Radical: Por que o Worker NÃO acessa o Banco?
+
+A ausência total de dependências JPA/JDBC e conexões de banco de dados no `zelafix-worker` é um diferencial arquitetural sênior:
+
+1. **Isolamento de Falhas e Resiliência:** O worker atua como um *pure inference worker*. Lentidões ou indisponibilidades temporárias do banco de dados não afetam o consumo da IA nem saturam o pool de conexões (HikariCP).
+2. **Escalabilidade Horizontal Instantânea:** Instâncias do worker sobem em ~2 segundos e podem ser multiplicadas elasticamente sem disputar o limite de conexões simultâneas do Oracle corporativo.
+3. **Padrão de Feedback Assíncrono:** O worker devolve o parecer técnico estruturado (`TriagemFeedbackMessage`) para a fila `chamado.triagem-concluida.queue`. A `zelafix-api`, única detentora legal do schema relacional, consome o feedback via `ChamadoTriagemFeedbackConsumer` e realiza a transação ACID com auditoria histórica (`HistChamado`).
+4. **Absorção de Rajadas de Votos (Padrão Paredão):** O `VotoConsumer` acumula apoios em memória com `ConcurrentHashMap<Long, Integer>`. O flush periódico a cada 3 segundos (`@Scheduled`) consolida os lotes em log e libera a memória, sem estressar o banco relacional.
+
+---
+
+## 🔄 4. Topologia e Fluxo de Mensageria RabbitMQ (`zelafix.direct`)
+
+Toda a comunicação assíncrona entre os dois serviços é orquestrada pela `DirectExchange` nomeada `zelafix.direct`:
+
+| Fila | Routing Key | Produtor | Consumidor | Payload | Finalidade |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `chamado.triagem.queue` | `chamado.triagem.key` | `zelafix-api` | `zelafix-worker` | `ChamadoTriagemMessage` | Dispara a triagem multimodal com Spring AI transportando os bytes da foto. |
+| `chamado.triagem-concluida.queue` | `chamado.triagem-concluida.key` | `zelafix-worker` | `zelafix-api` | `TriagemFeedbackMessage` | Devolve a prioridade, órgão responsável e parecer técnico para persistência JPA. |
+| `chamado.voto.queue` | `chamado.voto.key` | `zelafix-api` | `zelafix-worker` | `VotoMessage` | Notifica apoios/votos em ocorrências para agregação de alta vazão em memória. |
+
+- **Serialização Padronizada:** Mensagens trafegam como JSON canônico (UTF-8) com `JacksonJsonMessageConverter`, eliminando dependências frágeis de `java.io.Serializable`.
+
+---
+
+## 🧠 5. Triagem Inteligente Multimodal com Spring AI (`ZelaFixAiService`)
+
+Toda ocorrência registrada na plataforma exige foto comprobatória (`BLOB NOT NULL` no banco de dados):
+
+- **Injeção Idiomática do `ChatClient`:** Configurado com `SYSTEM_PROMPT` técnico e `SimpleLoggerAdvisor` para observabilidade de prompts no console.
+- **Detecção de MIME Type por Magic Bytes (`ImageMimeTypeDetector`):** Analisa a assinatura binária dos primeiros bytes (`image/jpeg`, `image/png`, `image/webp`, `image/gif`) para anexar dinamicamente como `ByteArrayResource` no prompt multimodal.
+- **Structured Output Tipado:** O retorno do LLM é automaticamente serializado para o record `TriagemIaResult`:
+  ```java
+  public record TriagemIaResult(
+      PrioridadeChamado prioridade,         // BAIXA, MEDIA, ALTA, URGENTE
+      DepartamentoGoverno orgaoResponsavel, // SECRETARIA_OBRAS, DEFESA_CIVIL, CET_TRANSITO, ILUMINACAO_PUBLICA, etc.
+      String parecerIa                      // Parecer técnico objetivo (até 150 caracteres)
+  ) {}
+  ```
+
+---
+
+## 📊 6. Tabela de Conformidade com os Critérios da Global Solution (100 pts)
 
 | Item | Critério de Avaliação | Pontos | Como Foi Atendido no Projeto |
 | :---: | :--- | :---: | :--- |
-| **01** | **API REST do Domínio** (mínimo 3 entidades relacionadas, CRUD e paginação) | **20 pts** | Mapeamento relacional de 10 entidades conforme `citizenTech.ddl` (`Usuario`, `Telefone`, `Chamado`, `Categoria`, `Status`, `VotoChamado`, `HistChamado`, `Endereco`, `Bairro`, `Cidade`, `Estado`). Suporte a paginação com `Pageable`, ordenação dinâmica e filtros por status, categoria e busca textual. |
-| **02** | **Validação & Tratamento de Erros** (`@Valid` e `@RestControllerAdvice`) | **10 pts** | Bean Validation estrito em todos os DTOs (`@NotBlank`, `@Email`, `@Size`, `@DddValidation`, `@EnumValidation`). `GlobalExceptionHandler` captura `MethodArgumentNotValidException`, `ResourceNotFoundException`, `IllegalArgumentException` e `AuthenticationException` retornando respostas padronizadas. |
-| **03** | **Segurança com JWT & RBAC** (múltiplos papéis de usuário) | **20 pts** | Spring Security 6 / OAuth2 Resource Server com tokens JWT assinados via par de chaves RSA 2048 bits geradas automaticamente pelo Gradle. Controle de acesso por papéis: `ROLE_CIDADAO` (munícipe: criar ocorrências, apoiar com votos, gerenciar próprio perfil), `ROLE_GESTOR` (agente da prefeitura: avaliar ocorrências e atualizar status de resolução dos chamados) e `ROLE_ADMIN` (administrador geral com CRUD completo de usuários, chamados, categorias, status, endereços e alteração de cargos). |
-| **04** | **Spring AI Integrado ao Fluxo de Negócio** | **20 pts** | Integração multimodal via `ChatClient` com Groq (`qwen/qwen3.8-27b`) no `zelafix-worker`. O worker consome a mensagem da fila assíncrona com os bytes da foto, detecta o MIME type via `ImageMimeTypeDetector`, analisa visualmente a imagem e os dados do chamado, classifica a prioridade e o órgão municipal competente (`Structured Output` via `TriagemIaResult`) e publica o parecer técnico na fila `chamado.triagem-concluida.queue`. |
-| **05** | **Arquitetura Distribuída Funcional (Opção A — RabbitMQ)** | **20 pts** | Implementação com 2 microsserviços autônomos (`zelafix-api` e `zelafix-worker` 100% Stateless). Mensageria bidirecional com RabbitMQ: DirectExchange `zelafix.direct`, filas duráveis (`chamado.triagem.queue`, `chamado.triagem-concluida.queue`, `chamado.voto.queue`) e agregação de votos com buffer em memória (`ConcurrentHashMap`) e flush periódico em lote (`@Scheduled`). |
-| **06** | **Documentação OpenAPI/Swagger & Integração Mobile** | **10 pts** | Swagger interativo disponível em `http://localhost:8080/swagger-ui.html`. Integração 100% validada com o app React Native (`Mobile-Application-Development`), com rotas diretas padronizadas (`/chamados`, `/usuarios`, `/usuarios/me`, `/login`, etc.). |
-| **TOTAL** | **Pontuação Total da Entrega** | **100 pts** | **Solução Completa, Testada e Validada.** |
+| **01** | **API REST do Domínio** (mínimo 3 entidades relacionadas, CRUD e paginação) | **20 pts** | Mapeamento relacional de 10 entidades conforme `citizenTech.ddl` (`Usuario`, `Telefone`, `Chamado`, `Categoria`, `Status`, `VotoChamado`, `HistChamado`, `Endereco`, `Bairro`, `Cidade`, `Estado`). Paginação nativa com `Pageable`, ordenação dinâmica e filtros por status, categoria e busca textual. |
+| **02** | **Validação & Tratamento de Erros** (`@Valid` e `@RestControllerAdvice`) | **10 pts** | Bean Validation estrito em todos os DTOs (`@NotBlank`, `@Email`, `@Size`, `@DddValidation`, `@EnumValidation`). `GlobalExceptionHandler` captura violações de contrato e regras de negócio retornando respostas padronizadas RFC 7807. |
+| **03** | **Segurança com JWT & RBAC** (múltiplos papéis de usuário) | **20 pts** | Spring Security 6 / OAuth2 Resource Server com tokens JWT assinados via par de chaves RSA 2048 bits geradas automaticamente pelo build. Controle de acesso por papéis: `ROLE_CIDADAO`, `ROLE_GESTOR` e `ROLE_ADMIN`. |
+| **04** | **Spring AI Integrado ao Fluxo de Negócio** | **20 pts** | Triagem multimodal via `ChatClient` no `zelafix-worker`. Consome mensagem com bytes da foto, detecta MIME type via magic bytes, classifica urgência e órgão competente com structured output tipado (`TriagemIaResult`) e publica o parecer técnico no RabbitMQ. |
+| **05** | **Arquitetura Distribuída Funcional (Opção A — RabbitMQ)** | **20 pts** | 2 microsserviços autônomos (`zelafix-api` e `zelafix-worker` 100% Stateless). Mensageria bidirecional com RabbitMQ: DirectExchange `zelafix.direct`, 3 filas duráveis e agregação de votos com buffer volátil thread-safe e flush periódico em lote. |
+| **06** | **Documentação OpenAPI/Swagger & Integração Mobile** | **10 pts** | Swagger interativo em `/swagger-ui.html`. Integração 100% validada com o app mobile React Native Expo (`Mobile-Application-Development`), com rotas diretas padronizadas (`/chamados`, `/usuarios`, `/usuarios/me`, `/login`). |
+| **TOTAL** | **Pontuação Total da Entrega** | **100 pts** | **Solução Completa, Testada, Containerizada e com Deploy Ativo em Nuvem.** |
 
 ---
 
-## 🔑 3. Credenciais de Teste para Avaliação
+## ☁️ 7. Esteira de CI/CD e Deploy em Produção (Azure DevOps & App Services)
 
-O banco de dados é inicializado automaticamente com usuários de teste e dados pré-carregados via migrations versionadas do Flyway (`V1__criar_tabelas_zelafix.sql`, `V2__dados_iniciais_zelafix.sql` e `V3__admin_inicial.sql`):
+O projeto possui esteira unificada de Integração Contínua e Entrega Contínua (CI/CD) totalmente automatizada:
+
+```
+GitHub Push (main/develop)
+        │
+        ▼ (GitHub Actions: mirror-to-azure.yml)
+Azure Repos (dev.azure.com/ZelaFixGS/ZelaFix)
+        │
+        ▼ (Trigger nativo individualCI)
+Azure Pipelines (ZelaFix-CI-CD)
+        │
+        ├── ETAPA 1 (CI): clean test bootJar (Gradle Wrapper + JDK 21)
+        ├── Publicação dos relatórios JUnit (PublishTestResults@2)
+        ├── Publicação dos artefatos jar (PublishBuildArtifacts@1)
+        │
+        ▼ (Condição: succeeded() em main ou develop)
+        └── ETAPA 2 (CD): Deploy Automático via AzureWebApp@1
+                ├── app-zelafix-561432 (Porta 8080 — zelafix-api.jar)
+                └── app-zelafix-worker-561432 (Porta 8081 — zelafix-worker.jar)
+```
+
+### URLs das Aplicações em Produção (Azure App Services)
+- **API REST (Porta 8080):** https://app-zelafix-561432.azurewebsites.net
+- **Swagger UI em Nuvem:** https://app-zelafix-561432.azurewebsites.net/swagger-ui.html
+- **Worker Reativo (Porta 8081):** https://app-zelafix-worker-561432.azurewebsites.net
+
+---
+
+## 🐳 8. Containerização com Docker (Multi-Stage Build)
+
+Ambos os microsserviços utilizam **Dockerfiles multi-stage build** otimizados para produção:
+- **Build Stage:** `gradle:8.10-jdk21-alpine` (compilação sem daemon e geração de chaves RSA para JWT via OpenSSL).
+- **Runtime Stage:** `eclipse-temurin:21-jre-alpine` (imagem base ultraleve de produção).
+- **Segurança:** Execução obrigatória com usuário não-root (`appuser:appgroup`).
+- **Timezone:** Configurado para `America/Sao_Paulo` (garante integridade de auditoria com o Oracle).
+
+### Comandos de Build e Execução Docker (a partir da raiz `Java-Advanced/`)
+```bash
+# 1. Build da imagem da API
+docker build -f zelafix-api/Dockerfile -t zelafix-api:latest .
+
+# 2. Build da imagem do Worker
+docker build -f zelafix-worker/Dockerfile -t zelafix-worker:latest .
+
+# 3. Execução dos containers injetando variáveis de ambiente
+docker run -d -p 8080:8080 --env-file .env --name zelafix-api zelafix-api:latest
+docker run -d -p 8081:8081 --env-file .env --name zelafix-worker zelafix-worker:latest
+```
+
+---
+
+## 🔑 9. Credenciais de Teste para Avaliação
+
+O banco de dados Oracle é inicializado automaticamente com usuários de teste e dados pré-carregados via migrations versionadas do Flyway:
 
 | Papel | Nome | E-mail | Senha | Permissões |
 | :--- | :--- | :--- | :--- | :--- |
-| **Cidadão** | Carlos Alberto Silva | `carlos.silva@email.com` | `Senha#123` | Criar chamados (iniciam como `PENDENTE`), apoiar ocorrências e gerenciar seu perfil. |
-| **Funcionário da Prefeitura** | Eng. Roberto Santos | `roberto.gestor@subprefeitura.sp.gov.br` | `Senha#123` | Agente público da prefeitura: atualizar status de resolução dos chamados (`EM_ANALISE`, `EM_EXECUCAO`, `CONCLUIDO`, `REJEITADO`). |
-| **Administrador Geral** | Administrador ZelaFix | `admin@zelafix.com.br` | `123mudar` | Acesso administrativo irrestrito: CRUD completo de usuários, chamados, categorias, status, endereços e alteração de perfis/cargos. |
+| **Cidadão** | Carlos Alberto Silva | `carlos.silva@email.com` | `Senha#123` | Criar ocorrências com foto, apoiar ocorrências com votos e gerenciar perfil. |
+| **Funcionário da Prefeitura** | Eng. Roberto Santos | `roberto.gestor@subprefeitura.sp.gov.br` | `Senha#123` | Agente público: atualizar status dos chamados (`EM_ANALISE`, `EM_EXECUCAO`, `CONCLUIDO`, `REJEITADO`). |
+| **Administrador Geral** | Administrador ZelaFix | `admin@zelafix.com.br` | `123mudar` | Acesso irrestrito: CRUD de usuários, chamados, categorias, status, endereços e alteração de perfis. |
 
 ---
 
-## 🚀 4. Guia de Execução Local
+## 🚀 10. Guia de Execução Local
 
 ### Pré-requisitos
-- **Java 21 LTS** (Amazon Corretto ou Eclipse Temurin 21 configurado no sistema).
-- **Credenciais em `.env`** na raiz de `Java-Advanced` (baseado em `.env.example`), apontando para o Oracle FIAP e para a instância gerenciada do **RabbitMQ no CloudAMQP** (`SPRING_RABBITMQ_ADDRESSES=amqps://...`).
+- **Java 21 LTS** (Amazon Corretto ou Eclipse Temurin 21).
+- Arquivo `.env` configurado na raiz de `Java-Advanced` (baseado em `.env.example`), apontando para o Oracle FIAP e para a instância gerenciada do **RabbitMQ no CloudAMQP** (`SPRING_RABBITMQ_ADDRESSES=amqps://...`).
 
-### Passo 1: Configurar o `.env`
-Copie `.env.example` para `.env` e preencha `ORACLE_USER`, `ORACLE_PASSWORD`, `SPRING_RABBITMQ_ADDRESSES` (URL `amqps://...` do CloudAMQP) e `GROQ_API_KEY`.
-
-### Passo 2: Executar o Microsserviço 1 (zelafix-api — Porta 8080)
-Em um terminal:
+### Executando localmente via Gradle
 ```bash
-# A partir da raiz de Java-Advanced
+# Terminal 1 — Iniciar a API REST (Porta 8080)
 .\gradlew :zelafix-api:bootRun
-```
-- A API REST estará rodando em: `http://localhost:8080`
-- Swagger UI interativo: `http://localhost:8080/swagger-ui.html`
-- Banco de Dados Conectado: Oracle FIAP (`oracle.fiap.com.br:1521/orcl`)
 
-### Passo 3: Executar o Microsserviço 2 (zelafix-worker — Porta 8081)
-Em outro terminal:
-```bash
-# A partir da raiz de Java-Advanced
+# Terminal 2 — Iniciar o Worker Reativo (Porta 8081)
 .\gradlew :zelafix-worker:bootRun
 ```
-- O worker (100% Stateless, sem conexão a banco de dados) conectará automaticamente ao RabbitMQ para processar a triagem multimodal por IA (`qwen/qwen3.8-27b`) e a agregação de votos em memória, devolvendo os pareceres de triagem na fila `chamado.triagem-concluida.queue`.
 
----
-
-## 🧪 5. Execução dos Testes Automatizados
-
-Para rodar todos os testes unitários e de integração de ambos os microsserviços:
+### Executando os Testes Automatizados
 ```bash
-cd c:\Users\Enzo\new_backup\FIAP\_Projetos\Global_Solution_2\Java-Advanced
+# Executar todos os testes de ambos os módulos
 .\gradlew test
-```
-Ou individualmente:
-```bash
+
+# Executar testes individualmente por módulo
 .\gradlew :zelafix-api:test
 .\gradlew :zelafix-worker:test
 ```
 
 ---
 
-## 📱 6. Integração com o App Mobile (React Native Expo)
+## 📱 11. Integração com o App Mobile (React Native Expo)
 
 O app mobile em `Mobile-Application-Development` conecta-se diretamente à `zelafix-api`:
 - **Android Emulator:** `http://10.0.2.2:8080`
 - **iOS Simulator / Web:** `http://localhost:8080`
+- **Ambiente em Nuvem (Produção):** `https://app-zelafix-561432.azurewebsites.net`
 
-Todos os contratos de resposta foram alinhados para retornar o objeto atualizado do chamado em operações de apoio/voto (`POST /chamados/{id}/apoiar`), listas paginadas (`content[]`), autenticação JWT com persistência no SecureStore/AsyncStorage e visualização das fotos.
+Contratos alinhados para retornar o objeto atualizado do chamado em operações de apoio (`POST /chamados/{id}/apoiar`), paginação transparente (`content[]`), autenticação JWT persistida no SecureStore e renderização direta de fotos em base64.
 
 ---
 
-## 🤖 7. Declaração Obrigatória de Uso de IA Generativa
+## 🤖 12. Declaração Obrigatória de Uso de IA Generativa
 
-Em total conformidade com as diretrizes do regulamento da Global Solution 2026/2:
-- **Ferramentas utilizadas:** Google Antigravity / Gemini 2.5 Flash / Claude 3.5 Sonnet no auxílio ao design arquitetural, estruturação do build Gradle multi-project e geração de testes unitários.
-- **Spring AI:** O microsserviço `zelafix-worker` utiliza a biblioteca oficial `spring-ai-starter-model-openai` (Spring AI 2.0.1) consumindo modelos LLM para a triagem automatizada, classificação de urgência e parecer técnico em favor do cidadão e da gestão pública.
+Em conformidade com as diretrizes do regulamento da Global Solution 2026/2:
+- **Ferramentas de IA:** Google Antigravity / Gemini 3.8 / Claude Sonnet 4.6 no apoio ao design arquitetural, estrutura Gradle Multi-Project e geração de suítes de testes automatizados.
+- **Spring AI:** O microsserviço `zelafix-worker` utiliza a biblioteca oficial `spring-ai-starter-model-openai` (Spring AI 2.0.1) consumindo o modelo de visão computacional multimodal `qwen/qwen3.8-27b` (via Groq API) para triagem técnica automatizada, classificação de urgência e parecer técnico em prol do cidadão e da gestão pública.
