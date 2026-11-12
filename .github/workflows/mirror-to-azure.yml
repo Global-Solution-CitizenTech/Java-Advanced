@@ -1,0 +1,23 @@
+# Espelha automaticamente cada push do GitHub para o Azure Repos,
+# disparando a esteira ZelaFix-CI-CD no Azure DevOps.
+name: Mirror → Azure Repos
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout completo (todos os branches e tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push para Azure Repos
+        run: |
+          git remote add azure "${{ secrets.AZURE_REPOS_URL }}"
+          git push azure HEAD:${{ github.ref_name }} --force
