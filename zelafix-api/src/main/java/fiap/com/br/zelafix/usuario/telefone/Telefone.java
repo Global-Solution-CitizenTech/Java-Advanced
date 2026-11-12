@@ -1,6 +1,7 @@
-package fiap.com.br.zelafix.telefone;
+package fiap.com.br.zelafix.usuario.telefone;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import fiap.com.br.zelafix.usuario.Usuario;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

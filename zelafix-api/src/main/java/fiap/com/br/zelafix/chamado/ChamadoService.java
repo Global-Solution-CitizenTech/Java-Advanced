@@ -14,8 +14,6 @@ import fiap.com.br.zelafix.historico.HistChamadoRepository;
 import fiap.com.br.zelafix.queue.dto.ChamadoTriagemMessage;
 import fiap.com.br.zelafix.queue.dto.TriagemFeedbackMessage;
 import fiap.com.br.zelafix.queue.dto.VotoMessage;
-import fiap.com.br.zelafix.queue.producer.ChamadoEventProducer;
-import fiap.com.br.zelafix.queue.producer.VotoEventProducer;
 import fiap.com.br.zelafix.status.Status;
 import fiap.com.br.zelafix.status.StatusChamadoEnum;
 import fiap.com.br.zelafix.status.StatusService;
@@ -24,6 +22,7 @@ import fiap.com.br.zelafix.usuario.Usuario;
 import fiap.com.br.zelafix.usuario.UsuarioService;
 import fiap.com.br.zelafix.voto.VotoChamadoRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -45,8 +44,7 @@ public class ChamadoService {
     private final EnderecoService enderecoService;
     private final HistChamadoRepository histChamadoRepository;
     private final VotoChamadoRepository votoChamadoRepository;
-    private final ChamadoEventProducer chamadoEventProducer;
-    private final VotoEventProducer votoEventProducer;
+    private final ApplicationEventPublisher eventPublisher;
 
     // =========================================================================
     // 1. CONSULTAS E LISTAGENS
@@ -98,7 +96,7 @@ public class ChamadoService {
                 "Chamado registrado no sistema com status PENDENTE."
         ).toEntity(salvo, autor, statusInicial);
         histChamadoRepository.save(histInicial);
-        chamadoEventProducer.publicarTriagem(ChamadoTriagemMessage.from(salvo));
+        eventPublisher.publishEvent(ChamadoTriagemMessage.from(salvo));
 
         return ChamadoResponse.fromEntity(salvo, StatusChamadoEnum.PENDENTE.name(), 1L, true, List.of(histInicial));
     }
@@ -205,12 +203,12 @@ public class ChamadoService {
                 .ifPresentOrElse(
                         votoExistente -> {
                             votoChamadoRepository.delete(votoExistente);
-                            votoEventProducer.publicarVoto(new VotoMessage(chamadoId, usuarioId, "REMOVER"));
+                            eventPublisher.publishEvent(new VotoMessage(chamadoId, usuarioId, "REMOVER"));
                         },
                         () -> {
                             VotoMessage voto = new VotoMessage(chamadoId, usuarioId, "VOTAR");
                             votoChamadoRepository.save(voto.toEntity(chamado, usuario));
-                            votoEventProducer.publicarVoto(voto);
+                            eventPublisher.publishEvent(voto);
                         }
                 );
     }

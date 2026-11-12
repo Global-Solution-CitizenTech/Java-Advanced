@@ -15,8 +15,7 @@ import fiap.com.br.zelafix.historico.HistChamado;
 import fiap.com.br.zelafix.historico.HistChamadoRepository;
 import fiap.com.br.zelafix.queue.dto.ChamadoTriagemMessage;
 import fiap.com.br.zelafix.queue.dto.TriagemFeedbackMessage;
-import fiap.com.br.zelafix.queue.producer.ChamadoEventProducer;
-import fiap.com.br.zelafix.queue.producer.VotoEventProducer;
+import fiap.com.br.zelafix.queue.dto.VotoMessage;
 import fiap.com.br.zelafix.status.Status;
 import fiap.com.br.zelafix.status.StatusService;
 import fiap.com.br.zelafix.usuario.CargoUsuario;
@@ -38,6 +37,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -69,9 +69,7 @@ class ChamadoServiceTest {
     @Mock
     private VotoChamadoRepository votoChamadoRepository;
     @Mock
-    private ChamadoEventProducer chamadoEventProducer;
-    @Mock
-    private VotoEventProducer votoEventProducer;
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private ChamadoService chamadoService;
@@ -152,7 +150,7 @@ class ChamadoServiceTest {
         assertEquals("PENDENTE", response.status());
 
         ArgumentCaptor<ChamadoTriagemMessage> triagemCaptor = ArgumentCaptor.forClass(ChamadoTriagemMessage.class);
-        verify(chamadoEventProducer, times(1)).publicarTriagem(triagemCaptor.capture());
+        verify(eventPublisher, times(1)).publishEvent(triagemCaptor.capture());
         assertArrayEquals(chamadoSalvo.getFoto(), triagemCaptor.getValue().foto());
         verify(histChamadoRepository, times(1)).save(any());
         verify(votoChamadoRepository, times(1)).save(any());
@@ -181,7 +179,7 @@ class ChamadoServiceTest {
 
         assertNotNull(response);
         verify(votoChamadoRepository, times(1)).save(any());
-        verify(votoEventProducer, times(1)).publicarVoto(any());
+        verify(eventPublisher, times(1)).publishEvent(any(VotoMessage.class));
     }
 
     @Test
@@ -209,7 +207,7 @@ class ChamadoServiceTest {
 
         assertNotNull(response);
         verify(votoChamadoRepository, times(1)).delete(voto);
-        verify(votoEventProducer, times(1)).publicarVoto(any());
+        verify(eventPublisher, times(1)).publishEvent(any(VotoMessage.class));
     }
 
     @Test

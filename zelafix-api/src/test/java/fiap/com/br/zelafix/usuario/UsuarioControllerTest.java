@@ -7,9 +7,10 @@ import fiap.com.br.zelafix.endereco.bairro.Bairro;
 import fiap.com.br.zelafix.endereco.cidade.Cidade;
 import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.endereco.estado.Estado;
-import fiap.com.br.zelafix.telefone.Telefone;
 import fiap.com.br.zelafix.usuario.dto.CargoUpdateRequest;
 import fiap.com.br.zelafix.usuario.dto.UsuarioRequest;
+import fiap.com.br.zelafix.usuario.telefone.Telefone;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -94,7 +95,7 @@ class UsuarioControllerTest {
                 .build();
 
         EnderecoRequest endReq = new EnderecoRequest("01001-000", "100", "Praça da Sé", "Centro");
-        request = new UsuarioRequest("Enzo Munícipe", "enzo@zelafix.com.br", "Senha@123", "CIDADAO", "11", "987654321", endReq);
+        request = new UsuarioRequest("Enzo Munícipe", "enzo@zelafix.com.br", "Senha@123", "11", "987654321", endReq);
     }
 
     @Test

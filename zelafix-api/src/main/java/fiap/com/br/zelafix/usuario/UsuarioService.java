@@ -1,9 +1,12 @@
 package fiap.com.br.zelafix.usuario;
 
+import fiap.com.br.zelafix.chamado.ChamadoRepository;
 import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.EnderecoService;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
+import fiap.com.br.zelafix.historico.HistChamadoRepository;
 import fiap.com.br.zelafix.usuario.dto.UsuarioRequest;
+import fiap.com.br.zelafix.voto.VotoChamadoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,6 +20,9 @@ public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
     private final EnderecoService enderecoService;
+    private final ChamadoRepository chamadoRepository;
+    private final HistChamadoRepository histChamadoRepository;
+    private final VotoChamadoRepository votoChamadoRepository;
     private final PasswordEncoder passwordEncoder;
 
     public Page<Usuario> findAll(Pageable pageable) {
@@ -34,37 +40,25 @@ public class UsuarioService {
 
     @Transactional
     public Usuario create(UsuarioRequest req) {
-        if (usuarioRepository.existsByEmail(req.email().trim().toLowerCase())) {
-            throw new IllegalArgumentException("E-mail já cadastrado: " + req.email());
-        }
         Endereco endereco = enderecoService.findOrCreateByCepAndNumero(req.endereco());
-        Usuario usuario = req.toEntity(endereco, passwordEncoder.encode(req.senha()));
-        return usuarioRepository.save(usuario);
+        return usuarioRepository.save(req.toEntity(endereco, passwordEncoder.encode(req.senha())));
     }
 
     @Transactional
     public Usuario update(Long id, UsuarioRequest req) {
-        Usuario usuario = findUsuarioById(id);
-        aplicarEm(usuario, req);
-        return usuarioRepository.save(usuario);
+        return aplicarEm(findUsuarioById(id), req);
     }
 
     @Transactional
     public Usuario update(String email, UsuarioRequest req) {
-        Usuario usuario = findByEmail(email);
-        aplicarEm(usuario, req);
-        return usuarioRepository.save(usuario);
+        return aplicarEm(findByEmail(email), req);
     }
 
     @Transactional
     public Usuario updateCargo(Long id, String cargoStr) {
         Usuario usuario = findUsuarioById(id);
         CargoUsuario novoCargo = CargoUsuario.valueOf(cargoStr.trim().toUpperCase());
-
-        if (usuario.getCargo() == CargoUsuario.ADMIN && novoCargo != CargoUsuario.ADMIN && usuarioRepository.countByCargo(CargoUsuario.ADMIN) <= 1) {
-            throw new IllegalArgumentException("Não é possível rebaixar o único administrador do sistema.");
-        }
-
+        validarMinimoCargo(usuario, novoCargo, "rebaixar");
         usuario.setCargo(novoCargo);
         return usuarioRepository.save(usuario);
     }
@@ -80,10 +74,22 @@ public class UsuarioService {
     }
 
     private void deleteUsuario(Usuario usuario) {
-        if (usuario.getCargo() == CargoUsuario.ADMIN && usuarioRepository.countByCargo(CargoUsuario.ADMIN) <= 1) {
-            throw new IllegalArgumentException("Não é possível excluir o único administrador do sistema.");
+        validarMinimoCargo(usuario, null, "excluir");
+        Long id = usuario.getIdUsuario();
+        if (chamadoRepository.existsByUsuarioIdUsuario(id) || histChamadoRepository.existsByUsuarioIdUsuario(id)) {
+            throw new IllegalArgumentException("Não é possível excluir usuário que possui chamados ou histórico de auditoria vinculados.");
         }
+        votoChamadoRepository.deleteByUsuarioIdUsuario(id);
         usuarioRepository.delete(usuario);
+    }
+
+    private void validarMinimoCargo(Usuario usuario, CargoUsuario novoCargo, String acao) {
+        CargoUsuario atual = usuario.getCargo();
+        if ((atual == CargoUsuario.ADMIN || atual == CargoUsuario.GESTOR)
+                && novoCargo != atual
+                && usuarioRepository.countByCargo(atual) <= 1) {
+            throw new IllegalArgumentException("Não é possível " + acao + " o único " + atual.name() + " do sistema.");
+        }
     }
 
     private Usuario findUsuarioById(Long id) {
@@ -91,17 +97,18 @@ public class UsuarioService {
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário com id " + id + " não encontrado."));
     }
 
-    private void aplicarEm(Usuario usuario, UsuarioRequest req) {
-        String novoEmail = req.email().trim().toLowerCase();
-        if (!usuario.getEmail().equalsIgnoreCase(novoEmail) && usuarioRepository.existsByEmail(novoEmail)) {
-            throw new IllegalArgumentException("E-mail já cadastrado: " + req.email());
-        }
-
+    private Usuario aplicarEm(Usuario usuario, UsuarioRequest req) {
         usuario.setNmUsuario(req.nome().trim());
-        usuario.setEmail(novoEmail);
+        usuario.setEmail(req.email().trim().toLowerCase());
         usuario.setSenha(passwordEncoder.encode(req.senha()));
-        usuario.getTelefone().setNumDdd(req.ddd().trim());
-        usuario.getTelefone().setNumTel(req.numeroTelefone().trim());
         usuario.setEndereco(enderecoService.findOrCreateByCepAndNumero(req.endereco()));
+
+        if (usuario.getTelefone() == null) {
+            usuario.setTelefone(req.toTelefone(usuario));
+        } else {
+            usuario.getTelefone().setNumDdd(req.ddd().trim());
+            usuario.getTelefone().setNumTel(req.numeroTelefone().trim());
+        }
+        return usuarioRepository.save(usuario);
     }
 }

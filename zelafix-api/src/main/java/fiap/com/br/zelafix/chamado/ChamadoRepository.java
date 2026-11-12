@@ -18,6 +18,8 @@ public interface ChamadoRepository extends JpaRepository<Chamado, Long>, JpaSpec
     @EntityGraph(attributePaths = {"categoria", "usuario", "endereco.bairro.cidade.estado"})
     Optional<Chamado> findById(Long id);
 
+    boolean existsByUsuarioIdUsuario(Long idUsuario);
+
     @EntityGraph(attributePaths = {"categoria", "usuario", "endereco.bairro.cidade.estado"})
     @Query("""
         SELECT c FROM Chamado c

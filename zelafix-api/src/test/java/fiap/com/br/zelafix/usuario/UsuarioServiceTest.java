@@ -1,5 +1,6 @@
 package fiap.com.br.zelafix.usuario;
 
+import fiap.com.br.zelafix.chamado.ChamadoRepository;
 import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.EnderecoService;
 import fiap.com.br.zelafix.endereco.bairro.Bairro;
@@ -7,8 +8,10 @@ import fiap.com.br.zelafix.endereco.cidade.Cidade;
 import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.endereco.estado.Estado;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
-import fiap.com.br.zelafix.telefone.Telefone;
+import fiap.com.br.zelafix.historico.HistChamadoRepository;
 import fiap.com.br.zelafix.usuario.dto.UsuarioRequest;
+import fiap.com.br.zelafix.usuario.telefone.Telefone;
+import fiap.com.br.zelafix.voto.VotoChamadoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,12 +45,22 @@ class UsuarioServiceTest {
     private EnderecoService enderecoService;
 
     @Mock
+    private ChamadoRepository chamadoRepository;
+
+    @Mock
+    private HistChamadoRepository histChamadoRepository;
+
+    @Mock
+    private VotoChamadoRepository votoChamadoRepository;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @InjectMocks
     private UsuarioService usuarioService;
 
     private Usuario usuarioCidadao;
+    private Usuario usuarioGestor;
     private Usuario usuarioAdmin;
     private UsuarioRequest request;
 
@@ -66,6 +79,7 @@ class UsuarioServiceTest {
                 .build();
 
         Telefone telCidadao = Telefone.builder().idTelefone(1L).numDdd("11").numTel("987654321").build();
+        Telefone telGestor = Telefone.builder().idTelefone(3L).numDdd("11").numTel("988887777").build();
         Telefone telAdmin = Telefone.builder().idTelefone(2L).numDdd("11").numTel("999990000").build();
 
         usuarioCidadao = Usuario.builder()
@@ -76,6 +90,16 @@ class UsuarioServiceTest {
                 .cargo(CargoUsuario.CIDADAO)
                 .endereco(endereco)
                 .telefone(telCidadao)
+                .build();
+
+        usuarioGestor = Usuario.builder()
+                .idUsuario(3L)
+                .nmUsuario("Gestor Público")
+                .email("gestor@zelafix.com.br")
+                .senha("encoded-pass")
+                .cargo(CargoUsuario.GESTOR)
+                .endereco(endereco)
+                .telefone(telGestor)
                 .build();
 
         usuarioAdmin = Usuario.builder()
@@ -89,30 +113,22 @@ class UsuarioServiceTest {
                 .build();
 
         EnderecoRequest endReq = new EnderecoRequest("01001-000", "100", "Praça da Sé", "Praça da Sé");
-        request = new UsuarioRequest("Carlos Munícipe", "cidadao@zelafix.com.br", "Senha@123", "CIDADAO", "11", "987654321", endReq);
+        request = new UsuarioRequest("Carlos Munícipe", "cidadao@zelafix.com.br", "Senha@123", "11", "987654321", endReq);
     }
 
     @Test
-    @DisplayName("Deve cadastrar novo usuário com sucesso e codificar a senha")
+    @DisplayName("Deve cadastrar novo usuário sempre com cargo CIDADAO e codificar a senha")
     void deveCadastrarUsuarioComSucesso() {
-        when(usuarioRepository.existsByEmail("cidadao@zelafix.com.br")).thenReturn(false);
         when(enderecoService.findOrCreateByCepAndNumero(any())).thenReturn(usuarioCidadao.getEndereco());
         when(passwordEncoder.encode("Senha@123")).thenReturn("encoded-pass");
-        when(usuarioRepository.save(any(Usuario.class))).thenReturn(usuarioCidadao);
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Usuario criado = usuarioService.create(request);
 
         assertNotNull(criado);
         assertEquals("Carlos Munícipe", criado.getNmUsuario());
+        assertEquals(CargoUsuario.CIDADAO, criado.getCargo());
         verify(usuarioRepository).save(any(Usuario.class));
-    }
-
-    @Test
-    @DisplayName("Deve lançar IllegalArgumentException ao tentar cadastrar usuário com e-mail duplicado")
-    void deveLancarExcecaoParaEmailDuplicado() {
-        when(usuarioRepository.existsByEmail("cidadao@zelafix.com.br")).thenReturn(true);
-
-        assertThrows(IllegalArgumentException.class, () -> usuarioService.create(request));
     }
 
     @Test
@@ -165,16 +181,20 @@ class UsuarioServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar IllegalArgumentException ao atualizar e-mail para um já existente de outro usuário")
-    void deveLancarExcecaoAoAtualizarParaEmailJaCadastrado() {
-        UsuarioRequest reqNovoEmail = new UsuarioRequest("Carlos Alterado", "outro@zelafix.com.br", "Senha@123",
-                "CIDADAO", "11", "987654321", request.endereco());
+    @DisplayName("Deve criar telefone durante update quando usuário não possuir telefone associado")
+    void deveCriarTelefoneQuandoNuloNoUpdate() {
+        usuarioCidadao.setTelefone(null);
 
         when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioCidadao));
-        when(usuarioRepository.existsByEmail("outro@zelafix.com.br")).thenReturn(true);
+        when(passwordEncoder.encode(any())).thenReturn("new-encoded-pass");
+        when(enderecoService.findOrCreateByCepAndNumero(any())).thenReturn(usuarioCidadao.getEndereco());
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> usuarioService.update(1L, reqNovoEmail));
-        assertEquals("E-mail já cadastrado: outro@zelafix.com.br", ex.getMessage());
+        Usuario atualizado = usuarioService.update(1L, request);
+
+        assertNotNull(atualizado.getTelefone());
+        assertEquals("11", atualizado.getTelefone().getNumDdd());
+        assertEquals("987654321", atualizado.getTelefone().getNumTel());
     }
 
     @Test
@@ -230,12 +250,32 @@ class UsuarioServiceTest {
     }
 
     @Test
-    @DisplayName("Deve excluir usuário comum com sucesso")
+    @DisplayName("Deve impedir rebaixamento e exclusão do único gestor do sistema")
+    void deveImpedirRebaixamentoEExclusaoDoUnicoGestor() {
+        when(usuarioRepository.findById(3L)).thenReturn(Optional.of(usuarioGestor));
+        when(usuarioRepository.countByCargo(CargoUsuario.GESTOR)).thenReturn(1L);
+
+        assertThrows(IllegalArgumentException.class, () -> usuarioService.updateCargo(3L, "CIDADAO"));
+        assertThrows(IllegalArgumentException.class, () -> usuarioService.delete(3L));
+    }
+
+    @Test
+    @DisplayName("Deve impedir exclusão quando usuário possuir chamados ou histórico vinculados")
+    void deveImpedirExclusaoUsuarioComChamados() {
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioCidadao));
+        when(chamadoRepository.existsByUsuarioIdUsuario(1L)).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class, () -> usuarioService.delete(1L));
+    }
+
+    @Test
+    @DisplayName("Deve excluir usuário comum limpando votos vinculados")
     void deveExcluirUsuarioComumComSucesso() {
         when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioCidadao));
 
         usuarioService.delete(1L);
 
+        verify(votoChamadoRepository).deleteByUsuarioIdUsuario(1L);
         verify(usuarioRepository).delete(usuarioCidadao);
     }
 

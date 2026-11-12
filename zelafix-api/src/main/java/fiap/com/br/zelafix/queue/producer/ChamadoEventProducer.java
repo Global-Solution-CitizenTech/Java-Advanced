@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Slf4j
 @Service
@@ -14,6 +16,7 @@ public class ChamadoEventProducer {
 
     private final RabbitTemplate rabbitTemplate;
 
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void publicarTriagem(ChamadoTriagemMessage message) {
         log.info("Publicando evento de triagem no RabbitMQ para o chamado ID: {}", message.idChamado());
         try {
