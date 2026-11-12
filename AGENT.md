@@ -1,5 +1,5 @@
 # 🤖 Guia Operacional do Agente — ZelaFix Backend (Java Advanced)
-> **Padrão:** Clyvo Challenge 4 / Clean Architecture & Ponytail Standard  
+> **Padrão:** Clean Architecture & Ponytail Standard  
 > **Projeto:** FIAP — Global Solution 2026/2 | CitizenTech & Cidades Sustentáveis (ODS 11)  
 > **Disciplina:** Java Advanced  
 > **Opção de Distribuição:** Opção A — Mensageria Assíncrona com RabbitMQ (Padrão Paredão)
@@ -22,17 +22,17 @@ O backend do ecossistema **ZelaFix** é estruturado em **dois microsserviços au
 │  - Spring Security 6 com JWT RSA (Nimbus) & RBAC (ROLE_CIDADAO, ROLE_GESTOR, ROLE_ADMIN)               │
 │  - Persistência exclusiva no Banco Relacional Oracle FIAP via Spring Data JPA                          │
 │  - Validação estrita na borda (Jakarta Bean Validation nos Request DTOs + @DddValidation)              │
-│  - Tratamento global de erros padronizado RFC 7807 (GlobalExceptionHandler)                           │
+│  - Tratamento global de erros padronizado RFC 7807 (GlobalExceptionHandler)                            │
 │  - Caching declarativo de catálogo com @Cacheable/@CacheEvict (Categoria e Status)                     │
 │  - Timeouts HTTP configurados no cliente declarativo ViaCepService                                     │
 │  - Produtor RabbitMQ: publica ocorrências com foto obrigatória e votos no zelafix.direct               │
 │  - Consumidor RabbitMQ: consome retornos de triagem IA e persiste no Oracle via TriagemFeedbackMessage │
-└───────────────────────┬────────────────────────────────────────────────────────▲───────────────────────┘
-                        │                                                        │
-                        │ chamado.triagem.key                                    │ chamado.triagem-concluida.key
-                        │ chamado.voto.key                                       │
-                        ▼                                                        │
-┌────────────────────────────────────────────────────────────────────────────────┴───────────────────────┐
+└───────────────────────┬────────────────────────────────────────────────────▲───────────────────────────┘
+                        │                                                    │
+                        │ chamado.triagem.key                                │ chamado.triagem-concluida.key
+                        │ chamado.voto.key                                   │
+                        ▼                                                    │
+┌────────────────────────────────────────────────────────────────────────────┴───────────────────────────┐
 │  RabbitMQ Broker (Porta 5672) — Exchange: zelafix.direct (DirectExchange)                              │
 │  - Fila: chamado.triagem.queue (Durable)                                                               │
 │  - Fila: chamado.triagem-concluida.queue (Durable)                                                     │
@@ -48,7 +48,7 @@ O backend do ecossistema **ZelaFix** é estruturado em **dois microsserviços au
 │  - Triagem técnica multimodal obrigatória: ChamadoAiConsumer -> ZelaFixAiService -> TriagemIaResult    │
 │  - Suporte a visão computacional com detecção de MIME type via magic bytes (ImageMimeTypeDetector)     │
 │  - Agregador de votos em buffer volátil concorrente (ConcurrentHashMap com flush periódico)            │
-│  - ZERO CONEXÃO COM BANCO DE DADOS: 100% Stateless, sem JDBC, sem JPA, sem Oracle, sem locks          │
+│  - ZERO CONEXÃO COM BANCO DE DADOS: 100% Stateless, sem JDBC, sem JPA, sem Oracle, sem locks           │
 │  - Produtor de feedback: devolve parecer técnico para chamado.triagem-concluida.queue                  │
 └────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -112,15 +112,15 @@ No ZelaFix, todo chamado registrado na plataforma requer foto da ocorrência (`B
   - Retorno mapeado automaticamente para o record `TriagemIaResult`:
     ```java
     public record TriagemIaResult(
-        PrioridadeChamado prioridade,        // BAIXA, MEDIA, ALTA, URGENTE
+        PrioridadeChamado prioridade,         // BAIXA, MEDIA, ALTA, URGENTE
         DepartamentoGoverno orgaoResponsavel, // SECRETARIA_OBRAS, DEFESA_CIVIL, CET_TRANSITO, etc.
-        String parecerIa                     // Parecer técnico objetivo (até 150 caracteres)
+        String parecerIa                      // Parecer técnico objetivo (até 150 caracteres)
     ) {}
     ```
 
 ---
 
-## 🧹 5. Convenções de Código Limpo e Padrão Clyvo 4 / Ponytail
+## 🧹 5. Convenções de Código Limpo e Ponytail Standard
 
 Para manter o código sustentável, seguro e harmonioso, todos os módulos obedecem às seguintes regras:
 
@@ -142,7 +142,7 @@ Para manter o código sustentável, seguro e harmonioso, todos os módulos obede
 
 ### 5.3 Organização dos Services
 - **Services Enxutos:** Nenhuma classe `*Service` deve conter construtores manuais privados de Responses ou entidades espalhados (`criarVoto`, `criarHistoricoInicial`, `carregarResponse`).
-- **Métodos Privados de Edição:** Manter `private void aplicarEm(Entity entity, RequestDto request)` no final do Service (exatamente como em `PetService.java` do Clyvo 4).
+- **Métodos Privados de Edição:** Manter `private void aplicarEm(Entity entity, RequestDto request)` no final do Service.
 - **Streams e Mapeamento Inline:** O agrupamento de resultados em lote (ex: `Collectors.toMap`) deve ser feito inline nos métodos de consulta e paginação.
 - **Java Funcional:** Utilizar métodos idiomáticos como `.ifPresentOrElse(...)` para transições condicionais (ex: alternância de votos).
 
@@ -156,9 +156,41 @@ Para manter o código sustentável, seguro e harmonioso, todos os módulos obede
 - **Timeouts de Integrações HTTP:**
   - Clientes declarativos (`@HttpExchange` / ViaCEP) possuem timeouts explícitos configurados no `application.properties` (`spring.http.clients.connect-timeout=2s` e `read-timeout=4s`).
 
+### 5.5 Padrão de Request DTOs com Enum
+- **Nunca use String para campos de Enum:** Use o tipo Enum diretamente no record e anote com `@EnumValidation` para a mensagem de erro amigável.
+- **Sem ternários de fallback para Enum:** Se o campo tem um valor padrão de negócio, use `@Builder.Default` na entidade ou defina no DDL — nunca no DTO.
+- **Sem verificações null redundantes em campos `@NotNull`:** Se a borda valida, o Service confia.
+
 ---
 
-## 🛠️ 6. Guia Rápido de Comandos para Agentes
+## 🐳 6. Docker — Build e Execução
+
+Os Dockerfiles utilizam **multi-stage build** (`gradle:8.10-jdk21-alpine` → `eclipse-temurin:21-jre-alpine`) e **devem ser buildados a partir da raiz `Java-Advanced/`**:
+
+```bash
+# Build da API (a partir de Java-Advanced/)
+docker build -f zelafix-api/Dockerfile -t zelafix-api:latest .
+
+# Build do Worker (a partir de Java-Advanced/)
+docker build -f zelafix-worker/Dockerfile -t zelafix-worker:latest .
+
+# Execução da API (injete variáveis de ambiente do .env)
+docker run -p 8080:8080 --env-file .env zelafix-api:latest
+
+# Execução do Worker
+docker run -p 8081:8081 --env-file .env zelafix-worker:latest
+```
+
+**Características dos containers:**
+- Usuário não-root (`appuser:appgroup`) — conformidade de segurança.
+- Timezone `America/Sao_Paulo` — timestamps Oracle corretos.
+- JVM 21 LTS — única versão suportada (`eclipse-temurin:21-jre-alpine`).
+- API: RSA keys geradas via `openssl` no stage de build (JWT stateless).
+- Worker: sem Oracle, sem JDBC, sem JPA — apenas RabbitMQ + Spring AI.
+
+---
+
+## 🛠️ 7. Guia Rápido de Comandos para Agentes
 
 | Ação | Comando |
 | :--- | :--- |
@@ -167,11 +199,13 @@ Para manter o código sustentável, seguro e harmonioso, todos os módulos obede
 | **Executar suite completa de testes** | `powershell -Command "cd Java-Advanced; .\gradlew test"` |
 | **Executar API localmente (porta 8080)** | `powershell -Command "cd Java-Advanced; .\gradlew :zelafix-api:bootRun"` |
 | **Executar Worker localmente (porta 8081)** | `powershell -Command "cd Java-Advanced; .\gradlew :zelafix-worker:bootRun"` |
+| **Build Docker da API** | `docker build -f zelafix-api/Dockerfile -t zelafix-api:latest .` (da raiz `Java-Advanced/`) |
+| **Build Docker do Worker** | `docker build -f zelafix-worker/Dockerfile -t zelafix-worker:latest .` (da raiz `Java-Advanced/`) |
 | **Mensageria** | RabbitMQ gerenciado no CloudAMQP; defina `SPRING_RABBITMQ_ADDRESSES` (amqps://...) no `.env` |
 
 ---
 
-## ✅ 7. Checklist de Validação do Agente
+## ✅ 8. Checklist de Validação do Agente
 
 Antes de considerar uma tarefa finalizada:
 - [x] O código compila perfeitamente sem warnings críticos.
@@ -180,4 +214,6 @@ Antes de considerar uma tarefa finalizada:
 - [x] O `zelafix-worker` é 100% stateless (sem conexões ou drivers de banco de dados).
 - [x] DTOs de Response não possuem sobrecargas duplicadas e DTOs de Request não possuem mutadores de entidade.
 - [x] Os Services estão enxutos e utilizam `toEntity` dos DTOs e `aplicarEm` privado.
+- [x] Enums usados diretamente nos DTOs — sem `String` intermediário e sem ternários de fallback.
+- [x] Dockerfiles utilizam multi-stage build com `eclipse-temurin:21-jre-alpine` e usuário não-root.
 - [x] A documentação arquitetural reflete estritamente a realidade da base de código.

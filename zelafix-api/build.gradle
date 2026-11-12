@@ -25,37 +25,22 @@ repositories {
 }
 
 dependencies {
-    // Spring Boot Core & Web MVC
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-cache'
     implementation 'org.springframework.boot:spring-boot-starter-restclient'
-
-    // Spring Data JPA & Banco de Dados Oracle FIAP
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     runtimeOnly 'com.oracle.database.jdbc:ojdbc11:23.7.0.25.01'
-
-    // Database Migrations (Flyway Oracle 19c/21c/23c)
     implementation 'org.springframework.boot:spring-boot-starter-flyway'
     implementation 'org.flywaydb:flyway-core'
     runtimeOnly 'org.flywaydb:flyway-database-oracle'
-
-    // Mensageria Assíncrona (RabbitMQ - Opção A)
     implementation 'org.springframework.boot:spring-boot-starter-amqp'
-
-    // Segurança & Autenticação JWT RSA
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
-
-    // Documentação Swagger / OpenAPI 3.0
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5'
-
-    // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
-
-    // Testes
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-amqp-test'
