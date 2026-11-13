@@ -12,9 +12,9 @@ VALUES ('01001000', 'Praça da Sé', '100', 'Em frente à Catedral da Sé', 3);
 INSERT INTO endereco (cep, rua, numero, referencia, bairro_id_bairro)
 VALUES ('03104001', 'Rua da Mooca', '1500', 'Ao lado da estação Mooca', 4);
 
--- 2. USUARIOS (Senha BCrypt padrão de seed: 'Senha#123' / 'Senha@123')
+-- 2. USUARIOS (Cidadão: '123mudar' | Gestores: 'Senha#123')
 INSERT INTO usuario (nm_usuario, email, senha, cargo, endereco_id_endereco)
-VALUES ('Carlos Alberto Silva', 'carlos.silva@email.com', '$2a$10$nFdyYsVy8uiDRBO5KBpBWu9RKUQsIAM36oG9sK3ABRpcGike3MLv.', 'CIDADAO', 2);
+VALUES ('Enzo Okuizumi', 'enzo.okuizumi@gmail.com', '$2a$10$SXCHKmagXlo4hjWTaTfWIeGT6Qh8BWLEUgWHsxPEWDxKpQX1Q96Yi', 'CIDADAO', 2);
 
 INSERT INTO usuario (nm_usuario, email, senha, cargo, endereco_id_endereco)
 VALUES ('Eng. Roberto Santos', 'roberto.gestor@subprefeitura.sp.gov.br', '$2a$10$nFdyYsVy8uiDRBO5KBpBWu9RKUQsIAM36oG9sK3ABRpcGike3MLv.', 'GESTOR', 3);
@@ -109,16 +109,16 @@ END;
 
 -- 5. HIST_CHAMADO (status: 1=PENDENTE, 3=EM_ANALISE)
 INSERT INTO hist_chamado (dt_mudanca, observacoes, chamado_id_chamado, usuario_id_usuario, status_id_status)
-VALUES (DATE '2026-11-10', 'Chamado registrado pelo cidadão Carlos Alberto via ZelaFix Mobile.', 1, 2, 1);
+VALUES (DATE '2026-11-10', 'Chamado registrado pelo cidadão Enzo Okuizumi via ZelaFix Mobile.', 1, 2, 1);
 
 INSERT INTO hist_chamado (dt_mudanca, observacoes, chamado_id_chamado, usuario_id_usuario, status_id_status)
 VALUES (DATE '2026-11-10', 'Triagem concluída: demanda encaminhada ao Departamento de Limpeza Urbana.', 1, 3, 3);
 
 INSERT INTO hist_chamado (dt_mudanca, observacoes, chamado_id_chamado, usuario_id_usuario, status_id_status)
-VALUES (DATE '2026-11-11', 'Chamado registrado pelo cidadão Carlos Alberto via ZelaFix Mobile.', 2, 2, 1);
+VALUES (DATE '2026-11-11', 'Chamado registrado pelo cidadão Enzo Okuizumi via ZelaFix Mobile.', 2, 2, 1);
 
 INSERT INTO hist_chamado (dt_mudanca, observacoes, chamado_id_chamado, usuario_id_usuario, status_id_status)
-VALUES (DATE '2026-11-12', 'Chamado registrado pelo cidadão Carlos Alberto via ZelaFix Mobile.', 3, 2, 1);
+VALUES (DATE '2026-11-12', 'Chamado registrado pelo cidadão Enzo Okuizumi via ZelaFix Mobile.', 3, 2, 1);
 
 -- 6. VOTO_CHAMADO
 INSERT INTO voto_chamado (dt_voto, chamado_id_chamado, usuario_id_usuario) VALUES (DATE '2026-11-10', 1, 2);
