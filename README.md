@@ -4,9 +4,28 @@
 > **Opção Distribuída Escolhida:** **Opção A — Mensageria Assíncrona com RabbitMQ** (Padrão de Arquitetura Distribuída Reativa)  
 > **Deploy em Nuvem:** Azure Web Apps (Linux) via Esteira Automatizada CI/CD Azure DevOps
 
+| Link Rápido | URL |
+|---|---|
+| **Repositório GitHub (Java)** | https://github.com/Global-Solution-CitizenTech/Java-Advanced |
+| **Repositório GitHub (DevOps)** | https://github.com/Global-Solution-CitizenTech/DevOps-Tools-Cloud-Computing |
+| **Projeto no Azure DevOps** | https://dev.azure.com/ZelaFixGS/ZelaFix |
+| **API em Produção (Azure Web App)** | https://app-zelafix-561432.azurewebsites.net |
+| **Worker IA em Produção (Azure Web App)** | https://app-zelafix-worker-561432.azurewebsites.net |
+| **Swagger UI Interativo (Produção)** | https://app-zelafix-561432.azurewebsites.net/swagger-ui.html |
+| **OpenAPI Docs JSON (Produção)** | https://app-zelafix-561432.azurewebsites.net/v3/api-docs |
+| **Actuator Health API (Produção)** | https://app-zelafix-561432.azurewebsites.net/actuator/health |
+| **Actuator Health Worker (Produção)** | https://app-zelafix-worker-561432.azurewebsites.net/actuator/health |
+| **Swagger UI (Local)** | http://localhost:8080/swagger-ui.html |
+| **Coleção Oficial de Automação (Postman QA)** | https://github.com/Global-Solution-CitizenTech/Compliance-Quality-Assurance-Tests |
+
+## 🔗 Vídeo Pitch e Demonstração (Global Solution 2)
+
+* **Vídeo Pitch (até 5 min):** *(Link do YouTube será inserido após gravação)*
+* **Vídeo de Demonstração Técnica:** *(Link do YouTube será inserido após gravação)*
+
 ---
 
-## 👥 Integrantes do Grupo (Ordem Alfabética Estrita)
+## 👥 Integrantes do Grupo
 
 | RM | Nome Completo | Turma |
 | :---: | :--- | :---: |
@@ -71,6 +90,13 @@ Java-Advanced/
         │       └── application.properties
         └── test/                     # Suíte de testes unitários do consumidor de IA
 ```
+---
+
+## ☁️ 6. Arquitetura em Nuvem & Esteira CI/CD (Azure DevOps & App Services)
+
+<p align="center">
+  <img src="./docs/gs2-zelafix-diagrama.png" alt="Arquitetura em Nuvem Microsoft Azure & Esteira CI/CD ZelaFix" width="100%" />
+</p>
 
 ---
 
@@ -162,51 +188,7 @@ Toda ocorrência registrada na plataforma exige foto comprobatória (`BLOB NOT N
 
 ---
 
-## 📊 6. Tabela de Conformidade com os Critérios da Global Solution (100 pts)
-
-| Item | Critério de Avaliação | Pontos | Como Foi Atendido no Projeto |
-| :---: | :--- | :---: | :--- |
-| **01** | **API REST do Domínio** (mínimo 3 entidades relacionadas, CRUD e paginação) | **20 pts** | Mapeamento relacional de 10 entidades conforme `citizenTech.ddl` (`Usuario`, `Telefone`, `Chamado`, `Categoria`, `Status`, `VotoChamado`, `HistChamado`, `Endereco`, `Bairro`, `Cidade`, `Estado`). Paginação nativa com `Pageable`, ordenação dinâmica e filtros por status, categoria e busca textual. |
-| **02** | **Validação & Tratamento de Erros** (`@Valid` e `@RestControllerAdvice`) | **10 pts** | Bean Validation estrito em todos os DTOs (`@NotBlank`, `@Email`, `@Size`, `@DddValidation`, `@EnumValidation`). `GlobalExceptionHandler` captura violações de contrato e regras de negócio retornando respostas padronizadas RFC 7807. |
-| **03** | **Segurança com JWT & RBAC** (múltiplos papéis de usuário) | **20 pts** | Spring Security 6 / OAuth2 Resource Server com tokens JWT assinados via par de chaves RSA 2048 bits geradas automaticamente pelo build. Controle de acesso por papéis: `ROLE_CIDADAO`, `ROLE_GESTOR` e `ROLE_ADMIN`. |
-| **04** | **Spring AI Integrado ao Fluxo de Negócio** | **20 pts** | Triagem multimodal via `ChatClient` no `zelafix-worker`. Consome mensagem com bytes da foto, detecta MIME type via magic bytes, classifica urgência e órgão competente com structured output tipado (`TriagemIaResult`) e publica o parecer técnico no RabbitMQ. |
-| **05** | **Arquitetura Distribuída Funcional (Opção A — RabbitMQ)** | **20 pts** | 2 microsserviços autônomos (`zelafix-api` e `zelafix-worker` 100% Stateless). Mensageria bidirecional com RabbitMQ: DirectExchange `zelafix.direct`, 3 filas duráveis e agregação de votos com buffer volátil thread-safe e flush periódico em lote. |
-| **06** | **Documentação OpenAPI/Swagger & Integração Mobile** | **10 pts** | Swagger interativo em `/swagger-ui.html`. Integração 100% validada com o app mobile React Native Expo (`Mobile-Application-Development`), com rotas diretas padronizadas (`/chamados`, `/usuarios`, `/usuarios/me`, `/login`). |
-| **TOTAL** | **Pontuação Total da Entrega** | **100 pts** | **Solução Completa, Testada, Containerizada e com Deploy Ativo em Nuvem.** |
-
----
-
-## ☁️ 7. Esteira de CI/CD e Deploy em Produção (Azure DevOps & App Services)
-
-O projeto possui esteira unificada de Integração Contínua e Entrega Contínua (CI/CD) totalmente automatizada:
-
-```
-GitHub Push (main/develop)
-        │
-        ▼ (GitHub Actions: mirror-to-azure.yml)
-Azure Repos (dev.azure.com/ZelaFixGS/ZelaFix)
-        │
-        ▼ (Trigger nativo individualCI)
-Azure Pipelines (ZelaFix-CI-CD)
-        │
-        ├── ETAPA 1 (CI): clean test bootJar (Gradle Wrapper + JDK 21)
-        ├── Publicação dos relatórios JUnit (PublishTestResults@2)
-        ├── Publicação dos artefatos jar (PublishBuildArtifacts@1)
-        │
-        ▼ (Condição: succeeded() em main ou develop)
-        └── ETAPA 2 (CD): Deploy Automático via AzureWebApp@1
-                ├── app-zelafix-561432 (Porta 8080 — zelafix-api.jar)
-                └── app-zelafix-worker-561432 (Porta 8081 — zelafix-worker.jar)
-```
-
-### URLs das Aplicações em Produção (Azure App Services)
-- **API REST (Porta 8080):** https://app-zelafix-561432.azurewebsites.net
-- **Swagger UI em Nuvem:** https://app-zelafix-561432.azurewebsites.net/swagger-ui.html
-- **Worker Reativo (Porta 8081):** https://app-zelafix-worker-561432.azurewebsites.net
-
----
-
-## 🐳 8. Containerização com Docker (Multi-Stage Build)
+## 🐳 7. Containerização com Docker (Multi-Stage Build)
 
 Ambos os microsserviços utilizam **Dockerfiles multi-stage build** otimizados para produção:
 - **Build Stage:** `gradle:8.10-jdk21-alpine` (compilação sem daemon e geração de chaves RSA para JWT via OpenSSL).
@@ -229,9 +211,9 @@ docker run -d -p 8081:8081 --env-file .env --name zelafix-worker zelafix-worker:
 
 ---
 
-## 🔑 9. Credenciais de Teste para Avaliação
+## 🔑 8. Credenciais de Teste
 
-O banco de dados Oracle é inicializado automaticamente com usuários de teste e dados pré-carregados via migrations versionadas do Flyway:
+O banco de dados Oracle é inicializado automaticamente com usuários de teste via migrations do Flyway:
 
 | Papel | Nome | E-mail | Senha | Permissões |
 | :--- | :--- | :--- | :--- | :--- |
@@ -241,11 +223,11 @@ O banco de dados Oracle é inicializado automaticamente com usuários de teste e
 
 ---
 
-## 🚀 10. Guia de Execução Local
+## 🚀 9. Guia de Execução Local
 
 ### Pré-requisitos
 - **Java 21 LTS** (Amazon Corretto ou Eclipse Temurin 21).
-- Arquivo `.env` configurado na raiz de `Java-Advanced` (baseado em `.env.example`), apontando para o Oracle FIAP e para a instância gerenciada do **RabbitMQ no CloudAMQP** (`SPRING_RABBITMQ_ADDRESSES=amqps://...`).
+- Arquivo `.env` configurado na raiz de `Java-Advanced` (baseado em `.env.example`), apontando para o Oracle FIAP, **RabbitMQ (CloudAMQP)** (`SPRING_RABBITMQ_ADDRESSES`) e **Azure AI Foundry** (`AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`).
 
 ### Executando localmente via Gradle
 ```bash
@@ -265,22 +247,3 @@ O banco de dados Oracle é inicializado automaticamente com usuários de teste e
 .\gradlew :zelafix-api:test
 .\gradlew :zelafix-worker:test
 ```
-
----
-
-## 📱 11. Integração com o App Mobile (React Native Expo)
-
-O app mobile em `Mobile-Application-Development` conecta-se diretamente à `zelafix-api`:
-- **Android Emulator:** `http://10.0.2.2:8080`
-- **iOS Simulator / Web:** `http://localhost:8080`
-- **Ambiente em Nuvem (Produção):** `https://app-zelafix-561432.azurewebsites.net`
-
-Contratos alinhados para retornar o objeto atualizado do chamado em operações de apoio (`POST /chamados/{id}/apoiar`), paginação transparente (`content[]`), autenticação JWT persistida no SecureStore e renderização direta de fotos em base64.
-
----
-
-## 🤖 12. Declaração Obrigatória de Uso de IA Generativa
-
-Em conformidade com as diretrizes do regulamento da Global Solution 2026/2:
-- **Ferramentas de IA:** Google Antigravity / Gemini 3.8 / Claude Sonnet 4.6 no apoio ao design arquitetural, estrutura Gradle Multi-Project e geração de suítes de testes automatizados.
-- **Spring AI:** O microsserviço `zelafix-worker` utiliza a biblioteca oficial `spring-ai-starter-model-openai` (Spring AI 2.0.1) consumindo o modelo de visão computacional multimodal `phi-4-multimodal` (Phi-4 Multimodal via Azure AI Foundry) para triagem técnica automatizada, classificação de urgência e parecer técnico em prol do cidadão e da gestão pública.
