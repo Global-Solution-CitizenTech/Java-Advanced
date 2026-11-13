@@ -69,7 +69,7 @@ CASOS_TESTE = [
 
 def test_worker_ai():
     print("=" * 60)
-    print("SUITE 4: WORKER COM SPRING AI (GROQ) - CASOS DE BORDA E RESILIÊNCIA")
+    print("SUITE 4: WORKER COM SPRING AI (AZURE AI FOUNDRY) - CASOS DE BORDA E RESILIÊNCIA")
     print("=" * 60)
 
     auth = requests.post(f"{BASE_URL}/login", json={"email": "admin@zelafix.com.br", "senha": "123mudar"}).json()

@@ -46,7 +46,7 @@ O backend do ecossistema **ZelaFix** é estruturado em **dois microsserviços au
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │  zelafix-worker (Porta 8081) — Stateless Heavy Worker                                                  │
 │  - Consumidor assíncrono de alta vazão (RabbitMQ @RabbitListener)                                      │
-│  - Inteligência Artificial Generativa e Multimodal com Spring AI (Groq API / Qwen 3.8 27B Vision)       │
+│  - Inteligência Artificial Generativa e Multimodal com Spring AI (Azure AI Foundry / Phi-4 Multimodal)  │
 │  - Triagem técnica multimodal obrigatória: ChamadoAiConsumer -> ZelaFixAiService -> TriagemIaResult    │
 │  - Detecção dinâmica de MIME type via magic bytes (ImageMimeTypeDetector)                              │
 │  - Agregador de votos em buffer volátil thread-safe (ConcurrentHashMap com flush periódico a cada 3s)  │
