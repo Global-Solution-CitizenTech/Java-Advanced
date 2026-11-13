@@ -1,9 +1,13 @@
-import urllib.request
+import base64
 import json
+import os
 import time
+import urllib.request
+from pathlib import Path
 
-BASE_URL = "http://localhost:8080"
-WORKER_URL = "http://localhost:8081"
+BASE_URL = os.getenv("BASE_URL", "http://localhost:8080")
+WORKER_URL = os.getenv("WORKER_URL", "http://localhost:8081")
+IMG_PATH = Path(__file__).resolve().parents[1] / "docs" / "rua-esburacada.png"
 
 def request(method, path, data=None, token=None, url_override=None):
     url = (url_override or BASE_URL) + path
@@ -128,30 +132,30 @@ print(f"GET /chamados: {status} -> Total chamados: {chamados.get('totalElements'
 print("\n" + "=" * 70)
 print("7. CRIANDO NOVO CHAMADO (RABBITMQ + AZURE AI ASSÍNCRONO)")
 print("=" * 70)
+foto_b64 = base64.b64encode(IMG_PATH.read_bytes()).decode("utf-8")
 novo_chamado = {
-    "titulo": "Cratera perigosa na pista expressa",
-    "descricao": "Buraco enorme aberto pelo temporal com risco iminente de acidente grave de trânsito em frente ao número 1000.",
-    "categoriaId": categoria_id,
     "endereco": {
         "cep": "01311000",
         "rua": "Avenida Paulista",
         "numero": "1000",
         "referencia": "Próximo à estação Brigadeiro"
-    }
+    },
+    "fotoBase64": foto_b64
 }
 status, chamado_criado = request("POST", "/chamados", novo_chamado, token=municipe_token)
 chamado_id = chamado_criado.get("idChamado") if isinstance(chamado_criado, dict) else None
-print(f"POST /chamados: {status} -> ID Gerado: {chamado_id}, Status Inicial: {chamado_criado.get('status')}")
+print(f"POST /chamados: {status} -> ID Gerado: {chamado_id}, Prioridade Inicial: {chamado_criado.get('prioridadeNome') if isinstance(chamado_criado, dict) else chamado_criado}")
 
 if chamado_id:
-    print("\nAguardando 6 segundos para o zelafix-worker consumir do RabbitMQ e acionar o Azure Phi-4 Multimodal...")
-    time.sleep(6)
+    print("\nAguardando 15 segundos para o zelafix-worker consumir do RabbitMQ e acionar o Azure Phi-4 Multimodal...")
+    time.sleep(15)
     status, chamado_detalhe = request("GET", f"/chamados/{chamado_id}", token=municipe_token)
     print(f"GET /chamados/{chamado_id}: {status}")
+    print(f" -> Título IA: {chamado_detalhe.get('titulo')} | Categoria: {chamado_detalhe.get('categoriaNome')} | Prioridade: {chamado_detalhe.get('prioridadeNome')} | Órgão: {chamado_detalhe.get('orgaoNome')}")
     historico = chamado_detalhe.get("historico", [])
     print(f"Histórico de Auditoria ({len(historico)} registros):")
     for h in historico:
-        print(f" -> Status: {h.get('status')} | Operador: {h.get('usuarioNome')} | Parecer: {h.get('observacoes')}")
+        print(f" -> Status: {h.get('status')} | Operador: {h.get('autorNome')} | Parecer: {h.get('observacao')}")
 
     print("\n" + "=" * 70)
     print("8. TESTANDO APOIO POPULAR / VOTAÇÃO (RABBITMQ VOTO QUEUE)")

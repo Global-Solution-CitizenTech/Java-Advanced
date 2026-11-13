@@ -12,7 +12,7 @@ def test_categorias_enderecos_status():
     admin_auth = requests.post(f"{BASE_URL}/login", json={"email": "admin@zelafix.com.br", "senha": "123mudar"}).json()
     admin_headers = {"Authorization": f"Bearer {admin_auth['token']}"}
 
-    cidadao_auth = requests.post(f"{BASE_URL}/login", json={"email": "carlos.silva@email.com", "senha": "Senha#123"}).json()
+    cidadao_auth = requests.post(f"{BASE_URL}/login", json={"email": "enzo.okuizumi@gmail.com", "senha": "123mudar"}).json()
     cidadao_headers = {"Authorization": f"Bearer {cidadao_auth['token']}"}
 
     # 2.1 Listar categorias

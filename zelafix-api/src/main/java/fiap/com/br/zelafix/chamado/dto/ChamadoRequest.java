@@ -4,14 +4,10 @@ import fiap.com.br.zelafix.categoria.Categoria;
 import fiap.com.br.zelafix.chamado.Chamado;
 import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
-import fiap.com.br.zelafix.usuario.Usuario;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-
-import java.time.LocalDateTime;
-import java.util.Base64;
 
 public record ChamadoRequest(
         @NotBlank(message = "O título do chamado é obrigatório.")
@@ -27,25 +23,20 @@ public record ChamadoRequest(
 
         @NotNull(message = "O endereço da ocorrência é obrigatório.")
         @Valid
-        EnderecoRequest endereco,
-
-        String fotoBase64
+        EnderecoRequest endereco
 ) {
-    public Chamado toEntity(Usuario autor, Categoria categoria, Endereco endereco, byte[] fotoBytes) {
+    public Chamado toEntity(Chamado base, Categoria categoria, Endereco endereco) {
         return Chamado.builder()
-                .titulo(titulo)
-                .descricao(descricao)
-                .foto(resolverFoto(fotoBytes))
-                .dtAbertura(LocalDateTime.now())
-                .usuario(autor)
+                .idChamado(base.getIdChamado())
+                .titulo(titulo.trim())
+                .descricao(descricao.trim())
+                .foto(base.getFoto())
+                .dtAbertura(base.getDtAbertura())
+                .usuario(base.getUsuario())
                 .endereco(endereco)
                 .categoria(categoria)
+                .prioridade(base.getPrioridade())
+                .orgaoGoverno(base.getOrgaoGoverno())
                 .build();
-    }
-
-    private byte[] resolverFoto(byte[] fotoBytes) {
-        if (fotoBytes != null && fotoBytes.length > 0) return fotoBytes;
-        if (fotoBase64 != null && !fotoBase64.isBlank()) return Base64.getDecoder().decode(fotoBase64.trim());
-        return new byte[]{0};
     }
 }

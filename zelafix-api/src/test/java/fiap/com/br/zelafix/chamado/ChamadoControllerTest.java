@@ -1,11 +1,10 @@
 package fiap.com.br.zelafix.chamado;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import fiap.com.br.zelafix.chamado.dto.ChamadoCreateRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
-import fiap.com.br.zelafix.chamado.dto.ChamadoTriagemPreviewResponse;
-import fiap.com.br.zelafix.chamado.dto.ChamadoTriagemRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
 import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.endereco.dto.EnderecoResponse;
@@ -101,6 +100,10 @@ class ChamadoControllerTest {
                 1L,
                 "PAVIMENTACAO",
                 1L,
+                "ALTA",
+                1L,
+                "Secretaria de Obras",
+                1L,
                 "Cidadão ZelaFix",
                 enderecoResp,
                 "/chamados/" + id + "/foto",
@@ -187,17 +190,10 @@ class ChamadoControllerTest {
     }
 
     @Test
-    @DisplayName("POST /chamados (multipart) - Deve receber imagem da ocorrência e dados JSON criando o chamado com status 201")
+    @DisplayName("POST /chamados (multipart) - Deve receber imagem da ocorrência e endereço criando o chamado com status 201")
     void deveCriarChamadoViaMultipartComFoto() throws Exception {
         byte[] fotoBytes = carregarImagemRuaEsburacada();
         EnderecoRequest enderecoReq = new EnderecoRequest("01001-000", "100", "Em frente ao mercado", "Rua das Flores");
-        ChamadoRequest chamadoReq = new ChamadoRequest(
-                "Crateras na via pública",
-                "Rua esburacada com risco de acidentes",
-                1L,
-                enderecoReq,
-                null
-        );
 
         MockMultipartFile fotoPart = new MockMultipartFile(
                 "foto",
@@ -210,11 +206,11 @@ class ChamadoControllerTest {
                 "dados",
                 "",
                 MediaType.APPLICATION_JSON_VALUE,
-                objectMapper.writeValueAsBytes(chamadoReq)
+                objectMapper.writeValueAsBytes(enderecoReq)
         );
 
-        ChamadoResponse responseMock = criarMockResponse(10L, chamadoReq.titulo(), chamadoReq.descricao());
-        when(chamadoService.create(any(ChamadoRequest.class), any(byte[].class), anyString())).thenReturn(responseMock);
+        ChamadoResponse responseMock = criarMockResponse(10L, "Ocorrência em análise pela IA", "Aguardando análise técnica automática da imagem enviada...");
+        when(chamadoService.create(any(EnderecoRequest.class), any(byte[].class), anyString())).thenReturn(responseMock);
 
         mockMvc.perform(multipart("/chamados")
                         .file(fotoPart)
@@ -222,28 +218,22 @@ class ChamadoControllerTest {
                         .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("cidadao@zelafix.com"))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.idChamado").value(10L))
-                .andExpect(jsonPath("$.titulo").value("Crateras na via pública"))
+                .andExpect(jsonPath("$.titulo").value("Ocorrência em análise pela IA"))
                 .andExpect(jsonPath("$.categoriaNome").value("PAVIMENTACAO"))
                 .andExpect(jsonPath("$.foto").value("/chamados/10/foto"));
     }
 
     @Test
-    @DisplayName("POST /chamados (json base64) - Deve receber chamado com foto em Base64 e retornar 201 Created")
+    @DisplayName("POST /chamados (json base64) - Deve receber chamado com foto em Base64 e endereço retornando 201 Created")
     void deveCriarChamadoViaJsonComFotoBase64() throws Exception {
         byte[] fotoBytes = carregarImagemRuaEsburacada();
         String fotoBase64 = Base64.getEncoder().encodeToString(fotoBytes);
 
         EnderecoRequest enderecoReq = new EnderecoRequest("01001-000", "100", "Em frente ao mercado", "Rua das Flores");
-        ChamadoRequest chamadoReq = new ChamadoRequest(
-                "Crateras na via pública",
-                "Rua esburacada com risco de acidentes",
-                1L,
-                enderecoReq,
-                fotoBase64
-        );
+        ChamadoCreateRequest chamadoReq = new ChamadoCreateRequest(enderecoReq, fotoBase64);
 
-        ChamadoResponse responseMock = criarMockResponse(11L, chamadoReq.titulo(), chamadoReq.descricao());
-        when(chamadoService.create(any(ChamadoRequest.class), org.mockito.ArgumentMatchers.isNull(), anyString())).thenReturn(responseMock);
+        ChamadoResponse responseMock = criarMockResponse(11L, "Ocorrência em análise pela IA", "Aguardando análise técnica automática da imagem enviada...");
+        when(chamadoService.create(any(EnderecoRequest.class), any(byte[].class), anyString())).thenReturn(responseMock);
 
         mockMvc.perform(post("/chamados")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -251,7 +241,7 @@ class ChamadoControllerTest {
                         .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("cidadao@zelafix.com"))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.idChamado").value(11L))
-                .andExpect(jsonPath("$.titulo").value("Crateras na via pública"))
+                .andExpect(jsonPath("$.titulo").value("Ocorrência em análise pela IA"))
                 .andExpect(jsonPath("$.categoriaNome").value("PAVIMENTACAO"))
                 .andExpect(jsonPath("$.foto").value("/chamados/11/foto"));
     }
@@ -264,8 +254,7 @@ class ChamadoControllerTest {
                 "Buraco concertado parcialmente",
                 "Asfalto ainda apresenta desnível",
                 1L,
-                enderecoReq,
-                null
+                enderecoReq
         );
 
         ChamadoResponse responseMock = criarMockResponse(1L, chamadoReq.titulo(), chamadoReq.descricao());
@@ -385,34 +374,5 @@ class ChamadoControllerTest {
                 .andExpect(jsonPath("$.resolvidos").value(5L))
                 .andExpect(jsonPath("$.rejeitados").value(1L))
                 .andExpect(jsonPath("$.totalApoios").value(30L));
-    }
-
-    @Test
-    @DisplayName("POST /chamados/triagem - Deve retornar categoria, prioridade e parecer da IA antes de salvar")
-    void devePreAnalisarChamadoComIa() throws Exception {
-        byte[] fotoBytes = carregarImagemRuaEsburacada();
-        ChamadoTriagemRequest req = new ChamadoTriagemRequest(
-                "Buraco grande",
-                "Cratera aberta no asfalto",
-                "Centro",
-                Base64.getEncoder().encodeToString(fotoBytes)
-        );
-        ChamadoTriagemPreviewResponse preview = new ChamadoTriagemPreviewResponse(
-                2L,
-                "Vias e Pavimentação",
-                "ALTA",
-                "Secretaria Municipal de Infraestrutura Urbana e Obras",
-                "Afundamento severo com risco viário."
-        );
-        when(chamadoService.preAnalisarIa(any(ChamadoTriagemRequest.class))).thenReturn(preview);
-
-        mockMvc.perform(post("/chamados/triagem")
-                        .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("cidadao@zelafix.com")))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.categoriaId").value(2L))
-                .andExpect(jsonPath("$.categoriaNome").value("Vias e Pavimentação"))
-                .andExpect(jsonPath("$.prioridade").value("ALTA"));
     }
 }

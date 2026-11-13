@@ -11,17 +11,19 @@ def break_the_app():
     print("SUITE 6: QUEBRANDO A APLICAÇÃO - CARGA MÁXIMA DE STRESS")
     print("=" * 60)
 
-    # 1. Login
+    # 1. Login e obtenção de chamado válido para votos
     admin_auth = requests.post(f"{BASE_URL}/login", json={"email": "admin@zelafix.com.br", "senha": "123mudar"}).json()
     token = admin_auth["token"]
     headers = {"Authorization": f"Bearer {token}"}
+    chamados_resp = requests.get(f"{BASE_URL}/chamados?size=1", headers=headers, timeout=10).json()
+    target_chamado_id = chamados_resp["content"][0]["idChamado"]
 
     # 2. Rajada de 500 Votos Concorrentes em 30 Threads
-    print("\n[6.1] STRESS DE VOTOS: 500 requisições simultâneas em 30 threads paralelas...")
+    print(f"\n[6.1] STRESS DE VOTOS: 500 requisições simultâneas em 30 threads paralelas no chamado #{target_chamado_id}...")
     def votar(idx):
         start = time.time()
         try:
-            r = requests.post(f"{BASE_URL}/chamados/19/apoiar", headers=headers, timeout=20)
+            r = requests.post(f"{BASE_URL}/chamados/{target_chamado_id}/apoiar", headers=headers, timeout=20)
             return r.status_code, time.time() - start, None
         except Exception as e:
             return 0, time.time() - start, str(e)
@@ -54,9 +56,6 @@ def break_the_app():
         start = time.time()
         try:
             r = requests.post(f"{BASE_URL}/chamados", headers=headers, json={
-                "titulo": f"Stress Extremo #{idx}",
-                "descricao": f"Chamado de teste de stress extremo #{idx} para forçar concorrência de pool.",
-                "categoriaId": 1,
                 "endereco": {"cep": "01310-100", "numero": str(2000 + idx), "referencia": f"Stress {idx}", "rua": "Paulista"},
                 "fotoBase64": DUMMY_B64
             }, timeout=25)
