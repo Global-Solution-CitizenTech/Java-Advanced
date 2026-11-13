@@ -63,17 +63,19 @@ Java-Advanced/
 │       │   ├── java/fiap/com/br/zelafix/
 │       │   │   ├── auth/             # Autenticação JWT RSA, Login & UserDetailsService
 │       │   │   ├── usuario/          # Gestão de munícipes e perfis (Cidadão, Gestor, Admin)
-│       │   │   ├── chamado/          # Ocorrências urbanas, histórico e votos
+│       │   │   ├── chamado/          # Ocorrências urbanas (Chamado, dto/, prioridade/, orgao/)
 │       │   │   ├── categoria/        # Catálogo com cache declarativo (@Cacheable)
 │       │   │   ├── status/           # Máquina de estados de resolução das ocorrências
 │       │   │   ├── endereco/         # Normalização geográfica e integração ViaCEP
-│       │   │   ├── amqp/             # Produtores RabbitMQ e Feedback Consumer da IA
+│       │   │   ├── historico/        # Auditoria de transições dos chamados (HistChamado)
+│       │   │   ├── voto/             # Controle de apoio comunitário (VotoChamado)
+│       │   │   ├── queue/            # Produtores RabbitMQ e Feedback Consumer da IA
 │       │   │   ├── config/           # SecurityConfig, RabbitConfig, RestClientConfig
 │       │   │   └── exception/        # GlobalExceptionHandler RFC 7807
 │       │   └── resources/
 │       │       ├── application.properties
-│       │       └── db/migration/     # Flyway V1 (DDL), V2 (Seeding), V3 (Admin Inicial)
-│       └── test/                     # Testes unitários e de integração com Spring Boot Test
+│       │       └── db/migration/     # Flyway V1 (DDL), V2 (Domínios Base + Admin), V3 (Dados Iniciais)
+│       └── test/                     # Testes unitários, E2E da IA (src/test/e2e/) e suíte Python em tests/
 │
 └── zelafix-worker/                   # MICROSSERVIÇO 2: Worker Reativo Stateless
     ├── Dockerfile                    # Multi-stage build leve (sem JDBC/JPA, non-root)
@@ -81,14 +83,13 @@ Java-Advanced/
     └── src/
         ├── main/
         │   ├── java/fiap/com/br/zelafix/worker/
+        │   │   ├── ai/               # ZelaFixAiService, dto/TriagemIaResult, enums/ e util/ (Magic Bytes)
         │   │   ├── consumer/         # ChamadoAiConsumer & VotoConsumer (@RabbitListener)
-        │   │   ├── producer/         # TriagemFeedbackProducer (retorno à API)
-        │   │   ├── service/          # ZelaFixAiService (Spring AI ChatClient multimodal)
-        │   │   ├── util/             # ImageMimeTypeDetector (Magic Bytes detector)
-        │   │   └── config/           # RabbitWorkerConfig & JacksonConfig
+        │   │   ├── queue/            # DTOs de mensageria (ChamadoTriagemMessage, TriagemFeedbackMessage)
+        │   │   └── config/           # RabbitWorkerConfig
         │   └── resources/
         │       └── application.properties
-        └── test/                     # Suíte de testes unitários do consumidor de IA
+        └── test/                     # Suíte de testes unitários do consumidor de IA e RabbitMQ
 ```
 ---
 
@@ -114,11 +115,11 @@ O ecossistema **ZelaFix** é operado por **dois microsserviços especializados**
 │  zelafix-api (Porta 8080) — Gateway RESTful de Domínio & Persistência ACID                             │
 │  - Spring Security 6 com JWT RSA (Nimbus) & RBAC (ROLE_CIDADAO, ROLE_GESTOR, ROLE_ADMIN)               │
 │  - Persistência exclusiva no Banco Relacional Oracle FIAP via Spring Data JPA                          │
-│  - Versionamento de banco automático com Flyway Migrations (V1 DDL, V2 Carga, V3 Admin)                │
-│  - Cache declarativo de catálogo com @Cacheable/@CacheEvict (Categoria e Status)                       │
+│  - Versionamento de banco automático com Flyway Migrations (V1 DDL, V2 Domínios + Admin, V3 Seed)      │
+│  - Cache declarativo de catálogo com @Cacheable/@CacheEvict (Categoria, Status, Prioridade, Órgão)     │
 │  - Cliente declarativo HTTP com timeouts e resiliência (ViaCepService)                                 │
-│  - Produtor RabbitMQ: publica ocorrências com foto obrigatória e votos no zelafix.direct               │
-│  - Consumidor RabbitMQ (Feedback): consome triagens concluídas da IA e persiste no Oracle via JPA      │
+│  - Produtor RabbitMQ: cria ocorrência (endereço + foto) e publica bytes da foto no zelafix.direct      │
+│  - Consumidor RabbitMQ (Feedback): consome triagem da IA e preenche título, descrição, cat/prio/órgão  │
 └───────────────────────┬────────────────────────────────────────────────────▲───────────────────────────┘
                         │                                                    │
                         │ chamado.triagem.key                                │ chamado.triagem-concluida.key
@@ -152,7 +153,7 @@ A ausência total de dependências JPA/JDBC e conexões de banco de dados no `ze
 
 1. **Isolamento de Falhas e Resiliência:** O worker atua como um *pure inference worker*. Lentidões ou indisponibilidades temporárias do banco de dados não afetam o consumo da IA nem saturam o pool de conexões (HikariCP).
 2. **Escalabilidade Horizontal Instantânea:** Instâncias do worker sobem em ~2 segundos e podem ser multiplicadas elasticamente sem disputar o limite de conexões simultâneas do Oracle corporativo.
-3. **Padrão de Feedback Assíncrono:** O worker devolve o parecer técnico estruturado (`TriagemFeedbackMessage`) para a fila `chamado.triagem-concluida.queue`. A `zelafix-api`, única detentora legal do schema relacional, consome o feedback via `ChamadoTriagemFeedbackConsumer` e realiza a transação ACID com auditoria histórica (`HistChamado`).
+3. **Padrão de Feedback Assíncrono:** Na criação do chamado (`POST /chamados` JSON com `ChamadoCreateRequest` ou `multipart/form-data` com `dados` + `foto`), o cidadão envia apenas endereço e evidência fotográfica, recebendo protocolo imediato com título/descrição pendentes enquanto a foto segue para a fila. O worker analisa a imagem e devolve `TriagemFeedbackMessage` para `chamado.triagem-concluida.queue`. A `zelafix-api`, única detentora do schema relacional, consome o feedback via `ChamadoTriagemFeedbackConsumer` e atualiza título, descrição, categoria, prioridade e órgão competente em transação ACID.
 4. **Absorção de Rajadas de Votos (Padrão Paredão):** O `VotoConsumer` acumula apoios em memória com `ConcurrentHashMap<Long, Integer>`. O flush periódico a cada 3 segundos (`@Scheduled`) consolida os lotes em log e libera a memória, sem estressar o banco relacional.
 
 ---
@@ -164,7 +165,7 @@ Toda a comunicação assíncrona entre os dois serviços é orquestrada pela `Di
 | Fila | Routing Key | Produtor | Consumidor | Payload | Finalidade |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `chamado.triagem.queue` | `chamado.triagem.key` | `zelafix-api` | `zelafix-worker` | `ChamadoTriagemMessage` | Dispara a triagem multimodal com Spring AI transportando os bytes da foto. |
-| `chamado.triagem-concluida.queue` | `chamado.triagem-concluida.key` | `zelafix-worker` | `zelafix-api` | `TriagemFeedbackMessage` | Devolve a prioridade, órgão responsável e parecer técnico para persistência JPA. |
+| `chamado.triagem-concluida.queue` | `chamado.triagem-concluida.key` | `zelafix-worker` | `zelafix-api` | `TriagemFeedbackMessage` | Devolve título, descrição, categoria, prioridade e órgão para persistência JPA. |
 | `chamado.voto.queue` | `chamado.voto.key` | `zelafix-api` | `zelafix-worker` | `VotoMessage` | Notifica apoios/votos em ocorrências para agregação de alta vazão em memória. |
 
 - **Serialização Padronizada:** Mensagens trafegam como JSON canônico (UTF-8) com `JacksonJsonMessageConverter`, eliminando dependências frágeis de `java.io.Serializable`.
@@ -180,9 +181,11 @@ Toda ocorrência registrada na plataforma exige foto comprobatória (`BLOB NOT N
 - **Structured Output Tipado:** O retorno do LLM é automaticamente serializado para o record `TriagemIaResult`:
   ```java
   public record TriagemIaResult(
+      String titulo,                        // Título curto e objetivo da ocorrência (até 100 caracteres)
+      String descricao,                     // Descrição técnica detalhada e riscos (até 1000 caracteres)
+      CategoriaSugerida categoriaSugerida,  // Categoria oficial da zeladoria urbana
       PrioridadeChamado prioridade,         // BAIXA, MEDIA, ALTA, URGENTE
-      DepartamentoGoverno orgaoResponsavel, // SECRETARIA_OBRAS, DEFESA_CIVIL, CET_TRANSITO, ILUMINACAO_PUBLICA, etc.
-      String parecerIa                      // Parecer técnico objetivo (até 150 caracteres)
+      DepartamentoGoverno orgaoResponsavel  // Subprefeitura Regional, CET, SABESP, Enel, Defesa Civil, etc.
   ) {}
   ```
 
@@ -217,9 +220,10 @@ O banco de dados Oracle é inicializado automaticamente com usuários de teste v
 
 | Papel | Nome | E-mail | Senha | Permissões |
 | :--- | :--- | :--- | :--- | :--- |
-| **Cidadão** | Carlos Alberto Silva | `carlos.silva@email.com` | `Senha#123` | Criar ocorrências com foto, apoiar ocorrências com votos e gerenciar perfil. |
-| **Funcionário da Prefeitura** | Eng. Roberto Santos | `roberto.gestor@subprefeitura.sp.gov.br` | `Senha#123` | Agente público: atualizar status dos chamados (`EM_ANALISE`, `EM_EXECUCAO`, `CONCLUIDO`, `REJEITADO`). |
-| **Administrador Geral** | Administrador ZelaFix | `admin@zelafix.com.br` | `123mudar` | Acesso irrestrito: CRUD de usuários, chamados, categorias, status, endereços e alteração de perfis. |
+| **Cidadão** | Enzo Okuizumi | `enzo.okuizumi@gmail.com` | `123mudar` | Criar ocorrências com foto + endereço, apoiar com votos, editar próprios dados e consultar histórico. |
+| **Gestor Público** | Eng. Roberto Santos | `roberto.gestor@subprefeitura.sp.gov.br` | `Senha#123` | Agente público: atualizar status dos chamados (`PENDENTE`, `ABERTO`, `EM_ANALISE`, `EM_EXECUCAO`, `CONCLUIDO`, `REJEITADO`). |
+| **Gestor Público** | Coordenador Lucas Mendes | `lucas.zeladoria@subprefeitura.sp.gov.br` | `Senha#123` | Agente público: acompanhar triagens, atualizar status e registrar observações técnicas. |
+| **Administrador Geral** | Administrador Geral | `admin@zelafix.com.br` | Configurada via `${ADMIN_BCRYPT_HASH}` (`123mudar` em `.env.example`) | Acesso irrestrito: CRUD de usuários, chamados, categorias, status, endereços e alteração de perfis. |
 
 ---
 
