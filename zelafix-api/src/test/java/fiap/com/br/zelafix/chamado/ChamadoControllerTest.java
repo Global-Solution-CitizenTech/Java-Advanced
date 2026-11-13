@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
+import fiap.com.br.zelafix.chamado.dto.ChamadoTriagemPreviewResponse;
+import fiap.com.br.zelafix.chamado.dto.ChamadoTriagemRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
 import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.endereco.dto.EnderecoResponse;
@@ -383,5 +385,34 @@ class ChamadoControllerTest {
                 .andExpect(jsonPath("$.resolvidos").value(5L))
                 .andExpect(jsonPath("$.rejeitados").value(1L))
                 .andExpect(jsonPath("$.totalApoios").value(30L));
+    }
+
+    @Test
+    @DisplayName("POST /chamados/triagem - Deve retornar categoria, prioridade e parecer da IA antes de salvar")
+    void devePreAnalisarChamadoComIa() throws Exception {
+        byte[] fotoBytes = carregarImagemRuaEsburacada();
+        ChamadoTriagemRequest req = new ChamadoTriagemRequest(
+                "Buraco grande",
+                "Cratera aberta no asfalto",
+                "Centro",
+                Base64.getEncoder().encodeToString(fotoBytes)
+        );
+        ChamadoTriagemPreviewResponse preview = new ChamadoTriagemPreviewResponse(
+                2L,
+                "Vias e Pavimentação",
+                "ALTA",
+                "Secretaria Municipal de Infraestrutura Urbana e Obras",
+                "Afundamento severo com risco viário."
+        );
+        when(chamadoService.preAnalisarIa(any(ChamadoTriagemRequest.class))).thenReturn(preview);
+
+        mockMvc.perform(post("/chamados/triagem")
+                        .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("cidadao@zelafix.com")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.categoriaId").value(2L))
+                .andExpect(jsonPath("$.categoriaNome").value("Vias e Pavimentação"))
+                .andExpect(jsonPath("$.prioridade").value("ALTA"));
     }
 }

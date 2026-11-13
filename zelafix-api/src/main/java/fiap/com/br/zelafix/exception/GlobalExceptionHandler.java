@@ -21,6 +21,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -194,6 +195,14 @@ public class GlobalExceptionHandler {
             NoResourceFoundException exception, HttpServletRequest request) {
         log.warn("Recurso estático ou rota não encontrada: {}", request.getRequestURI());
         return error(HttpStatus.NOT_FOUND, "Recurso não encontrado.", request);
+    }
+
+    @ExceptionHandler(RestClientException.class)
+    public ResponseEntity<ApiErrorResponse> handleRestClientException(
+            RestClientException exception, HttpServletRequest request) {
+        log.warn("Falha na comunicação com serviço externo/IA: {}", exception.getMessage());
+        return error(HttpStatus.BAD_GATEWAY,
+                "Serviço de análise por IA temporariamente indisponível. Tente novamente em instantes.", request);
     }
 
     @ExceptionHandler(Exception.class)

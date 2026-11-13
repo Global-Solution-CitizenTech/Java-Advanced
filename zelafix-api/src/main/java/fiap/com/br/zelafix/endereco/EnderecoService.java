@@ -75,15 +75,16 @@ public class EnderecoService {
     }
 
     private ViaCepResponse obterDadosCep(String cep) {
+        ViaCepResponse dados;
         try {
-            ViaCepResponse dados = viaCepService.getEnderecoPorCep(cep.replaceAll("\\D", ""));
-            if (Boolean.TRUE.equals(dados.erro())) {
-                throw new IllegalArgumentException("CEP " + cep + " não encontrado.");
-            }
-            return dados;
+            dados = viaCepService.getEnderecoPorCep(cep.replaceAll("\\D", ""));
         } catch (Exception e) {
             return new ViaCepResponse("Não Informado", "Não Informado", "São Paulo", "São Paulo", false);
         }
+        if (dados == null || Boolean.TRUE.equals(dados.erro())) {
+            throw new IllegalArgumentException("CEP " + cep + " não encontrado.");
+        }
+        return dados;
     }
 
     private Bairro obterOuCriarBairro(ViaCepResponse dados) {

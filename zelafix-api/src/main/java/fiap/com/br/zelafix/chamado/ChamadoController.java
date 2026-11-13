@@ -3,6 +3,8 @@ package fiap.com.br.zelafix.chamado;
 import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
+import fiap.com.br.zelafix.chamado.dto.ChamadoTriagemPreviewResponse;
+import fiap.com.br.zelafix.chamado.dto.ChamadoTriagemRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
 import fiap.com.br.zelafix.util.ImageMimeTypeDetector;
 import io.swagger.v3.oas.annotations.Operation;
@@ -73,6 +75,12 @@ public class ChamadoController {
                 .contentType(MediaType.asMediaType(mimeType))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
                 .body(foto);
+    }
+
+    @PostMapping("/triagem")
+    @Operation(summary = "Pré-analisar foto da ocorrência com Spring AI para definir categoria, prioridade e parecer antes de salvar")
+    public ChamadoTriagemPreviewResponse preAnalisarIa(@RequestBody @Valid ChamadoTriagemRequest request) {
+        return chamadoService.preAnalisarIa(request);
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)

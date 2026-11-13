@@ -89,7 +89,7 @@ O ecossistema **ZelaFix** é operado por **dois microsserviços especializados**
 │  - Spring Security 6 com JWT RSA (Nimbus) & RBAC (ROLE_CIDADAO, ROLE_GESTOR, ROLE_ADMIN)               │
 │  - Persistência exclusiva no Banco Relacional Oracle FIAP via Spring Data JPA                          │
 │  - Versionamento de banco automático com Flyway Migrations (V1 DDL, V2 Carga, V3 Admin)                │
-│  - Cache declarativo de catálogo com @Cacheable/@CacheEvict (Categoria e Status)                     │
+│  - Cache declarativo de catálogo com @Cacheable/@CacheEvict (Categoria e Status)                       │
 │  - Cliente declarativo HTTP com timeouts e resiliência (ViaCepService)                                 │
 │  - Produtor RabbitMQ: publica ocorrências com foto obrigatória e votos no zelafix.direct               │
 │  - Consumidor RabbitMQ (Feedback): consome triagens concluídas da IA e persiste no Oracle via JPA      │
@@ -110,10 +110,10 @@ O ecossistema **ZelaFix** é operado por **dois microsserviços especializados**
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │  zelafix-worker (Porta 8081) — Stateless Heavy Worker                                                  │
 │  - Consumidor assíncrono de alta vazão (RabbitMQ @RabbitListener)                                      │
-│  - Inteligência Artificial Generativa e Multimodal com Spring AI (Groq API / Qwen 3.8 27B Vision)       │
+│  - Inteligência Artificial Generativa e Multimodal com Spring AI (Groq API / Qwen 3.8 27B Vision)      │
 │  - Detecção dinâmica de MIME type via magic bytes (ImageMimeTypeDetector)                              │
 │  - Agregador de votos em buffer volátil thread-safe (ConcurrentHashMap com flush periódico a cada 3s)  │
-│  - 100% Stateless: ZERO CONEXÃO COM BANCO DE DADOS (sem JDBC, sem JPA, sem Oracle, sem locks)         │
+│  - 100% Stateless: ZERO CONEXÃO COM BANCO DE DADOS (sem JDBC, sem JPA, sem Oracle, sem locks)          │
 │  - Produtor de retorno: publica parecer técnico estruturado em chamado.triagem-concluida.queue         │
 └────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
