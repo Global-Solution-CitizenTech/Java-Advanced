@@ -22,6 +22,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -205,12 +206,37 @@ public class GlobalExceptionHandler {
                 "Serviço de análise por IA temporariamente indisponível. Tente novamente em instantes.", request);
     }
 
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public ResponseEntity<Void> handleAsyncRequestNotUsable(
+            AsyncRequestNotUsableException exception, HttpServletRequest request) {
+        log.debug("Cliente encerrou a conexão antes da conclusão da resposta em {}: {}",
+                request.getRequestURI(), exception.getMessage());
+        return null;
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGenericException(
             Exception exception, HttpServletRequest request) {
+        if (isClientDisconnect(exception)) {
+            log.debug("Conexão encerrada pelo cliente durante resposta em {}: {}",
+                    request.getRequestURI(), exception.getMessage());
+            return null;
+        }
         log.error("Erro inesperado capturado no handler global", exception);
         return error(HttpStatus.INTERNAL_SERVER_ERROR,
                 "Ocorreu um erro interno inesperado no servidor.", request);
+    }
+
+    private boolean isClientDisconnect(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof AsyncRequestNotUsableException
+                    || "org.apache.catalina.connector.ClientAbortException".equals(current.getClass().getName())) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private ResponseEntity<ApiErrorResponse> error(

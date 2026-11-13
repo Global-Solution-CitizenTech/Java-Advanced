@@ -24,20 +24,25 @@ import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 @ExtendWith(MockitoExtension.class)
 class GlobalExceptionHandlerTest {
@@ -296,5 +301,53 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         assertEquals(500, response.getBody().status());
         assertTrue(response.getBody().message().contains("erro interno"));
+    }
+
+    @Test
+    @DisplayName("Deve ignorar AsyncRequestNotUsableException sem tentar serializar JSON de erro")
+    void deveIgnorarAsyncRequestNotUsableException() {
+        AsyncRequestNotUsableException ex = new AsyncRequestNotUsableException(
+                "ServletOutputStream failed to write: java.io.IOException: Broken pipe");
+
+        ResponseEntity<Void> response = exceptionHandler.handleAsyncRequestNotUsable(ex, request);
+
+        assertNull(response);
+    }
+
+    @Test
+    @DisplayName("Não deve lançar HttpMessageNotWritableException quando cliente aborta download de imagem")
+    void naoDeveFalharSerializacaoQuandoClienteAbortaDownloadImagem() throws Exception {
+        @org.springframework.web.bind.annotation.RestController
+        class DummyPhotoController {
+            @org.springframework.web.bind.annotation.GetMapping("/chamados/1/foto")
+            public void foto(jakarta.servlet.http.HttpServletResponse response) throws AsyncRequestNotUsableException {
+                response.setContentType(MediaType.IMAGE_PNG_VALUE);
+                throw new AsyncRequestNotUsableException("Broken pipe", new IOException("Broken pipe"));
+            }
+        }
+
+        org.springframework.test.web.servlet.MockMvc mockMvc =
+                org.springframework.test.web.servlet.setup.MockMvcBuilders
+                        .standaloneSetup(new DummyPhotoController())
+                        .setControllerAdvice(exceptionHandler)
+                        .build();
+
+        var mvcResult = mockMvc.perform(get("/chamados/1/foto")).andReturn();
+
+        assertInstanceOf(AsyncRequestNotUsableException.class, mvcResult.getResolvedException());
+        assertEquals(HttpStatus.OK.value(), mvcResult.getResponse().getStatus());
+        assertTrue(mvcResult.getResponse().getContentAsByteArray().length == 0);
+    }
+
+    @Test
+    @DisplayName("Deve ignorar ClientAbortException no handler genérico sem retornar 500")
+    void deveIgnorarClientAbortExceptionNoHandlerGenerico() {
+        Exception ex = new RuntimeException(
+                new org.apache.catalina.connector.ClientAbortException("Broken pipe"));
+
+        ResponseEntity<GlobalExceptionHandler.ApiErrorResponse> response =
+                exceptionHandler.handleGenericException(ex, request);
+
+        assertNull(response);
     }
 }
