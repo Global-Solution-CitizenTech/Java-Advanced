@@ -27,8 +27,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.ResourceAccessException;
 
 import java.util.List;
 import java.util.Map;
@@ -104,6 +106,7 @@ public class ChamadoService {
         return ChamadoResponse.fromEntity(salvo, StatusChamadoEnum.PENDENTE.name(), 1L, true, List.of(histInicial));
     }
 
+    @Retryable(includes = ResourceAccessException.class, maxRetries = 2, delay = 1000, multiplier = 2, maxDelay = 4000)
     @Transactional(readOnly = true)
     public ChamadoTriagemPreviewResponse preAnalisarIa(ChamadoTriagemRequest request) {
         ChamadoTriagemPreviewResponse ia = workerAiService.preAnalisar(request);
