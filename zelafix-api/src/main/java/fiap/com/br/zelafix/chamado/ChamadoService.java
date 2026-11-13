@@ -2,17 +2,21 @@ package fiap.com.br.zelafix.chamado;
 
 import fiap.com.br.zelafix.categoria.Categoria;
 import fiap.com.br.zelafix.categoria.CategoriaService;
+import fiap.com.br.zelafix.chamado.dto.ChamadoCreateRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
-import fiap.com.br.zelafix.chamado.dto.ChamadoTriagemPreviewResponse;
-import fiap.com.br.zelafix.chamado.dto.ChamadoTriagemRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
 import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.EnderecoService;
+import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
 import fiap.com.br.zelafix.historico.HistChamado;
 import fiap.com.br.zelafix.historico.HistChamadoRepository;
+import fiap.com.br.zelafix.chamado.orgao.OrgaoGoverno;
+import fiap.com.br.zelafix.chamado.orgao.OrgaoGovernoService;
+import fiap.com.br.zelafix.chamado.prioridade.Prioridade;
+import fiap.com.br.zelafix.chamado.prioridade.PrioridadeService;
 import fiap.com.br.zelafix.queue.dto.ChamadoTriagemMessage;
 import fiap.com.br.zelafix.queue.dto.TriagemFeedbackMessage;
 import fiap.com.br.zelafix.queue.dto.VotoMessage;
@@ -27,10 +31,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.ResourceAccessException;
 
 import java.util.List;
 import java.util.Map;
@@ -44,12 +46,13 @@ public class ChamadoService {
     private final ChamadoRepository chamadoRepository;
     private final UsuarioService usuarioService;
     private final CategoriaService categoriaService;
+    private final PrioridadeService prioridadeService;
+    private final OrgaoGovernoService orgaoGovernoService;
     private final StatusService statusService;
     private final EnderecoService enderecoService;
     private final HistChamadoRepository histChamadoRepository;
     private final VotoChamadoRepository votoChamadoRepository;
     private final ApplicationEventPublisher eventPublisher;
-    private final WorkerAiService workerAiService;
 
     // =========================================================================
     // 1. CONSULTAS E LISTAGENS
@@ -88,13 +91,22 @@ public class ChamadoService {
     // =========================================================================
 
     @Transactional
-    public ChamadoResponse create(ChamadoRequest request, byte[] fotoBytes, String email) {
+    public ChamadoResponse create(EnderecoRequest enderecoRequest, byte[] fotoBytes, String email) {
         Usuario autor = usuarioService.findByEmail(email);
-        Categoria categoria = categoriaService.findById(request.categoriaId());
-        Endereco endereco = enderecoService.findOrCreateByCepAndNumero(request.endereco());
+        Categoria categoriaInicial = categoriaService.findDefault();
+        Prioridade prioridadeInicial = prioridadeService.findByNameOrCreate("PENDENTE");
+        OrgaoGoverno orgaoInicial = orgaoGovernoService.findByNameOrCreate("Em análise pela IA");
+        Endereco endereco = enderecoService.findOrCreateByCepAndNumero(enderecoRequest);
         Status statusInicial = statusService.findByNameOrCreate(StatusChamadoEnum.PENDENTE.name());
 
-        Chamado salvo = chamadoRepository.save(request.toEntity(autor, categoria, endereco, fotoBytes));
+        Chamado salvo = chamadoRepository.save(ChamadoCreateRequest.toEntity(
+                autor,
+                categoriaInicial,
+                prioridadeInicial,
+                orgaoInicial,
+                endereco,
+                fotoBytes
+        ));
         votoChamadoRepository.save(new VotoMessage(salvo.getIdChamado(), autor.getIdUsuario(), "VOTAR").toEntity(salvo, autor));
         HistChamado histInicial = new ChamadoStatusRequest(
                 StatusChamadoEnum.PENDENTE.name(),
@@ -106,31 +118,17 @@ public class ChamadoService {
         return ChamadoResponse.fromEntity(salvo, StatusChamadoEnum.PENDENTE.name(), 1L, true, List.of(histInicial));
     }
 
-    @Retryable(includes = ResourceAccessException.class, maxRetries = 2, delay = 1000, multiplier = 2, maxDelay = 4000)
-    @Transactional(readOnly = true)
-    public ChamadoTriagemPreviewResponse preAnalisarIa(ChamadoTriagemRequest request) {
-        ChamadoTriagemPreviewResponse ia = workerAiService.preAnalisar(request);
-        Categoria categoria = categoriaService.findAll().stream()
-                .filter(c -> c.getNmCategoria().equalsIgnoreCase(ia.categoriaNome()))
-                .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada: " + ia.categoriaNome()));
-        return new ChamadoTriagemPreviewResponse(
-                categoria.getIdCategoria(),
-                categoria.getNmCategoria(),
-                ia.prioridade(),
-                ia.orgaoResponsavel(),
-                ia.parecerIa()
-        );
-    }
-
     @Transactional
     public ChamadoResponse update(Long id, ChamadoRequest request, String email) {
         Chamado chamado = findChamadoById(id);
         Usuario usuario = usuarioService.findByEmail(email);
         validarPermissaoEdicao(chamado, usuario);
 
-        aplicarEm(chamado, request);
-        chamadoRepository.save(chamado);
+        chamadoRepository.save(request.toEntity(
+                chamado,
+                categoriaService.findById(request.categoriaId()),
+                enderecoService.findOrCreateByCepAndNumero(request.endereco())
+        ));
         return findDetailsById(id, email);
     }
 
@@ -160,9 +158,13 @@ public class ChamadoService {
 
     @Transactional
     public void aplicarTriagemIa(TriagemFeedbackMessage feedback) {
-        histChamadoRepository
-                .findFirstByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(feedback.idChamado())
-                .ifPresent(base -> histChamadoRepository.save(feedback.toEntity(base)));
+        chamadoRepository.findById(feedback.idChamado())
+                .ifPresent(chamado -> chamadoRepository.save(feedback.toEntity(
+                        chamado,
+                        categoriaService.findByNameOrCreate(feedback.categoriaNome()),
+                        prioridadeService.findByNameOrCreate(feedback.prioridadeNome()),
+                        orgaoGovernoService.findByNameOrCreate(feedback.orgaoNome())
+                )));
     }
 
     // =========================================================================
@@ -261,12 +263,5 @@ public class ChamadoService {
                 apoiadosSet.contains(c.getIdChamado()),
                 List.of()
         ));
-    }
-
-    private void aplicarEm(Chamado chamado, ChamadoRequest request) {
-        chamado.setTitulo(request.titulo());
-        chamado.setDescricao(request.descricao());
-        chamado.setCategoria(categoriaService.findById(request.categoriaId()));
-        chamado.setEndereco(enderecoService.findOrCreateByCepAndNumero(request.endereco()));
     }
 }

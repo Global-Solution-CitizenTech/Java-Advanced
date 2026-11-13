@@ -137,7 +137,7 @@ gestor_token = r.json().get("token") if passed else None
 gestor_headers = {"Authorization": f"Bearer {gestor_token}"} if gestor_token else {}
 
 # 2.3 Login Cidadão
-r, ms = req("POST", "/login", json={"email": "carlos.silva@email.com", "senha": "Senha#123"})
+r, ms = req("POST", "/login", json={"email": "enzo.okuizumi@gmail.com", "senha": "123mudar"})
 passed = r.status_code == 200 and "token" in r.json()
 record("Autenticação", "Login Cidadão Válido", "POST", "/login", r.status_code, 200, passed, ms)
 cidadao_token = r.json().get("token") if passed else None
@@ -442,11 +442,8 @@ record("Chamados", "Filtrar chamados por status=ABERTO", "GET", "/chamados?statu
 r, ms = req("GET", f"/chamados?categoriaId={valid_cat_id}", headers=cidadao_headers)
 record("Chamados", f"Filtrar chamados por categoriaId={valid_cat_id}", "GET", f"/chamados?categoriaId={valid_cat_id}", r.status_code, 200, r.status_code == 200, ms)
 
-# 7.4 POST /chamados (Criação de novo chamado com foto base64 real)
+# 7.4 POST /chamados (Criação de novo chamado com foto base64 e endereço)
 chamado_payload = {
-    "titulo": f"Buraco grave e afundamento de asfalto #{unique_id}",
-    "descricao": "Cratera profunda de aproximadamente 1 metro na faixa da esquerda causando quebra de suspensão e risco grave de atropelamento.",
-    "categoriaId": valid_cat_id,
     "fotoBase64": MINIMAL_PNG_B64.split(",", 1)[1],
     "endereco": {
         "cep": "01311000",
@@ -544,11 +541,8 @@ record("Tenta Quebrar", "Abertura de chamado com título de 10.000 caracteres", 
 
 # 8.3 Foto corrompida (não-base64)
 bad_photo_payload = {
-    "titulo": "Buraco com foto inválida",
-    "descricao": "Tentativa de envio de arquivo corrompido",
-    "categoriaId": valid_cat_id,
-    "foto": "isto_nao_eh_um_base64_valido!@#$%^&*()_+",
-    "endereco": {"cep": "01311000", "rua": "Paulista", "numero": "1"}
+    "fotoBase64": "isto_nao_eh_um_base64_valido!@#$%^&*()_+",
+    "endereco": {"cep": "01311000", "rua": "Paulista", "numero": "1", "referencia": "Esquina"}
 }
 r, ms = req("POST", "/chamados", headers=cidadao_headers, json=bad_photo_payload)
 record("Tenta Quebrar", "Abertura de chamado com foto base64 corrompida", "POST", "/chamados", r.status_code, 400, r.status_code == 400, ms)
@@ -556,11 +550,8 @@ record("Tenta Quebrar", "Abertura de chamado com foto base64 corrompida", "POST"
 # 8.4 Foto com MIME type proibido (.exe)
 bad_exe_b64 = "data:application/x-msdownload;base64," + base64.b64encode(b"MZ executable header dummy").decode("utf-8")
 bad_exe_payload = {
-    "titulo": "Tentativa de malware .exe",
-    "descricao": "Envio de arquivo executável no campo foto",
-    "categoriaId": valid_cat_id,
-    "foto": bad_exe_b64,
-    "endereco": {"cep": "01311000", "rua": "Paulista", "numero": "1"}
+    "fotoBase64": bad_exe_b64,
+    "endereco": {"cep": "01311000", "rua": "Paulista", "numero": "1", "referencia": "Esquina"}
 }
 r, ms = req("POST", "/chamados", headers=cidadao_headers, json=bad_exe_payload)
 record("Tenta Quebrar", "Tentativa de upload de .exe no campo foto (MimeType)", "POST", "/chamados", r.status_code, 400, r.status_code == 400, ms)

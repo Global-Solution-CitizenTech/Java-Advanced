@@ -2,6 +2,8 @@ package fiap.com.br.zelafix.chamado;
 
 import fiap.com.br.zelafix.categoria.Categoria;
 import fiap.com.br.zelafix.endereco.Endereco;
+import fiap.com.br.zelafix.chamado.orgao.OrgaoGoverno;
+import fiap.com.br.zelafix.chamado.prioridade.Prioridade;
 import fiap.com.br.zelafix.usuario.Usuario;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -59,4 +61,12 @@ public class Chamado {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "categoria_id_categoria", nullable = false)
     private Categoria categoria;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "prioridade_id_prioridade", nullable = false)
+    private Prioridade prioridade;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "orgao_governo_id_orgao", nullable = false)
+    private OrgaoGoverno orgaoGoverno;
 }

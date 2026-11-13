@@ -13,6 +13,10 @@ import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.endereco.estado.Estado;
 import fiap.com.br.zelafix.historico.HistChamado;
 import fiap.com.br.zelafix.historico.HistChamadoRepository;
+import fiap.com.br.zelafix.chamado.orgao.OrgaoGoverno;
+import fiap.com.br.zelafix.chamado.orgao.OrgaoGovernoService;
+import fiap.com.br.zelafix.chamado.prioridade.Prioridade;
+import fiap.com.br.zelafix.chamado.prioridade.PrioridadeService;
 import fiap.com.br.zelafix.queue.dto.ChamadoTriagemMessage;
 import fiap.com.br.zelafix.queue.dto.TriagemFeedbackMessage;
 import fiap.com.br.zelafix.queue.dto.VotoMessage;
@@ -61,6 +65,10 @@ class ChamadoServiceTest {
     @Mock
     private CategoriaService categoriaService;
     @Mock
+    private PrioridadeService prioridadeService;
+    @Mock
+    private OrgaoGovernoService orgaoGovernoService;
+    @Mock
     private StatusService statusService;
     @Mock
     private EnderecoService enderecoService;
@@ -76,6 +84,8 @@ class ChamadoServiceTest {
 
     private Usuario usuario;
     private Categoria categoria;
+    private Prioridade prioridadePendente;
+    private OrgaoGoverno orgaoInicial;
     private Status statusPendente;
     private Endereco endereco;
 
@@ -91,6 +101,16 @@ class ChamadoServiceTest {
         categoria = Categoria.builder()
                 .idCategoria(1L)
                 .nmCategoria("Buraco na Rua")
+                .build();
+
+        prioridadePendente = Prioridade.builder()
+                .idPrioridade(5L)
+                .nmPrioridade("PENDENTE")
+                .build();
+
+        orgaoInicial = OrgaoGoverno.builder()
+                .idOrgao(7L)
+                .nmOrgao("Em análise pela IA")
                 .build();
 
         statusPendente = Status.builder()
@@ -116,25 +136,23 @@ class ChamadoServiceTest {
     @DisplayName("Deve criar um chamado com status PENDENTE e publicar evento no RabbitMQ")
     void deveCriarChamadoComSucesso() {
         EnderecoRequest enderecoRequest = new EnderecoRequest("05422001", "720", "Esquina com Fradique", "Rua dos Pinheiros");
-        ChamadoRequest request = new ChamadoRequest(
-                "Buraco perigoso na via",
-                "Cratera profunda na pista da direita",
-                1L,
-                enderecoRequest,
-                null
-        );
+        byte[] fotoBytes = "bytes".getBytes(StandardCharsets.UTF_8);
 
         when(usuarioService.findByEmail(usuario.getEmail())).thenReturn(usuario);
-        when(categoriaService.findById(1L)).thenReturn(categoria);
+        when(categoriaService.findDefault()).thenReturn(categoria);
+        when(prioridadeService.findByNameOrCreate("PENDENTE")).thenReturn(prioridadePendente);
+        when(orgaoGovernoService.findByNameOrCreate("Em análise pela IA")).thenReturn(orgaoInicial);
         when(statusService.findByNameOrCreate("PENDENTE")).thenReturn(statusPendente);
         when(enderecoService.findOrCreateByCepAndNumero(any())).thenReturn(endereco);
 
         Chamado chamadoSalvo = Chamado.builder()
                 .idChamado(100L)
-                .titulo(request.titulo())
-                .descricao(request.descricao())
-                .foto("bytes".getBytes(StandardCharsets.UTF_8))
+                .titulo("Ocorrência em análise pela IA")
+                .descricao("Aguardando análise técnica automática da imagem enviada...")
+                .foto(fotoBytes)
                 .categoria(categoria)
+                .prioridade(prioridadePendente)
+                .orgaoGoverno(orgaoInicial)
                 .usuario(usuario)
                 .endereco(endereco)
                 .dtAbertura(LocalDateTime.now())
@@ -142,16 +160,19 @@ class ChamadoServiceTest {
 
         when(chamadoRepository.save(any())).thenReturn(chamadoSalvo);
 
-        ChamadoResponse response = chamadoService.create(request, null, usuario.getEmail());
+        ChamadoResponse response = chamadoService.create(enderecoRequest, fotoBytes, usuario.getEmail());
 
         assertNotNull(response);
         assertEquals(100L, response.idChamado());
-        assertEquals("Buraco perigoso na via", response.titulo());
+        assertEquals("Ocorrência em análise pela IA", response.titulo());
+        assertEquals("PENDENTE", response.prioridadeNome());
+        assertEquals("Em análise pela IA", response.orgaoNome());
         assertEquals("PENDENTE", response.status());
 
         ArgumentCaptor<ChamadoTriagemMessage> triagemCaptor = ArgumentCaptor.forClass(ChamadoTriagemMessage.class);
         verify(eventPublisher, times(1)).publishEvent(triagemCaptor.capture());
         assertArrayEquals(chamadoSalvo.getFoto(), triagemCaptor.getValue().foto());
+        assertEquals("Pinheiros", triagemCaptor.getValue().bairro());
         verify(histChamadoRepository, times(1)).save(any());
         verify(votoChamadoRepository, times(1)).save(any());
     }
@@ -166,6 +187,8 @@ class ChamadoServiceTest {
                 .usuario(usuario)
                 .endereco(endereco)
                 .categoria(categoria)
+                .prioridade(prioridadePendente)
+                .orgaoGoverno(orgaoInicial)
                 .foto("bytes".getBytes(StandardCharsets.UTF_8))
                 .dtAbertura(LocalDateTime.now())
                 .build();
@@ -192,6 +215,8 @@ class ChamadoServiceTest {
                 .usuario(usuario)
                 .endereco(endereco)
                 .categoria(categoria)
+                .prioridade(prioridadePendente)
+                .orgaoGoverno(orgaoInicial)
                 .foto("bytes".getBytes(StandardCharsets.UTF_8))
                 .dtAbertura(LocalDateTime.now())
                 .build();
@@ -246,6 +271,8 @@ class ChamadoServiceTest {
                 .titulo("Asfalto afundando")
                 .descricao("Perigo")
                 .categoria(categoria)
+                .prioridade(prioridadePendente)
+                .orgaoGoverno(orgaoInicial)
                 .endereco(endereco)
                 .usuario(usuario)
                 .foto("bytes".getBytes(StandardCharsets.UTF_8))
@@ -281,6 +308,8 @@ class ChamadoServiceTest {
                 .titulo("Vazamento de água")
                 .descricao("Urgente")
                 .categoria(categoria)
+                .prioridade(prioridadePendente)
+                .orgaoGoverno(orgaoInicial)
                 .endereco(endereco)
                 .usuario(usuario)
                 .foto("bytes".getBytes(StandardCharsets.UTF_8))
@@ -319,8 +348,8 @@ class ChamadoServiceTest {
     @Test
     @DisplayName("Deve buscar chamados paginados com carregamento em lote de status, votos e apoio (sem N+1)")
     void deveBuscarChamadosComCarregamentoEmLote() {
-        Chamado c1 = Chamado.builder().idChamado(10L).titulo("Buraco 1").categoria(categoria).usuario(usuario).endereco(endereco).dtAbertura(LocalDateTime.now()).build();
-        Chamado c2 = Chamado.builder().idChamado(20L).titulo("Buraco 2").categoria(categoria).usuario(usuario).endereco(endereco).dtAbertura(LocalDateTime.now()).build();
+        Chamado c1 = Chamado.builder().idChamado(10L).titulo("Buraco 1").categoria(categoria).prioridade(prioridadePendente).orgaoGoverno(orgaoInicial).usuario(usuario).endereco(endereco).dtAbertura(LocalDateTime.now()).build();
+        Chamado c2 = Chamado.builder().idChamado(20L).titulo("Buraco 2").categoria(categoria).prioridade(prioridadePendente).orgaoGoverno(orgaoInicial).usuario(usuario).endereco(endereco).dtAbertura(LocalDateTime.now()).build();
         Page<Chamado> page = new PageImpl<>(List.of(c1, c2));
 
         when(usuarioService.findByEmail(usuario.getEmail())).thenReturn(usuario);
@@ -343,33 +372,37 @@ class ChamadoServiceTest {
     }
 
     @Test
-    @DisplayName("Deve aplicar parecer da triagem da IA no histórico mais recente")
+    @DisplayName("Deve aplicar triagem da IA diretamente no chamado com categoria, prioridade e órgão")
     void deveAplicarTriagemIa() {
         Chamado chamado = Chamado.builder().idChamado(100L).build();
-        Usuario usuario = Usuario.builder().idUsuario(1L).build();
-        Status status = Status.builder().idStatus(1L).nmStatus("ABERTO").build();
+        Categoria catIa = Categoria.builder().idCategoria(2L).nmCategoria("Vias e Pavimentação").build();
+        Prioridade prioAlta = Prioridade.builder().idPrioridade(3L).nmPrioridade("ALTA").build();
+        OrgaoGoverno orgao = OrgaoGoverno.builder().idOrgao(1L).nmOrgao("Secretaria Municipal de Infraestrutura Urbana e Obras").build();
 
-        HistChamado hist = HistChamado.builder()
-                .idHist(1L)
-                .chamado(chamado)
-                .usuario(usuario)
-                .status(status)
-                .observacoes("Abertura")
-                .build();
+        when(chamadoRepository.findById(100L)).thenReturn(Optional.of(chamado));
+        when(categoriaService.findByNameOrCreate("Vias e Pavimentação")).thenReturn(catIa);
+        when(prioridadeService.findByNameOrCreate("ALTA")).thenReturn(prioAlta);
+        when(orgaoGovernoService.findByNameOrCreate("Secretaria Municipal de Infraestrutura Urbana e Obras")).thenReturn(orgao);
 
-        when(histChamadoRepository.findFirstByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(100L))
-                .thenReturn(Optional.of(hist));
-
-        var feedback = new TriagemFeedbackMessage(100L, "ALTA", "Secretaria de Obras", "Reparo emergencial");
+        var feedback = new TriagemFeedbackMessage(
+                100L,
+                "Cratera aberta no asfalto",
+                "Reparo emergencial recomendado devido ao risco viário.",
+                "Vias e Pavimentação",
+                "ALTA",
+                "Secretaria Municipal de Infraestrutura Urbana e Obras"
+        );
         chamadoService.aplicarTriagemIa(feedback);
 
-        ArgumentCaptor<HistChamado> captor = ArgumentCaptor.forClass(HistChamado.class);
-        verify(histChamadoRepository).save(captor.capture());
-        HistChamado salvo = captor.getValue();
-        assertEquals("[Triagem IA - ALTA | Secretaria de Obras] Reparo emergencial", salvo.getObservacoes());
-        assertEquals(chamado, salvo.getChamado());
-        assertEquals(usuario, salvo.getUsuario());
-        assertEquals(status, salvo.getStatus());
+        ArgumentCaptor<Chamado> chamadoCaptor = ArgumentCaptor.forClass(Chamado.class);
+        verify(chamadoRepository).save(chamadoCaptor.capture());
+        Chamado atualizado = chamadoCaptor.getValue();
+        assertEquals(100L, atualizado.getIdChamado());
+        assertEquals("Cratera aberta no asfalto", atualizado.getTitulo());
+        assertEquals("Reparo emergencial recomendado devido ao risco viário.", atualizado.getDescricao());
+        assertEquals(catIa, atualizado.getCategoria());
+        assertEquals(prioAlta, atualizado.getPrioridade());
+        assertEquals(orgao, atualizado.getOrgaoGoverno());
     }
 
     @Test
@@ -387,6 +420,8 @@ class ChamadoServiceTest {
                 .descricao("Descrição Original")
                 .usuario(usuario) // criado pelo cidadão (id 1)
                 .categoria(categoria)
+                .prioridade(prioridadePendente)
+                .orgaoGoverno(orgaoInicial)
                 .endereco(endereco)
                 .foto("bytes".getBytes(StandardCharsets.UTF_8))
                 .dtAbertura(LocalDateTime.now())
@@ -396,8 +431,7 @@ class ChamadoServiceTest {
                 "Título Atualizado pelo Gestor",
                 "Descrição atualizada para obras",
                 1L,
-                new EnderecoRequest("01311000", "50", "Em frente ao parque", "Avenida Paulista"),
-                null
+                new EnderecoRequest("01311000", "50", "Em frente ao parque", "Avenida Paulista")
         );
 
         when(chamadoRepository.findById(150L)).thenReturn(Optional.of(chamado));
@@ -418,8 +452,14 @@ class ChamadoServiceTest {
         ChamadoResponse response = chamadoService.update(150L, requestEdicao, gestor.getEmail());
 
         assertNotNull(response);
-        assertEquals("Título Atualizado pelo Gestor", chamado.getTitulo());
-        verify(chamadoRepository).save(chamado);
+        ArgumentCaptor<Chamado> chamadoCaptor = ArgumentCaptor.forClass(Chamado.class);
+        verify(chamadoRepository).save(chamadoCaptor.capture());
+        Chamado atualizado = chamadoCaptor.getValue();
+        assertEquals(150L, atualizado.getIdChamado());
+        assertEquals("Título Atualizado pelo Gestor", atualizado.getTitulo());
+        assertEquals("Descrição atualizada para obras", atualizado.getDescricao());
+        assertEquals(prioridadePendente, atualizado.getPrioridade());
+        assertEquals(orgaoInicial, atualizado.getOrgaoGoverno());
     }
 
     @Test
@@ -439,7 +479,7 @@ class ChamadoServiceTest {
 
         ChamadoRequest requestEdicao = new ChamadoRequest(
                 "Invasão de chamado", "Desc", 1L,
-                new EnderecoRequest("01311000", "50", "Referência", "Avenida Paulista"), null
+                new EnderecoRequest("01311000", "50", "Referência", "Avenida Paulista")
         );
 
         when(chamadoRepository.findById(151L)).thenReturn(Optional.of(chamado));

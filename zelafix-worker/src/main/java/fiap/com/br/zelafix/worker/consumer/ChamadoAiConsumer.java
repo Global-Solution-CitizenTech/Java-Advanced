@@ -23,19 +23,15 @@ public class ChamadoAiConsumer {
     public void processarTriagem(ChamadoTriagemMessage message) {
         log.info("Processando triagem assíncrona com Spring AI para o chamado ID: {}", message.idChamado());
 
-        TriagemIaResult resultado = aiService.analisarChamado(
-                message.categoria(),
-                message.titulo(),
-                message.descricao(),
-                message.bairro(),
-                message.foto()
-        );
+        TriagemIaResult resultado = aiService.analisarChamado(message.bairro(), message.foto());
 
         var feedback = new TriagemFeedbackMessage(
                 message.idChamado(),
+                resultado.titulo(),
+                resultado.descricao(),
+                resultado.categoriaSugerida().getNomeCategoria(),
                 resultado.prioridade().name(),
-                resultado.orgaoResponsavel().getNomeOficial(),
-                resultado.parecerIa()
+                resultado.orgaoResponsavel().getNomeOficial()
         );
 
         rabbitTemplate.convertAndSend(

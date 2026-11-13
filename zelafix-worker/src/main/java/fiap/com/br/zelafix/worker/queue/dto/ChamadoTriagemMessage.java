@@ -5,9 +5,6 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ChamadoTriagemMessage(
         Long idChamado,
-        String titulo,
-        String descricao,
-        String categoria,
         String bairro,
         byte[] foto
 ) {

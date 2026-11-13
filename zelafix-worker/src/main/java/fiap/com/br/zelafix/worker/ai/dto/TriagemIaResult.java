@@ -6,6 +6,12 @@ import fiap.com.br.zelafix.worker.ai.enums.DepartamentoGoverno;
 import fiap.com.br.zelafix.worker.ai.enums.PrioridadeChamado;
 
 public record TriagemIaResult(
+        @JsonPropertyDescription("Título curto e objetivo da ocorrência urbana identificada na foto (máximo 100 caracteres)")
+        String titulo,
+
+        @JsonPropertyDescription("Descrição técnica detalhada do problema observado na imagem e riscos associados (máximo 1000 caracteres)")
+        String descricao,
+
         @JsonPropertyDescription("Categoria oficial do problema urbano observado na foto")
         CategoriaSugerida categoriaSugerida,
 
@@ -13,8 +19,5 @@ public record TriagemIaResult(
         PrioridadeChamado prioridade,
 
         @JsonPropertyDescription("Órgão ou secretaria municipal competente para a resolução")
-        DepartamentoGoverno orgaoResponsavel,
-
-        @JsonPropertyDescription("Parecer técnico sucinto (máximo 150 caracteres) justificando a classificação e o risco observado")
-        String parecerIa
+        DepartamentoGoverno orgaoResponsavel
 ) {}

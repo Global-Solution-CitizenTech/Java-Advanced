@@ -20,15 +20,12 @@ def test_chamados_crud_lifecycle():
     gestor_auth = requests.post(f"{BASE_URL}/login", json={"email": "roberto.gestor@subprefeitura.sp.gov.br", "senha": "Senha#123"}).json()
     gestor_headers = {"Authorization": f"Bearer {gestor_auth['token']}"}
 
-    cidadao_auth = requests.post(f"{BASE_URL}/login", json={"email": "carlos.silva@email.com", "senha": "Senha#123"}).json()
+    cidadao_auth = requests.post(f"{BASE_URL}/login", json={"email": "enzo.okuizumi@gmail.com", "senha": "123mudar"}).json()
     cidadao_headers = {"Authorization": f"Bearer {cidadao_auth['token']}"}
 
-    # 3.1 Criar chamado via JSON com foto em base64
+    # 3.1 Criar chamado via JSON com foto em base64 (somente foto + endereco)
     print("\n[3.1] Criando chamado via JSON com foto Base64...")
     payload_json = {
-        "titulo": "Poste de iluminação apagado há 3 noites",
-        "descricao": "A lâmpada do poste em frente ao número 500 está totalmente queimada gerando escuridão e insegurança.",
-        "categoriaId": 1,
         "endereco": {
             "cep": "01310-100",
             "numero": "500",
@@ -39,21 +36,19 @@ def test_chamados_crud_lifecycle():
     }
     res = requests.post(f"{BASE_URL}/chamados", headers=cidadao_headers, json=payload_json)
     assert res.status_code == 201, f"Falha ao criar chamado JSON: {res.status_code} - {res.text}"
-    chamado_json_id = res.json()["idChamado"]
+    chamado_json_body = res.json()
+    chamado_json_id = chamado_json_body["idChamado"]
+    assert chamado_json_body["prioridadeNome"] == "PENDENTE", f"Prioridade inicial inesperada: {chamado_json_body['prioridadeNome']}"
+    assert chamado_json_body["orgaoNome"] == "Em análise pela IA", f"Órgão inicial inesperado: {chamado_json_body['orgaoNome']}"
     print(f" -> Sucesso! Chamado ID {chamado_json_id} criado via JSON.")
 
     # 3.2 Criar chamado via Multipart/form-data com arquivo binário de imagem
     print("\n[3.2] Criando chamado via Multipart (part 'dados' + part 'foto')...")
     chamado_dados = {
-        "titulo": "Bueiro sem tampa na esquina",
-        "descricao": "Bueiro aberto oferecendo risco grave de queda para pedestres e ciclistas.",
-        "categoriaId": 1,
-        "endereco": {
-            "cep": "01310-100",
-            "numero": "750",
-            "referencia": "Esquina com Alameda Campinas",
-            "rua": "Avenida Paulista"
-        }
+        "cep": "01310-100",
+        "numero": "750",
+        "referencia": "Esquina com Alameda Campinas",
+        "rua": "Avenida Paulista"
     }
     files = {
         "dados": (None, json.dumps(chamado_dados), "application/json"),
@@ -72,34 +67,28 @@ def test_chamados_crud_lifecycle():
     assert len(res.content) == len(DUMMY_PNG_BYTES), f"Tamanho da foto divergente: {len(res.content)} bytes"
     print(f" -> Sucesso! Foto recuperada com Content-Type '{res.headers.get('Content-Type')}' e {len(res.content)} bytes.")
 
-    # 3.4 Validações de Bean Validation (Campos obrigatórios e tamanhos)
-    print("\n[3.4] Testando validações de Bean Validation...")
-    # Título vazio
+    # 3.4 Validações de Entrada (Foto e Endereço obrigatórios)
+    print("\n[3.4] Testando validações de entrada na abertura...")
+    # Sem foto
     res = requests.post(f"{BASE_URL}/chamados", headers=cidadao_headers, json={
-        "titulo": "   ",
-        "descricao": "Descrição válida",
-        "categoriaId": 1,
         "endereco": {"cep": "01310-100", "numero": "1", "referencia": "Ref"}
     })
-    assert res.status_code == 400, f"Deveria falhar título vazio: {res.status_code}"
+    assert res.status_code == 400, f"Deveria falhar sem foto: {res.status_code}"
 
-    # Descrição vazia
+    # Sem endereço
     res = requests.post(f"{BASE_URL}/chamados", headers=cidadao_headers, json={
-        "titulo": "Título válido",
-        "descricao": "",
-        "categoriaId": 1,
-        "endereco": {"cep": "01310-100", "numero": "1", "referencia": "Ref"}
+        "fotoBase64": DUMMY_PNG_B64
     })
-    assert res.status_code == 400, f"Deveria falhar descrição vazia: {res.status_code}"
+    assert res.status_code == 400, f"Deveria falhar sem endereço: {res.status_code}"
 
-    # Categoria inexistente
-    res = requests.post(f"{BASE_URL}/chamados", headers=cidadao_headers, json={
+    # PUT com categoria inexistente
+    res = requests.put(f"{BASE_URL}/chamados/{chamado_json_id}", headers=cidadao_headers, json={
         "titulo": "Título válido",
-        "descricao": "Descrição válida",
+        "descricao": "Descrição válida detalhada",
         "categoriaId": 99999,
         "endereco": {"cep": "01310-100", "numero": "1", "referencia": "Ref"}
     })
-    assert res.status_code in [400, 404], f"Deveria falhar categoria inexistente: {res.status_code}"
+    assert res.status_code in [400, 404], f"Deveria falhar categoria inexistente no PUT: {res.status_code}"
     print(" -> Sucesso! Todas as 3 rejeições de validação retornaram 400/404.")
 
     # 3.5 Listagem Paginada e Filtros

@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import collections
 
 BASE_URL = "http://localhost:8080"
+DUMMY_PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 
 def test_stress_load():
     print("=" * 60)
@@ -17,9 +18,7 @@ def test_stress_load():
     creds = [
         ("admin@zelafix.com.br", "123mudar"),
         ("roberto.gestor@subprefeitura.sp.gov.br", "Senha#123"),
-        ("carlos.silva@email.com", "Senha#123"),
-        ("mariana.souza@email.com", "Senha#123"),
-        ("fernanda.costa@email.com", "Senha#123"),
+        ("enzo.okuizumi@gmail.com", "123mudar"),
         ("lucas.zeladoria@subprefeitura.sp.gov.br", "Senha#123")
     ]
     for email, senha in creds:
@@ -39,10 +38,8 @@ def test_stress_load():
         f"{BASE_URL}/chamados",
         headers={"Authorization": f"Bearer {admin_token}"},
         json={
-            "titulo": "Buraco de Stress Test Concorrente",
-            "descricao": "Chamado para avaliação de concorrência massiva de votos e mensageria RabbitMQ.",
-            "categoriaId": 1,
-            "endereco": {"cep": "01310-100", "numero": "999", "referencia": "Ponto Zero", "rua": "Paulista"}
+            "endereco": {"cep": "01310-100", "numero": "999", "referencia": "Ponto Zero", "rua": "Paulista"},
+            "fotoBase64": DUMMY_PNG_B64
         }
     ).json()
     target_id = target_chamado["idChamado"]
@@ -105,10 +102,8 @@ def test_stress_load():
                 f"{BASE_URL}/chamados",
                 headers={"Authorization": f"Bearer {token}"},
                 json={
-                    "titulo": f"Chamado de Stress #{indice}",
-                    "descricao": f"Descrição de teste de carga concorrente número {indice} para saturar banco e mensageria.",
-                    "categoriaId": 1,
-                    "endereco": {"cep": "01310-100", "numero": str(1000 + indice), "referencia": f"Lote {indice}", "rua": "Paulista"}
+                    "endereco": {"cep": "01310-100", "numero": str(1000 + indice), "referencia": f"Lote {indice}", "rua": "Paulista"},
+                    "fotoBase64": DUMMY_PNG_B64
                 },
                 timeout=20
             )

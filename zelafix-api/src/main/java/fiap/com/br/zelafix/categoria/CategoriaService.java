@@ -27,6 +27,18 @@ public class CategoriaService {
                 .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada com id: " + id));
     }
 
+    @Cacheable("categorias")
+    public Categoria findDefault() {
+        return categoriaRepository.findFirstByOrderByIdCategoriaAsc()
+                .orElseThrow(() -> new ResourceNotFoundException("Nenhuma categoria cadastrada no sistema."));
+    }
+
+    @Cacheable(value = "categorias", key = "#nome.trim().toLowerCase()")
+    public Categoria findByNameOrCreate(String nome) {
+        return categoriaRepository.findByNmCategoriaIgnoreCase(nome.trim())
+                .orElseGet(() -> categoriaRepository.save(new CategoriaRequest(nome).toEntity()));
+    }
+
     @Transactional
     @CacheEvict(value = "categorias", allEntries = true)
     public Categoria create(CategoriaRequest request) {

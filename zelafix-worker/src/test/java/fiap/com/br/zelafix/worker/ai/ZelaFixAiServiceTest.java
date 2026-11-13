@@ -44,27 +44,25 @@ class ZelaFixAiServiceTest {
     @DisplayName("Deve inicializar o ChatClient com o System Prompt e executar triagem tipada com Enums e imagem")
     void deveExecutarTriagemComSucesso() {
         TriagemIaResult esperado = new TriagemIaResult(
+                "Muro rachado com risco de queda",
+                "Estrutura de contenção apresenta fissuras graves próximas à via pública.",
                 CategoriaSugerida.VIAS_E_PAVIMENTACAO,
                 PrioridadeChamado.URGENTE,
-                DepartamentoGoverno.DEFESA_CIVIL,
-                "Risco iminente de desabamento identificado."
+                DepartamentoGoverno.DEFESA_CIVIL
         );
 
         when(chatClient.prompt().user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any()).call().entity(TriagemIaResult.class))
                 .thenReturn(esperado);
 
         TriagemIaResult resultado = aiService.analisarChamado(
-                "Segurança Pública",
-                "Risco de desabamento",
-                "Muro rachado",
                 "Grajaú",
                 new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0} // JPEG
         );
 
         assertNotNull(resultado);
+        assertEquals("Muro rachado com risco de queda", resultado.titulo());
         assertEquals(PrioridadeChamado.URGENTE, resultado.prioridade());
         assertEquals(DepartamentoGoverno.DEFESA_CIVIL, resultado.orgaoResponsavel());
-        assertEquals("Risco iminente de desabamento identificado.", resultado.parecerIa());
     }
 
     @Test
@@ -72,22 +70,17 @@ class ZelaFixAiServiceTest {
     void deveProcessarFotoPng() {
         byte[] pngBytes = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
         TriagemIaResult esperado = new TriagemIaResult(
+                "Bueiro entupido na via",
+                "Boca de lobo obstruída por resíduos sólidos causando acúmulo de água.",
                 CategoriaSugerida.DRENAGEM_E_ESGOTO,
                 PrioridadeChamado.MEDIA,
-                DepartamentoGoverno.SECRETARIA_OBRAS,
-                "Bueiro entupido."
+                DepartamentoGoverno.SECRETARIA_OBRAS
         );
 
         when(chatClient.prompt().user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any()).call().entity(TriagemIaResult.class))
                 .thenReturn(esperado);
 
-        TriagemIaResult resultado = aiService.analisarChamado(
-                "Drenagem",
-                "Bueiro entupido",
-                "Acúmulo de folhas",
-                "Santana",
-                pngBytes
-        );
+        TriagemIaResult resultado = aiService.analisarChamado("Santana", pngBytes);
 
         assertNotNull(resultado);
         assertEquals(PrioridadeChamado.MEDIA, resultado.prioridade());
@@ -98,22 +91,17 @@ class ZelaFixAiServiceTest {
     void deveProcessarFotoWebp() {
         byte[] webpBytes = new byte[]{'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'};
         TriagemIaResult esperado = new TriagemIaResult(
+                "Semáforo apagado em cruzamento",
+                "Conjunto semafórico sem alimentação elétrica aumentando o risco de colisões.",
                 CategoriaSugerida.SINALIZACAO_E_TRANSITO,
                 PrioridadeChamado.ALTA,
-                DepartamentoGoverno.CET_TRANSITO,
-                "Semáforo apagado em cruzamento."
+                DepartamentoGoverno.CET_TRANSITO
         );
 
         when(chatClient.prompt().user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any()).call().entity(TriagemIaResult.class))
                 .thenReturn(esperado);
 
-        TriagemIaResult resultado = aiService.analisarChamado(
-                "Trânsito",
-                "Semáforo apagado",
-                "Cruzamento perigoso",
-                "Consolação",
-                webpBytes
-        );
+        TriagemIaResult resultado = aiService.analisarChamado("Consolação", webpBytes);
 
         assertNotNull(resultado);
         assertEquals(PrioridadeChamado.ALTA, resultado.prioridade());
