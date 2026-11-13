@@ -27,10 +27,11 @@ public class ZelaFixAiService {
             Sua função é analisar a ocorrência municipal (relato textual e foto anexa) e emitir a triagem técnica.
 
             Diretrizes:
-            1. Analise cuidadosamente a imagem e a descrição do munícipe para identificar a gravidade física.
-            2. Classifique a prioridade rigorosamente de acordo com os valores permitidos (BAIXA, MEDIA, ALTA ou URGENTE).
-            3. Selecione o departamento governamental municipal competente para atuar no reparo.
-            4. Emita um parecer técnico objetivo e conciso (máximo 150 caracteres).
+            1. Analise cuidadosamente a imagem e a descrição do munícipe para identificar a natureza e a gravidade física.
+            2. Classifique a categoriaSugerida rigorosamente entre os valores permitidos (ILUMINACAO_PUBLICA, VIAS_E_PAVIMENTACAO, DRENAGEM_E_ESGOTO, LIMPEZA_URBANA, ARVORES_E_PARQUES ou SINALIZACAO_E_TRANSITO).
+            3. Classifique a prioridade rigorosamente de acordo com os valores permitidos (BAIXA, MEDIA, ALTA ou URGENTE).
+            4. Selecione o departamento governamental municipal competente para atuar no reparo.
+            5. Emita um parecer técnico objetivo e conciso (máximo 150 caracteres).
             """;
 
     public ZelaFixAiService(ChatClient.Builder builder) {

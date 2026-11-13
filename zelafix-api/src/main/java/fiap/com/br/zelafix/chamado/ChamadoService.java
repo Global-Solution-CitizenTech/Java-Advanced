@@ -5,6 +5,8 @@ import fiap.com.br.zelafix.categoria.CategoriaService;
 import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
+import fiap.com.br.zelafix.chamado.dto.ChamadoTriagemPreviewResponse;
+import fiap.com.br.zelafix.chamado.dto.ChamadoTriagemRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
 import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.EnderecoService;
@@ -45,6 +47,7 @@ public class ChamadoService {
     private final HistChamadoRepository histChamadoRepository;
     private final VotoChamadoRepository votoChamadoRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final WorkerAiService workerAiService;
 
     // =========================================================================
     // 1. CONSULTAS E LISTAGENS
@@ -99,6 +102,22 @@ public class ChamadoService {
         eventPublisher.publishEvent(ChamadoTriagemMessage.from(salvo));
 
         return ChamadoResponse.fromEntity(salvo, StatusChamadoEnum.PENDENTE.name(), 1L, true, List.of(histInicial));
+    }
+
+    @Transactional(readOnly = true)
+    public ChamadoTriagemPreviewResponse preAnalisarIa(ChamadoTriagemRequest request) {
+        ChamadoTriagemPreviewResponse ia = workerAiService.preAnalisar(request);
+        Categoria categoria = categoriaService.findAll().stream()
+                .filter(c -> c.getNmCategoria().equalsIgnoreCase(ia.categoriaNome()))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada: " + ia.categoriaNome()));
+        return new ChamadoTriagemPreviewResponse(
+                categoria.getIdCategoria(),
+                categoria.getNmCategoria(),
+                ia.prioridade(),
+                ia.orgaoResponsavel(),
+                ia.parecerIa()
+        );
     }
 
     @Transactional

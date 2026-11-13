@@ -2,6 +2,7 @@ package fiap.com.br.zelafix.worker.consumer;
 
 import fiap.com.br.zelafix.worker.ai.ZelaFixAiService;
 import fiap.com.br.zelafix.worker.ai.dto.TriagemIaResult;
+import fiap.com.br.zelafix.worker.ai.enums.CategoriaSugerida;
 import fiap.com.br.zelafix.worker.ai.enums.DepartamentoGoverno;
 import fiap.com.br.zelafix.worker.ai.enums.PrioridadeChamado;
 import fiap.com.br.zelafix.worker.config.RabbitWorkerConfig;
@@ -46,6 +47,7 @@ class ChamadoAiConsumerTest {
         );
 
         TriagemIaResult resultado = new TriagemIaResult(
+                CategoriaSugerida.VIAS_E_PAVIMENTACAO,
                 PrioridadeChamado.ALTA,
                 DepartamentoGoverno.SECRETARIA_OBRAS,
                 "Vistoria emergencial recomendada para recapeamento."
