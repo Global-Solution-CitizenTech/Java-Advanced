@@ -1,5 +1,6 @@
 package fiap.com.br.zelafix;
 
+import fiap.com.br.zelafix.chamado.WorkerAiService;
 import fiap.com.br.zelafix.endereco.ViaCepService;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -11,7 +12,7 @@ import org.springframework.web.service.registry.ImportHttpServices;
 @SpringBootApplication
 @EnableCaching
 @ConfigurationPropertiesScan
-@ImportHttpServices(ViaCepService.class)
+@ImportHttpServices({ViaCepService.class, WorkerAiService.class})
 @EnableSpringDataWebSupport(pageSerializationMode = EnableSpringDataWebSupport.PageSerializationMode.VIA_DTO)
 public class ZelaFixApiApplication {
 

@@ -149,6 +149,16 @@ class EnderecoServiceTest {
     }
 
     @Test
+    @DisplayName("Deve lançar IllegalArgumentException quando ViaCEP retornar erro=true para CEP inexistente")
+    void deveLancarExcecaoQuandoViaCepRetornarErroTrue() {
+        EnderecoRequest req = new EnderecoRequest("07700-000", "302", "Vila Rosina", "Av Otavio");
+        when(viaCepService.getEnderecoPorCep("07700000"))
+                .thenReturn(new ViaCepResponse(null, null, null, null, true));
+
+        assertThrows(IllegalArgumentException.class, () -> enderecoService.findOrCreateByCepAndNumero(req));
+    }
+
+    @Test
     @DisplayName("Deve atualizar endereço com sucesso")
     void deveAtualizarEnderecoComSucesso() {
         EnderecoRequest req = new EnderecoRequest("01001-000", "102", "Novo complemento", "Praça da Sé");

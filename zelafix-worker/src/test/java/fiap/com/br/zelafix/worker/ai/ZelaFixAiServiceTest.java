@@ -1,6 +1,7 @@
 package fiap.com.br.zelafix.worker.ai;
 
 import fiap.com.br.zelafix.worker.ai.dto.TriagemIaResult;
+import fiap.com.br.zelafix.worker.ai.enums.CategoriaSugerida;
 import fiap.com.br.zelafix.worker.ai.enums.DepartamentoGoverno;
 import fiap.com.br.zelafix.worker.ai.enums.PrioridadeChamado;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +44,7 @@ class ZelaFixAiServiceTest {
     @DisplayName("Deve inicializar o ChatClient com o System Prompt e executar triagem tipada com Enums e imagem")
     void deveExecutarTriagemComSucesso() {
         TriagemIaResult esperado = new TriagemIaResult(
+                CategoriaSugerida.VIAS_E_PAVIMENTACAO,
                 PrioridadeChamado.URGENTE,
                 DepartamentoGoverno.DEFESA_CIVIL,
                 "Risco iminente de desabamento identificado."
@@ -70,6 +72,7 @@ class ZelaFixAiServiceTest {
     void deveProcessarFotoPng() {
         byte[] pngBytes = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
         TriagemIaResult esperado = new TriagemIaResult(
+                CategoriaSugerida.DRENAGEM_E_ESGOTO,
                 PrioridadeChamado.MEDIA,
                 DepartamentoGoverno.SECRETARIA_OBRAS,
                 "Bueiro entupido."
@@ -95,6 +98,7 @@ class ZelaFixAiServiceTest {
     void deveProcessarFotoWebp() {
         byte[] webpBytes = new byte[]{'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'};
         TriagemIaResult esperado = new TriagemIaResult(
+                CategoriaSugerida.SINALIZACAO_E_TRANSITO,
                 PrioridadeChamado.ALTA,
                 DepartamentoGoverno.CET_TRANSITO,
                 "Semáforo apagado em cruzamento."
