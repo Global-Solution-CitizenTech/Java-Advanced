@@ -16,24 +16,24 @@ public class CategoriaService {
 
     private final CategoriaRepository categoriaRepository;
 
-    @Cacheable("categorias")
+    @Cacheable(value = "categorias", key = "'all'")
     public List<Categoria> findAll() {
         return categoriaRepository.findAll();
     }
 
-    @Cacheable("categorias")
+    @Cacheable(value = "categorias", key = "'id:' + #id")
     public Categoria findById(Long id) {
         return categoriaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada com id: " + id));
     }
 
-    @Cacheable("categorias")
+    @Cacheable(value = "categorias", key = "'default'")
     public Categoria findDefault() {
         return categoriaRepository.findFirstByOrderByIdCategoriaAsc()
                 .orElseThrow(() -> new ResourceNotFoundException("Nenhuma categoria cadastrada no sistema."));
     }
 
-    @Cacheable(value = "categorias", key = "#nome.trim().toLowerCase()")
+    @Cacheable(value = "categorias", key = "'nome:' + #nome.trim().toLowerCase()")
     public Categoria findByNameOrCreate(String nome) {
         return categoriaRepository.findByNmCategoriaIgnoreCase(nome.trim())
                 .orElseGet(() -> categoriaRepository.save(new CategoriaRequest(nome).toEntity()));
