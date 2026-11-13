@@ -7,10 +7,12 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.data.web.config.EnableSpringDataWebSupport;
+import org.springframework.resilience.annotation.EnableResilientMethods;
 import org.springframework.web.service.registry.ImportHttpServices;
 
 @SpringBootApplication
 @EnableCaching
+@EnableResilientMethods
 @ConfigurationPropertiesScan
 @ImportHttpServices({ViaCepService.class, WorkerAiService.class})
 @EnableSpringDataWebSupport(pageSerializationMode = EnableSpringDataWebSupport.PageSerializationMode.VIA_DTO)

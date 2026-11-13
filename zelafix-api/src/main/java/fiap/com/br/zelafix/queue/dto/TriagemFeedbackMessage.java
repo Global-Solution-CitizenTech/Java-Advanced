@@ -18,7 +18,7 @@ public record TriagemFeedbackMessage(
                 .usuario(base.getUsuario())
                 .status(base.getStatus())
                 .dtMudanca(LocalDateTime.now())
-                .observacoes(obs.length() > 255 ? obs.substring(0, 252) + "..." : obs)
+                .observacoes(obs.length() > 200 ? obs.substring(0, 197) + "..." : obs)
                 .build();
     }
 }
