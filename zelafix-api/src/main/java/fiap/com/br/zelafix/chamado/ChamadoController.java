@@ -1,11 +1,11 @@
 package fiap.com.br.zelafix.chamado;
 
+import fiap.com.br.zelafix.chamado.dto.ChamadoCreateRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
-import fiap.com.br.zelafix.chamado.dto.ChamadoTriagemPreviewResponse;
-import fiap.com.br.zelafix.chamado.dto.ChamadoTriagemRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
+import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.util.ImageMimeTypeDetector;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,6 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Base64;
 
 @RestController
 @RequestMapping("/chamados")
@@ -77,32 +78,29 @@ public class ChamadoController {
                 .body(foto);
     }
 
-    @PostMapping("/triagem")
-    @Operation(summary = "Pré-analisar foto da ocorrência com Spring AI para definir categoria, prioridade e parecer antes de salvar")
-    public ChamadoTriagemPreviewResponse preAnalisarIa(@RequestBody @Valid ChamadoTriagemRequest request) {
-        return chamadoService.preAnalisarIa(request);
-    }
-
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Abrir novo chamado com payload JSON (foto em base64)")
+    @Operation(summary = "Abrir novo chamado com payload JSON (foto em base64 e endereço; análise feita pela IA)")
     public ChamadoResponse create(
-            @RequestBody @Valid ChamadoRequest request,
+            @RequestBody @Valid ChamadoCreateRequest request,
             @AuthenticationPrincipal Jwt jwt
     ) {
-        return chamadoService.create(request, null, jwt.getSubject());
+        return chamadoService.create(
+                request.endereco(),
+                Base64.getDecoder().decode(request.fotoBase64().trim()),
+                jwt.getSubject()
+        );
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Abrir novo chamado enviando foto via MultipartFile (armazenada em BLOB)")
     public ChamadoResponse createWithMultipart(
-            @RequestPart("dados") @Valid ChamadoRequest request,
-            @RequestPart(value = "foto", required = false) MultipartFile foto,
+            @RequestPart("dados") @Valid EnderecoRequest endereco,
+            @RequestPart("foto") MultipartFile foto,
             @AuthenticationPrincipal Jwt jwt
     ) throws IOException {
-        byte[] bytes = foto != null ? foto.getBytes() : null;
-        return chamadoService.create(request, bytes, jwt.getSubject());
+        return chamadoService.create(endereco, foto.getBytes(), jwt.getSubject());
     }
 
     @PutMapping("/{id}")

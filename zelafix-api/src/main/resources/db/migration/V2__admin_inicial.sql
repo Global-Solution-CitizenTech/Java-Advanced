@@ -40,3 +40,19 @@ VALUES ('Administrador Geral', 'admin@zelafix.com.br', '${ADMIN_BCRYPT_HASH}', '
 
 INSERT INTO telefone (num_ddd, num_tel, usuario_id_usuario)
 VALUES ('11', '999990000', 1);
+
+-- 7. PRIORIDADE
+INSERT INTO prioridade (nm_prioridade) VALUES ('BAIXA');
+INSERT INTO prioridade (nm_prioridade) VALUES ('MEDIA');
+INSERT INTO prioridade (nm_prioridade) VALUES ('ALTA');
+INSERT INTO prioridade (nm_prioridade) VALUES ('URGENTE');
+INSERT INTO prioridade (nm_prioridade) VALUES ('PENDENTE');
+
+-- 8. ORGAO_GOVERNO
+INSERT INTO orgao_governo (orgao_governo) VALUES ('Secretaria Municipal de Infraestrutura Urbana e Obras');
+INSERT INTO orgao_governo (orgao_governo) VALUES ('Companhia de Engenharia de Tráfego (CET)');
+INSERT INTO orgao_governo (orgao_governo) VALUES ('Departamento de Iluminação Pública (Ilume)');
+INSERT INTO orgao_governo (orgao_governo) VALUES ('Coordenação Municipal de Defesa Civil');
+INSERT INTO orgao_governo (orgao_governo) VALUES ('Subprefeitura Regional');
+INSERT INTO orgao_governo (orgao_governo) VALUES ('Companhia de Saneamento Básico e Drenagem');
+INSERT INTO orgao_governo (orgao_governo) VALUES ('Em análise pela IA');

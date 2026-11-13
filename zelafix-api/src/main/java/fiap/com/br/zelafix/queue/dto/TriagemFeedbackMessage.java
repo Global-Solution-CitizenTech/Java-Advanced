@@ -1,24 +1,30 @@
 package fiap.com.br.zelafix.queue.dto;
 
-import fiap.com.br.zelafix.historico.HistChamado;
-
-import java.time.LocalDateTime;
+import fiap.com.br.zelafix.categoria.Categoria;
+import fiap.com.br.zelafix.chamado.Chamado;
+import fiap.com.br.zelafix.chamado.orgao.OrgaoGoverno;
+import fiap.com.br.zelafix.chamado.prioridade.Prioridade;
 
 public record TriagemFeedbackMessage(
         Long idChamado,
-        String prioridade,
-        String orgao,
-        String parecer
+        String titulo,
+        String descricao,
+        String categoriaNome,
+        String prioridadeNome,
+        String orgaoNome
 ) {
-
-    public HistChamado toEntity(HistChamado base) {
-        String obs = "[Triagem IA - %s | %s] %s".formatted(prioridade, orgao, parecer);
-        return HistChamado.builder()
-                .chamado(base.getChamado())
+    public Chamado toEntity(Chamado base, Categoria categoria, Prioridade prioridade, OrgaoGoverno orgao) {
+        return Chamado.builder()
+                .idChamado(base.getIdChamado())
+                .titulo(titulo)
+                .descricao(descricao)
+                .foto(base.getFoto())
+                .dtAbertura(base.getDtAbertura())
                 .usuario(base.getUsuario())
-                .status(base.getStatus())
-                .dtMudanca(LocalDateTime.now())
-                .observacoes(obs.length() > 200 ? obs.substring(0, 197) + "..." : obs)
+                .endereco(base.getEndereco())
+                .categoria(categoria)
+                .prioridade(prioridade)
+                .orgaoGoverno(orgao)
                 .build();
     }
 }

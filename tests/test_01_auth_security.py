@@ -27,8 +27,8 @@ def test_auth_and_security():
     print(f" -> Sucesso! Gestor ID={gestor_user['id']}, Cargo={gestor_user['cargo']}")
 
     # 1.3 Login de Cidadão
-    print("\n[1.3] Testando login válido de Cidadão (carlos.silva@email.com)...")
-    res = requests.post(f"{BASE_URL}/login", json={"email": "carlos.silva@email.com", "senha": "Senha#123"})
+    print("\n[1.3] Testando login válido de Cidadão (enzo.okuizumi@gmail.com)...")
+    res = requests.post(f"{BASE_URL}/login", json={"email": "enzo.okuizumi@gmail.com", "senha": "123mudar"})
     assert res.status_code == 200, f"Falha no login do cidadão: {res.status_code} - {res.text}"
     cidadao_token = res.json()["token"]
     cidadao_user = res.json()["user"]

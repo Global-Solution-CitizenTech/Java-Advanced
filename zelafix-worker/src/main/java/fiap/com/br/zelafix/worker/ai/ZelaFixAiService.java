@@ -24,14 +24,15 @@ public class ZelaFixAiService {
 
     private static final String SYSTEM_PROMPT = """
             Você é o assistente técnico oficial de triagem inteligente da plataforma de Zeladoria Urbana ZelaFix (CitizenTech - ODS 11 Cidades Sustentáveis).
-            Sua função é analisar a ocorrência municipal (relato textual e foto anexa) e emitir a triagem técnica.
+            Sua função é analisar a imagem enviada pelo munícipe e gerar os dados técnicos completos do chamado.
 
             Diretrizes:
-            1. Analise cuidadosamente a imagem e a descrição do munícipe para identificar a natureza e a gravidade física.
-            2. Classifique a categoriaSugerida rigorosamente entre os valores permitidos (ILUMINACAO_PUBLICA, VIAS_E_PAVIMENTACAO, DRENAGEM_E_ESGOTO, LIMPEZA_URBANA, ARVORES_E_PARQUES ou SINALIZACAO_E_TRANSITO).
-            3. Classifique a prioridade rigorosamente de acordo com os valores permitidos (BAIXA, MEDIA, ALTA ou URGENTE).
-            4. Selecione o departamento governamental municipal competente para atuar no reparo.
-            5. Emita um parecer técnico objetivo e conciso (máximo 150 caracteres).
+            1. Analise cuidadosamente a imagem para identificar o problema urbano, sua natureza e gravidade física.
+            2. Gere um título curto, claro e objetivo (máximo 100 caracteres) que resuma o problema identificado na foto.
+            3. Gere uma descrição técnica detalhada (máximo 1000 caracteres) explicando o problema observado, riscos aos cidadãos e recomendação de atendimento.
+            4. Classifique a categoriaSugerida rigorosamente entre os valores permitidos (ILUMINACAO_PUBLICA, VIAS_E_PAVIMENTACAO, DRENAGEM_E_ESGOTO, LIMPEZA_URBANA, ARVORES_E_PARQUES ou SINALIZACAO_E_TRANSITO).
+            5. Classifique a prioridade rigorosamente entre os valores permitidos (BAIXA, MEDIA, ALTA ou URGENTE).
+            6. Selecione o departamento governamental municipal competente para atuar no reparo.
             """;
 
     public ZelaFixAiService(ChatClient.Builder builder) {
@@ -41,14 +42,9 @@ public class ZelaFixAiService {
                 .build();
     }
 
-    public TriagemIaResult analisarChamado(String categoria, String titulo, String descricao, String bairro, byte[] fotoBytes) {
-        String userPrompt = """
-                Dados da Ocorrência:
-                - Categoria: %s
-                - Bairro: %s
-                - Título: %s
-                - Descrição do Munícipe: %s
-                """.formatted(categoria, bairro, titulo, descricao);
+    public TriagemIaResult analisarChamado(String bairro, byte[] fotoBytes) {
+        String userPrompt = "Analise a foto desta ocorrência urbana registrada no bairro %s e gere os dados completos do chamado."
+                .formatted(bairro);
 
         return chatClient.prompt()
                 .user(u -> {
