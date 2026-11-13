@@ -25,7 +25,6 @@ INSERT INTO categoria (nm_categoria) VALUES ('Sinalização e Trânsito');
 
 -- 5. STATUS
 INSERT INTO status (nm_status) VALUES ('PENDENTE');
-INSERT INTO status (nm_status) VALUES ('ABERTO');
 INSERT INTO status (nm_status) VALUES ('EM_ANALISE');
 INSERT INTO status (nm_status) VALUES ('EM_EXECUCAO');
 INSERT INTO status (nm_status) VALUES ('CONCLUIDO');

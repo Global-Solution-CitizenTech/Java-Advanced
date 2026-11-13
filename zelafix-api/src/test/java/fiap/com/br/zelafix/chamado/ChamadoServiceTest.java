@@ -50,6 +50,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -87,6 +88,7 @@ class ChamadoServiceTest {
     private Prioridade prioridadePendente;
     private OrgaoGoverno orgaoInicial;
     private Status statusPendente;
+    private Status statusEmAnalise;
     private Endereco endereco;
 
     @BeforeEach
@@ -116,6 +118,11 @@ class ChamadoServiceTest {
         statusPendente = Status.builder()
                 .idStatus(1L)
                 .nmStatus("PENDENTE")
+                .build();
+
+        statusEmAnalise = Status.builder()
+                .idStatus(2L)
+                .nmStatus("EM_ANALISE")
                 .build();
 
         Estado estado = Estado.builder().id(1L).nome("São Paulo").build();
@@ -372,9 +379,9 @@ class ChamadoServiceTest {
     }
 
     @Test
-    @DisplayName("Deve aplicar triagem da IA diretamente no chamado com categoria, prioridade e órgão")
+    @DisplayName("Deve aplicar triagem da IA no chamado e registrar histórico com status EM_ANALISE")
     void deveAplicarTriagemIa() {
-        Chamado chamado = Chamado.builder().idChamado(100L).build();
+        Chamado chamado = Chamado.builder().idChamado(100L).usuario(usuario).build();
         Categoria catIa = Categoria.builder().idCategoria(2L).nmCategoria("Vias e Pavimentação").build();
         Prioridade prioAlta = Prioridade.builder().idPrioridade(3L).nmPrioridade("ALTA").build();
         OrgaoGoverno orgao = OrgaoGoverno.builder().idOrgao(1L).nmOrgao("Secretaria Municipal de Infraestrutura Urbana e Obras").build();
@@ -383,6 +390,7 @@ class ChamadoServiceTest {
         when(categoriaService.findByNameOrCreate("Vias e Pavimentação")).thenReturn(catIa);
         when(prioridadeService.findByNameOrCreate("ALTA")).thenReturn(prioAlta);
         when(orgaoGovernoService.findByNameOrCreate("Secretaria Municipal de Infraestrutura Urbana e Obras")).thenReturn(orgao);
+        when(statusService.findByNameOrCreate("EM_ANALISE")).thenReturn(statusEmAnalise);
 
         var feedback = new TriagemFeedbackMessage(
                 100L,
@@ -403,6 +411,14 @@ class ChamadoServiceTest {
         assertEquals(catIa, atualizado.getCategoria());
         assertEquals(prioAlta, atualizado.getPrioridade());
         assertEquals(orgao, atualizado.getOrgaoGoverno());
+
+        ArgumentCaptor<HistChamado> histCaptor = ArgumentCaptor.forClass(HistChamado.class);
+        verify(histChamadoRepository).save(histCaptor.capture());
+        HistChamado historico = histCaptor.getValue();
+        assertEquals(atualizado, historico.getChamado());
+        assertEquals(usuario, historico.getUsuario());
+        assertEquals(statusEmAnalise, historico.getStatus());
+        assertTrue(historico.getObservacoes().getBytes(StandardCharsets.UTF_8).length <= 255);
     }
 
     @Test

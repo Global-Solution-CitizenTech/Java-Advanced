@@ -4,6 +4,10 @@ import fiap.com.br.zelafix.categoria.Categoria;
 import fiap.com.br.zelafix.chamado.Chamado;
 import fiap.com.br.zelafix.chamado.orgao.OrgaoGoverno;
 import fiap.com.br.zelafix.chamado.prioridade.Prioridade;
+import fiap.com.br.zelafix.historico.HistChamado;
+import fiap.com.br.zelafix.status.Status;
+
+import java.time.LocalDateTime;
 
 public record TriagemFeedbackMessage(
         Long idChamado,
@@ -25,6 +29,16 @@ public record TriagemFeedbackMessage(
                 .categoria(categoria)
                 .prioridade(prioridade)
                 .orgaoGoverno(orgao)
+                .build();
+    }
+
+    public HistChamado toEntity(Chamado chamado, Status status) {
+        return HistChamado.builder()
+                .chamado(chamado)
+                .usuario(chamado.getUsuario())
+                .status(status)
+                .dtMudanca(LocalDateTime.now())
+                .observacoes("Triagem automática por IA concluída. Prioridade: %s. Categoria: %s. Órgão: %s.".formatted(prioridadeNome(), categoriaNome(), orgaoNome()))
                 .build();
     }
 }
