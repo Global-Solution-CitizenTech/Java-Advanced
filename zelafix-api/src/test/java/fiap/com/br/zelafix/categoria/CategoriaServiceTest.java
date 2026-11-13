@@ -9,6 +9,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
 import java.util.Optional;
@@ -130,5 +136,40 @@ class CategoriaServiceTest {
         categoriaService.delete(1L);
 
         verify(categoriaRepository).delete(categoriaAsfalto);
+    }
+
+    @Test
+    @DisplayName("Não deve colidir chaves de cache entre findAll, findDefault, findById e findByNameOrCreate")
+    void naoDeveColidirChavesDeCache() {
+        when(categoriaRepository.findAll()).thenReturn(List.of(categoriaAsfalto));
+        when(categoriaRepository.findFirstByOrderByIdCategoriaAsc()).thenReturn(Optional.of(categoriaAsfalto));
+        when(categoriaRepository.findById(1L)).thenReturn(Optional.of(categoriaAsfalto));
+        when(categoriaRepository.findByNmCategoriaIgnoreCase("Buraco na via")).thenReturn(Optional.of(categoriaAsfalto));
+
+        try (var ctx = new AnnotationConfigApplicationContext()) {
+            ctx.registerBean(CategoriaRepository.class, () -> categoriaRepository);
+            ctx.register(CacheTestConfig.class, CategoriaService.class);
+            ctx.refresh();
+
+            CategoriaService proxied = ctx.getBean(CategoriaService.class);
+            List<Categoria> todas = proxied.findAll();
+            Categoria padrao = proxied.findDefault();
+            Categoria porId = proxied.findById(1L);
+            Categoria porNome = proxied.findByNameOrCreate("Buraco na via");
+
+            assertEquals(1, todas.size());
+            assertEquals(1L, padrao.getIdCategoria());
+            assertEquals(1L, porId.getIdCategoria());
+            assertEquals("Buraco na via", porNome.getNmCategoria());
+        }
+    }
+
+    @Configuration
+    @EnableCaching
+    static class CacheTestConfig {
+        @Bean
+        CacheManager cacheManager() {
+            return new ConcurrentMapCacheManager("categorias");
+        }
     }
 }

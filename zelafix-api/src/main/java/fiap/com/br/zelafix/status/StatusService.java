@@ -16,18 +16,18 @@ public class StatusService {
 
     private final StatusRepository statusRepository;
 
-    @Cacheable("status")
+    @Cacheable(value = "status", key = "'all'")
     public List<Status> findAll() {
         return statusRepository.findAll();
     }
 
-    @Cacheable("status")
+    @Cacheable(value = "status", key = "'id:' + #id")
     public Status findById(Long id) {
         return statusRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Status não encontrado com id: " + id));
     }
 
-    @Cacheable(value = "status", key = "#nome.trim().toUpperCase()")
+    @Cacheable(value = "status", key = "'nome:' + #nome.trim().toUpperCase()")
     public Status findByNameOrCreate(String nome) {
         return statusRepository.findByNmStatusIgnoreCase(nome)
                 .orElseGet(() -> statusRepository.save(new StatusRequest(nome).toEntity()));
