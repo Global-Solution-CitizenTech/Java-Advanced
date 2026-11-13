@@ -5,6 +5,5 @@ public enum StatusChamadoEnum {
     EM_ANALISE,
     EM_EXECUCAO,
     CONCLUIDO,
-    REJEITADO,
-    ABERTO
+    REJEITADO
 }

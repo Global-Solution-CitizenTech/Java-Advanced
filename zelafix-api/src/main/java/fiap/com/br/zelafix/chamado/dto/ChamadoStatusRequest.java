@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 
 public record ChamadoStatusRequest(
         @NotBlank(message = "O status é obrigatório.")
-        @EnumValidation(enumClass = StatusChamadoEnum.class, message = "Status inválido. Valores aceitos: PENDENTE, EM_ANALISE, EM_EXECUCAO, CONCLUIDO, REJEITADO, ABERTO")
+        @EnumValidation(enumClass = StatusChamadoEnum.class, message = "Status inválido. Valores aceitos: PENDENTE, EM_ANALISE, EM_EXECUCAO, CONCLUIDO, REJEITADO")
         String status,
 
         @NotBlank(message = "A observação de auditoria é obrigatória.")
