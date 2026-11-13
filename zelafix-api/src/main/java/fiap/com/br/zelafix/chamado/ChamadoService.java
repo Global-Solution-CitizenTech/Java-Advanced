@@ -158,13 +158,19 @@ public class ChamadoService {
 
     @Transactional
     public void aplicarTriagemIa(TriagemFeedbackMessage feedback) {
-        chamadoRepository.findById(feedback.idChamado())
-                .ifPresent(chamado -> chamadoRepository.save(feedback.toEntity(
-                        chamado,
-                        categoriaService.findByNameOrCreate(feedback.categoriaNome()),
-                        prioridadeService.findByNameOrCreate(feedback.prioridadeNome()),
-                        orgaoGovernoService.findByNameOrCreate(feedback.orgaoNome())
-                )));
+        chamadoRepository.findById(feedback.idChamado()).ifPresent(chamado -> {
+            Chamado atualizado = feedback.toEntity(
+                    chamado,
+                    categoriaService.findByNameOrCreate(feedback.categoriaNome()),
+                    prioridadeService.findByNameOrCreate(feedback.prioridadeNome()),
+                    orgaoGovernoService.findByNameOrCreate(feedback.orgaoNome())
+            );
+            chamadoRepository.save(atualizado);
+            histChamadoRepository.save(feedback.toEntity(
+                    atualizado,
+                    statusService.findByNameOrCreate(StatusChamadoEnum.EM_ANALISE.name())
+            ));
+        });
     }
 
     // =========================================================================
@@ -188,8 +194,9 @@ public class ChamadoService {
     public EstatisticasResponse getStatistics() {
         return EstatisticasResponse.of(
                 chamadoRepository.count(),
-                chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.PENDENTE.name()) + chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.ABERTO.name()),
-                chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.EM_ANALISE.name()) + chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.EM_EXECUCAO.name()),
+                chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.PENDENTE.name()),
+                chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.EM_ANALISE.name()) +
+                chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.EM_EXECUCAO.name()),
                 chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.CONCLUIDO.name()),
                 chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.REJEITADO.name()),
                 votoChamadoRepository.count()

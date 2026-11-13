@@ -29,38 +29,38 @@ class StatusServiceTest {
     @InjectMocks
     private StatusService statusService;
 
-    private Status statusAberto;
+    private Status statusPendente;
 
     @BeforeEach
     void setUp() {
-        statusAberto = Status.builder()
+        statusPendente = Status.builder()
                 .idStatus(1L)
-                .nmStatus("ABERTO")
+                .nmStatus("PENDENTE")
                 .build();
     }
 
     @Test
     @DisplayName("Deve listar todos os status cadastrados")
     void deveListarTodosOsStatus() {
-        when(statusRepository.findAll()).thenReturn(List.of(statusAberto));
+        when(statusRepository.findAll()).thenReturn(List.of(statusPendente));
 
         List<Status> resultado = statusService.findAll();
 
         assertEquals(1, resultado.size());
-        assertEquals("ABERTO", resultado.getFirst().getNmStatus());
+        assertEquals("PENDENTE", resultado.getFirst().getNmStatus());
         verify(statusRepository).findAll();
     }
 
     @Test
     @DisplayName("Deve buscar status por ID com sucesso")
     void deveBuscarStatusPorIdComSucesso() {
-        when(statusRepository.findById(1L)).thenReturn(Optional.of(statusAberto));
+        when(statusRepository.findById(1L)).thenReturn(Optional.of(statusPendente));
 
         Status encontrado = statusService.findById(1L);
 
         assertNotNull(encontrado);
         assertEquals(1L, encontrado.getIdStatus());
-        assertEquals("ABERTO", encontrado.getNmStatus());
+        assertEquals("PENDENTE", encontrado.getNmStatus());
     }
 
     @Test
@@ -74,12 +74,12 @@ class StatusServiceTest {
     @Test
     @DisplayName("Deve retornar status existente em findByNameOrCreate")
     void deveRetornarStatusExistenteEmFindByNameOrCreate() {
-        when(statusRepository.findByNmStatusIgnoreCase("ABERTO")).thenReturn(Optional.of(statusAberto));
+        when(statusRepository.findByNmStatusIgnoreCase("PENDENTE")).thenReturn(Optional.of(statusPendente));
 
-        Status resultado = statusService.findByNameOrCreate("ABERTO");
+        Status resultado = statusService.findByNameOrCreate("PENDENTE");
 
         assertEquals(1L, resultado.getIdStatus());
-        assertEquals("ABERTO", resultado.getNmStatus());
+        assertEquals("PENDENTE", resultado.getNmStatus());
     }
 
     @Test
@@ -111,25 +111,25 @@ class StatusServiceTest {
     @Test
     @DisplayName("Deve lançar IllegalArgumentException ao tentar criar status com nome duplicado")
     void deveLancarExcecaoAoCriarStatusComNomeDuplicado() {
-        StatusRequest req = new StatusRequest("ABERTO");
-        when(statusRepository.findByNmStatusIgnoreCase("ABERTO")).thenReturn(Optional.of(statusAberto));
+        StatusRequest req = new StatusRequest("PENDENTE");
+        when(statusRepository.findByNmStatusIgnoreCase("PENDENTE")).thenReturn(Optional.of(statusPendente));
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> statusService.create(req));
-        assertEquals("Status já cadastrado com o nome: ABERTO", ex.getMessage());
+        assertEquals("Status já cadastrado com o nome: PENDENTE", ex.getMessage());
     }
 
     @Test
     @DisplayName("Deve atualizar status com sucesso")
     void deveAtualizarStatusComSucesso() {
         StatusRequest req = new StatusRequest("FINALIZADO");
-        when(statusRepository.findById(1L)).thenReturn(Optional.of(statusAberto));
+        when(statusRepository.findById(1L)).thenReturn(Optional.of(statusPendente));
         when(statusRepository.findByNmStatusIgnoreCase("FINALIZADO")).thenReturn(Optional.empty());
-        when(statusRepository.save(any(Status.class))).thenReturn(statusAberto);
+        when(statusRepository.save(any(Status.class))).thenReturn(statusPendente);
 
         Status atualizado = statusService.update(1L, req);
 
         assertEquals("FINALIZADO", atualizado.getNmStatus());
-        verify(statusRepository).save(statusAberto);
+        verify(statusRepository).save(statusPendente);
     }
 
     @Test
@@ -138,7 +138,7 @@ class StatusServiceTest {
         Status outro = new Status(2L, "CANCELADO");
         StatusRequest req = new StatusRequest("CANCELADO");
 
-        when(statusRepository.findById(1L)).thenReturn(Optional.of(statusAberto));
+        when(statusRepository.findById(1L)).thenReturn(Optional.of(statusPendente));
         when(statusRepository.findByNmStatusIgnoreCase("CANCELADO")).thenReturn(Optional.of(outro));
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> statusService.update(1L, req));
@@ -148,10 +148,10 @@ class StatusServiceTest {
     @Test
     @DisplayName("Deve excluir status existente com sucesso")
     void deveExcluirStatusComSucesso() {
-        when(statusRepository.findById(1L)).thenReturn(Optional.of(statusAberto));
+        when(statusRepository.findById(1L)).thenReturn(Optional.of(statusPendente));
 
         statusService.delete(1L);
 
-        verify(statusRepository).delete(statusAberto);
+        verify(statusRepository).delete(statusPendente);
     }
 }

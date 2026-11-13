@@ -52,24 +52,24 @@ class StatusControllerTest {
     @Test
     @DisplayName("GET /status - Deve listar todos os status publicamente")
     void deveListarTodosOsStatus() throws Exception {
-        when(statusService.findAll()).thenReturn(List.of(new Status(1L, "ABERTO"), new Status(2L, "CONCLUIDO")));
+        when(statusService.findAll()).thenReturn(List.of(new Status(1L, "PENDENTE"), new Status(2L, "CONCLUIDO")));
 
         mockMvc.perform(get("/status"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1L))
-                .andExpect(jsonPath("$[0].nome").value("ABERTO"))
+                .andExpect(jsonPath("$[0].nome").value("PENDENTE"))
                 .andExpect(jsonPath("$[1].nome").value("CONCLUIDO"));
     }
 
     @Test
     @DisplayName("GET /status/{id} - Deve retornar status por ID")
     void deveRetornarStatusPorId() throws Exception {
-        when(statusService.findById(1L)).thenReturn(new Status(1L, "ABERTO"));
+        when(statusService.findById(1L)).thenReturn(new Status(1L, "PENDENTE"));
 
         mockMvc.perform(get("/status/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.nome").value("ABERTO"));
+                .andExpect(jsonPath("$.nome").value("PENDENTE"));
     }
 
     @Test

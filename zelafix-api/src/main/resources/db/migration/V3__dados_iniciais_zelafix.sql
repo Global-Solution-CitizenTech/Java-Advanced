@@ -107,12 +107,12 @@ BEGIN
 END;
 /
 
--- 5. HIST_CHAMADO (status: 1=PENDENTE, 3=EM_ANALISE)
+-- 5. HIST_CHAMADO (status: 1=PENDENTE, 2=EM_ANALISE)
 INSERT INTO hist_chamado (dt_mudanca, observacoes, chamado_id_chamado, usuario_id_usuario, status_id_status)
 VALUES (DATE '2026-11-10', 'Chamado registrado pelo cidadão Enzo Okuizumi via ZelaFix Mobile.', 1, 2, 1);
 
 INSERT INTO hist_chamado (dt_mudanca, observacoes, chamado_id_chamado, usuario_id_usuario, status_id_status)
-VALUES (DATE '2026-11-10', 'Triagem concluída: demanda encaminhada ao Departamento de Limpeza Urbana.', 1, 3, 3);
+VALUES (DATE '2026-11-10', 'Triagem concluída: demanda encaminhada ao Departamento de Limpeza Urbana.', 1, 3, 2);
 
 INSERT INTO hist_chamado (dt_mudanca, observacoes, chamado_id_chamado, usuario_id_usuario, status_id_status)
 VALUES (DATE '2026-11-11', 'Chamado registrado pelo cidadão Enzo Okuizumi via ZelaFix Mobile.', 2, 2, 1);
