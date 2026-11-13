@@ -126,7 +126,7 @@ status, chamados = request("GET", "/chamados", token=municipe_token)
 print(f"GET /chamados: {status} -> Total chamados: {chamados.get('totalElements') if isinstance(chamados, dict) else 'N/A'}")
 
 print("\n" + "=" * 70)
-print("7. CRIANDO NOVO CHAMADO (RABBITMQ + GROQ AI ASSÍNCRONO)")
+print("7. CRIANDO NOVO CHAMADO (RABBITMQ + AZURE AI ASSÍNCRONO)")
 print("=" * 70)
 novo_chamado = {
     "titulo": "Cratera perigosa na pista expressa",
@@ -144,7 +144,7 @@ chamado_id = chamado_criado.get("idChamado") if isinstance(chamado_criado, dict)
 print(f"POST /chamados: {status} -> ID Gerado: {chamado_id}, Status Inicial: {chamado_criado.get('status')}")
 
 if chamado_id:
-    print("\nAguardando 6 segundos para o zelafix-worker consumir do RabbitMQ e acionar o Groq LLM...")
+    print("\nAguardando 6 segundos para o zelafix-worker consumir do RabbitMQ e acionar o Azure Phi-4 Multimodal...")
     time.sleep(6)
     status, chamado_detalhe = request("GET", f"/chamados/{chamado_id}", token=municipe_token)
     print(f"GET /chamados/{chamado_id}: {status}")
