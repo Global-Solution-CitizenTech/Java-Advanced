@@ -19,7 +19,7 @@ def main():
         ("Suite 1: Autenticação, Registro e RBAC", test_auth_and_security),
         ("Suite 2: Categorias, Status e Endereços", test_categorias_enderecos_status),
         ("Suite 3: Chamados CRUD, Fotos e Auditoria", test_chamados_crud_lifecycle),
-        ("Suite 4: Worker Spring AI (Groq) e Resiliência", test_worker_ai),
+        ("Suite 4: Worker Spring AI (Azure AI Foundry) e Resiliência", test_worker_ai),
         ("Suite 5: Concorrência e Carga de Votos/Leituras", test_stress_load),
         ("Suite 6: Stress Máximo ao Limite (500 reqs concorrentes)", break_the_app)
     ]

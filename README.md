@@ -58,7 +58,7 @@ Java-Advanced/
 │
 └── zelafix-worker/                   # MICROSSERVIÇO 2: Worker Reativo Stateless
     ├── Dockerfile                    # Multi-stage build leve (sem JDBC/JPA, non-root)
-    ├── build.gradle                  # Dependências Spring AMQP e Spring AI (Groq)
+    ├── build.gradle                  # Dependências Spring AMQP e Spring AI (Azure AI Foundry)
     └── src/
         ├── main/
         │   ├── java/fiap/com/br/zelafix/worker/
@@ -110,7 +110,7 @@ O ecossistema **ZelaFix** é operado por **dois microsserviços especializados**
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │  zelafix-worker (Porta 8081) — Stateless Heavy Worker                                                  │
 │  - Consumidor assíncrono de alta vazão (RabbitMQ @RabbitListener)                                      │
-│  - Inteligência Artificial Generativa e Multimodal com Spring AI (Groq API / Qwen 3.8 27B Vision)      │
+│  - Inteligência Artificial Generativa e Multimodal com Spring AI (Azure AI Foundry / Phi-4 Multimodal) │
 │  - Detecção dinâmica de MIME type via magic bytes (ImageMimeTypeDetector)                              │
 │  - Agregador de votos em buffer volátil thread-safe (ConcurrentHashMap com flush periódico a cada 3s)  │
 │  - 100% Stateless: ZERO CONEXÃO COM BANCO DE DADOS (sem JDBC, sem JPA, sem Oracle, sem locks)          │
@@ -283,4 +283,4 @@ Contratos alinhados para retornar o objeto atualizado do chamado em operações 
 
 Em conformidade com as diretrizes do regulamento da Global Solution 2026/2:
 - **Ferramentas de IA:** Google Antigravity / Gemini 3.8 / Claude Sonnet 4.6 no apoio ao design arquitetural, estrutura Gradle Multi-Project e geração de suítes de testes automatizados.
-- **Spring AI:** O microsserviço `zelafix-worker` utiliza a biblioteca oficial `spring-ai-starter-model-openai` (Spring AI 2.0.1) consumindo o modelo de visão computacional multimodal `qwen/qwen3.8-27b` (via Groq API) para triagem técnica automatizada, classificação de urgência e parecer técnico em prol do cidadão e da gestão pública.
+- **Spring AI:** O microsserviço `zelafix-worker` utiliza a biblioteca oficial `spring-ai-starter-model-openai` (Spring AI 2.0.1) consumindo o modelo de visão computacional multimodal `phi-4-multimodal` (Phi-4 Multimodal via Azure AI Foundry) para triagem técnica automatizada, classificação de urgência e parecer técnico em prol do cidadão e da gestão pública.
