@@ -67,12 +67,11 @@ def test_auth_and_security():
     assert res.status_code == 401, f"Deveria retornar 401, retornou {res.status_code}"
     print(f" -> Sucesso! Token forjado rejeitado com 401.")
 
-    # 1.9 Permissão RBAC: Cidadão tentando criar categoria (deve retornar 403 Forbidden)
-    print("\n[1.9] Cidadão tentando POST /categorias (restrito a GESTOR/ADMIN)...")
-    res = requests.post(
-        f"{BASE_URL}/categorias",
-        headers={"Authorization": f"Bearer {cidadao_token}"},
-        json={"nome": "Categoria Proibida"}
+    # 1.9 Permissão RBAC: Cidadão tentando listar endereços (deve retornar 403 Forbidden)
+    print("\n[1.9] Cidadão tentando GET /enderecos (restrito a ADMIN)...")
+    res = requests.get(
+        f"{BASE_URL}/enderecos",
+        headers={"Authorization": f"Bearer {cidadao_token}"}
     )
     assert res.status_code == 403, f"Deveria retornar 403 Forbidden, retornou {res.status_code}: {res.text}"
     print(f" -> Sucesso! Acesso negado com 403 Forbidden.")

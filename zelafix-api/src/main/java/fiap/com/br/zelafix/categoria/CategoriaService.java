@@ -1,14 +1,9 @@
 package fiap.com.br.zelafix.categoria;
 
-import fiap.com.br.zelafix.categoria.dto.CategoriaRequest;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -16,56 +11,9 @@ public class CategoriaService {
 
     private final CategoriaRepository categoriaRepository;
 
-    @Cacheable(value = "categorias", key = "'all'")
-    public List<Categoria> findAll() {
-        return categoriaRepository.findAll();
-    }
-
-    @Cacheable(value = "categorias", key = "'id:' + #id")
-    public Categoria findById(Long id) {
-        return categoriaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada com id: " + id));
-    }
-
-    @Cacheable(value = "categorias", key = "'default'")
-    public Categoria findDefault() {
-        return categoriaRepository.findFirstByOrderByIdCategoriaAsc()
-                .orElseThrow(() -> new ResourceNotFoundException("Nenhuma categoria cadastrada no sistema."));
-    }
-
-    @Cacheable(value = "categorias", key = "'nome:' + #nome.trim().toLowerCase()")
-    public Categoria findByNameOrCreate(String nome) {
-        return categoriaRepository.findByNmCategoriaIgnoreCase(nome.trim())
-                .orElseGet(() -> categoriaRepository.save(new CategoriaRequest(nome).toEntity()));
-    }
-
-    @Transactional
-    @CacheEvict(value = "categorias", allEntries = true)
-    public Categoria create(CategoriaRequest request) {
-        String nome = request.nome().trim();
-        if (categoriaRepository.findByNmCategoriaIgnoreCase(nome).isPresent()) {
-            throw new IllegalArgumentException("Categoria já cadastrada com o nome: " + nome);
-        }
-        return categoriaRepository.save(request.toEntity());
-    }
-
-    @Transactional
-    @CacheEvict(value = "categorias", allEntries = true)
-    public Categoria update(Long id, CategoriaRequest request) {
-        Categoria categoria = findById(id);
-        String novoNome = request.nome().trim();
-        categoriaRepository.findByNmCategoriaIgnoreCase(novoNome).ifPresent(existente -> {
-            if (!existente.getIdCategoria().equals(id)) {
-                throw new IllegalArgumentException("Já existe uma categoria cadastrada com o nome: " + novoNome);
-            }
-        });
-        categoria.setNmCategoria(novoNome);
-        return categoriaRepository.save(categoria);
-    }
-
-    @Transactional
-    @CacheEvict(value = "categorias", allEntries = true)
-    public void delete(Long id) {
-        categoriaRepository.delete(findById(id));
+    @Cacheable(value = "categorias", key = "#categoria.name()")
+    public Categoria findByNome(CategoriaEnum categoria) {
+        return categoriaRepository.findByNmCategoria(categoria)
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada: " + categoria));
     }
 }

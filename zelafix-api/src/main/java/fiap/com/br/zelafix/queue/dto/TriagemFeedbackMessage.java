@@ -4,31 +4,41 @@ import fiap.com.br.zelafix.categoria.Categoria;
 import fiap.com.br.zelafix.chamado.Chamado;
 import fiap.com.br.zelafix.chamado.orgao.OrgaoGoverno;
 import fiap.com.br.zelafix.chamado.prioridade.Prioridade;
+import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.historico.HistChamado;
-import fiap.com.br.zelafix.status.Status;
+import fiap.com.br.zelafix.historico.status.Status;
+import fiap.com.br.zelafix.usuario.Usuario;
 
 import java.time.LocalDateTime;
 
 public record TriagemFeedbackMessage(
-        Long idChamado,
+        Long usuarioId,
+        Long enderecoId,
+        byte[] foto,
         String titulo,
         String descricao,
         String categoriaNome,
         String prioridadeNome,
-        String orgaoNome
+        String orgaoNome,
+        String statusNome
 ) {
-    public Chamado toEntity(Chamado base, Categoria categoria, Prioridade prioridade, OrgaoGoverno orgao) {
+    public Chamado toEntity(
+            Usuario usuario,
+            Endereco endereco,
+            Categoria categoria,
+            Prioridade prioridade,
+            OrgaoGoverno orgaoGoverno
+    ) {
         return Chamado.builder()
-                .idChamado(base.getIdChamado())
                 .titulo(titulo)
                 .descricao(descricao)
-                .foto(base.getFoto())
-                .dtAbertura(base.getDtAbertura())
-                .usuario(base.getUsuario())
-                .endereco(base.getEndereco())
+                .foto(foto)
+                .dtAbertura(LocalDateTime.now())
+                .usuario(usuario)
+                .endereco(endereco)
                 .categoria(categoria)
                 .prioridade(prioridade)
-                .orgaoGoverno(orgao)
+                .orgaoGoverno(orgaoGoverno)
                 .build();
     }
 
@@ -38,7 +48,7 @@ public record TriagemFeedbackMessage(
                 .usuario(chamado.getUsuario())
                 .status(status)
                 .dtMudanca(LocalDateTime.now())
-                .observacoes("Triagem automática por IA concluída. Prioridade: %s. Categoria: %s. Órgão: %s.".formatted(prioridadeNome(), categoriaNome(), orgaoNome()))
+                .observacoes("Triagem concluída. Prioridade: %s. Categoria: %s. Órgão: %s.".formatted(prioridadeNome(), categoriaNome(), orgaoNome()))
                 .build();
     }
 }

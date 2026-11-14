@@ -52,27 +52,14 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .headers(headers -> headers.frameOptions(FrameOptionsConfig::sameOrigin))
                 .authorizeHttpRequests(auth -> auth
-                        // Endpoints públicos de autenticação e documentação
                         .requestMatchers(HttpMethod.POST, "/login", "/usuarios").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/categorias/**", "/status/**", "/chamados/estatisticas", "/chamados/*/foto").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/chamados/*/foto").permitAll()
                         .requestMatchers("/", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/swagger-resources/**", "/webjars/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info", "/error").permitAll()
-
-                        // Endpoints do próprio perfil (/usuarios/me)
                         .requestMatchers("/usuarios/me").authenticated()
-
-                        // Gestão de status de chamados (Prefeitura e Admin)
                         .requestMatchers(HttpMethod.PATCH, "/chamados/*/status").hasAnyRole("GESTOR", "ADMIN")
-
-                        // Endpoints exclusivos de ADMIN
-                        .requestMatchers(HttpMethod.DELETE, "/chamados/**").hasRole("ADMIN")
                         .requestMatchers("/enderecos/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/categorias/**", "/status/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/categorias/**", "/status/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/categorias/**", "/status/**").hasRole("ADMIN")
                         .requestMatchers("/usuarios/**").hasRole("ADMIN")
-
-                        // Qualquer outra requisição exige autenticação JWT
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)))

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.AmqpException;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -196,6 +197,14 @@ public class GlobalExceptionHandler {
             NoResourceFoundException exception, HttpServletRequest request) {
         log.warn("Recurso estático ou rota não encontrada: {}", request.getRequestURI());
         return error(HttpStatus.NOT_FOUND, "Recurso não encontrado.", request);
+    }
+
+    @ExceptionHandler(AmqpException.class)
+    public ResponseEntity<ApiErrorResponse> handleAmqpException(
+            AmqpException exception, HttpServletRequest request) {
+        log.error("Falha na fila de mensageria RabbitMQ: {}", exception.getMessage());
+        return error(HttpStatus.SERVICE_UNAVAILABLE,
+                "Serviço de fila de triagem temporariamente indisponível. Tente novamente em instantes.", request);
     }
 
     @ExceptionHandler(RestClientException.class)

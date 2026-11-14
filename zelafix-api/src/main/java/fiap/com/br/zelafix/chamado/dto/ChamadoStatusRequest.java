@@ -2,8 +2,8 @@ package fiap.com.br.zelafix.chamado.dto;
 
 import fiap.com.br.zelafix.chamado.Chamado;
 import fiap.com.br.zelafix.historico.HistChamado;
-import fiap.com.br.zelafix.status.Status;
-import fiap.com.br.zelafix.status.StatusChamadoEnum;
+import fiap.com.br.zelafix.historico.status.Status;
+import fiap.com.br.zelafix.historico.status.StatusChamadoEnum;
 import fiap.com.br.zelafix.usuario.Usuario;
 import fiap.com.br.zelafix.validation.EnumValidation;
 import jakarta.validation.constraints.NotBlank;

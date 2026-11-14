@@ -55,10 +55,13 @@ public class ChamadoController {
             @RequestParam(required = false) String categoria,
             @RequestParam(required = false) String busca,
             @RequestParam(required = false) Boolean apenasMeus,
+            @RequestParam(required = false) String cidade,
+            @RequestParam(required = false) String bairro,
+            @RequestParam(required = false) String estado,
             @AuthenticationPrincipal Jwt jwt,
             @PageableDefault(size = 20, sort = "dtAbertura", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return chamadoService.findAll(status, categoria, busca, apenasMeus, jwt.getSubject(), pageable);
+        return chamadoService.findAll(status, categoria, busca, apenasMeus, cidade, bairro, estado, jwt.getSubject(), pageable);
     }
 
     @GetMapping("/{id}")
@@ -79,13 +82,13 @@ public class ChamadoController {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Abrir novo chamado com payload JSON (foto em base64 e endereço; análise feita pela IA)")
-    public ChamadoResponse create(
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @Operation(summary = "Solicitar abertura de chamado com payload JSON (foto em base64 e endereço; criação concluída após análise da IA)")
+    public void create(
             @RequestBody @Valid ChamadoCreateRequest request,
             @AuthenticationPrincipal Jwt jwt
     ) {
-        return chamadoService.create(
+        chamadoService.create(
                 request.endereco(),
                 Base64.getDecoder().decode(request.fotoBase64().trim()),
                 jwt.getSubject()
@@ -93,14 +96,14 @@ public class ChamadoController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Abrir novo chamado enviando foto via MultipartFile (armazenada em BLOB)")
-    public ChamadoResponse createWithMultipart(
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @Operation(summary = "Solicitar abertura de chamado enviando foto via MultipartFile (criação concluída após análise da IA)")
+    public void createWithMultipart(
             @RequestPart("dados") @Valid EnderecoRequest endereco,
             @RequestPart("foto") MultipartFile foto,
             @AuthenticationPrincipal Jwt jwt
     ) throws IOException {
-        return chamadoService.create(endereco, foto.getBytes(), jwt.getSubject());
+        chamadoService.create(endereco, foto.getBytes(), jwt.getSubject());
     }
 
     @PutMapping("/{id}")
@@ -131,10 +134,9 @@ public class ChamadoController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "[ADMIN] Excluir um chamado")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        chamadoService.delete(id);
+    @Operation(summary = "[AUTOR / ADMIN] Excluir um chamado")
+    public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
+        chamadoService.delete(id, jwt.getSubject());
         return ResponseEntity.noContent().build();
     }
 

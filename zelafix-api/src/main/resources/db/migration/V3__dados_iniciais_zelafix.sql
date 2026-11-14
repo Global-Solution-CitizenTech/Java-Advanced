@@ -118,7 +118,13 @@ INSERT INTO hist_chamado (dt_mudanca, observacoes, chamado_id_chamado, usuario_i
 VALUES (DATE '2026-11-11', 'Chamado registrado pelo cidadão Enzo Okuizumi via ZelaFix Mobile.', 2, 2, 1);
 
 INSERT INTO hist_chamado (dt_mudanca, observacoes, chamado_id_chamado, usuario_id_usuario, status_id_status)
+VALUES (DATE '2026-11-11', 'Triagem automática por IA concluída. Prioridade: URGENTE. Categoria: Drenagem e Esgoto. Órgão: Companhia de Saneamento Básico e Drenagem.', 2, 2, 2);
+
+INSERT INTO hist_chamado (dt_mudanca, observacoes, chamado_id_chamado, usuario_id_usuario, status_id_status)
 VALUES (DATE '2026-11-12', 'Chamado registrado pelo cidadão Enzo Okuizumi via ZelaFix Mobile.', 3, 2, 1);
+
+INSERT INTO hist_chamado (dt_mudanca, observacoes, chamado_id_chamado, usuario_id_usuario, status_id_status)
+VALUES (DATE '2026-11-12', 'Triagem automática por IA concluída. Prioridade: ALTA. Categoria: Vias e Pavimentação. Órgão: Secretaria Municipal de Infraestrutura Urbana e Obras.', 3, 2, 2);
 
 -- 6. VOTO_CHAMADO
 INSERT INTO voto_chamado (dt_voto, chamado_id_chamado, usuario_id_usuario) VALUES (DATE '2026-11-10', 1, 2);

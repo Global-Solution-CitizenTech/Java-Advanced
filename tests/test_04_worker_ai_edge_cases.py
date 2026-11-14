@@ -47,15 +47,12 @@ def test_worker_ai():
             "fotoBase64": foto_b64,
         }
         res = requests.post(f"{BASE_URL}/chamados", headers=headers, json=payload, timeout=30)
-        assert res.status_code == 201, f"Falha ao criar chamado: {res.status_code} - {res.text}"
-        body = res.json()
-        cid = body["idChamado"]
-        assert body["prioridadeNome"] == "PENDENTE", f"Prioridade inicial incorreta: {body['prioridadeNome']}"
-        chamados_criados.append((cid, caso))
-        print(f" -> Chamado ID {cid} criado com estado inicial PENDENTE e publicado no RabbitMQ.")
+        assert res.status_code == 202, f"Falha ao criar chamado: {res.status_code} - {res.text}"
+        chamados_criados.append((caso["numero"], caso))
+        print(f" -> Solicitação para número {caso['numero']} aceita (202 Accepted) e publicada no RabbitMQ.")
 
     print(f"\nTodos os {len(chamados_criados)} chamados foram despachados!")
-    print("Aguardando processamento do Worker com Spring AI e atualização direta no chamado...")
+    print("Aguardando processamento do Worker com Spring AI e persistência no banco...")
 
     timeout_max = 90
     start_wait = time.time()
@@ -64,16 +61,16 @@ def test_worker_ai():
 
     while chamados_pendentes and (time.time() - start_wait) < timeout_max:
         time.sleep(3)
-        for cid in list(chamados_pendentes.keys()):
-            res = requests.get(f"{BASE_URL}/chamados/{cid}", headers=headers, timeout=15)
-            if res.status_code == 200:
-                dados = res.json()
-                if dados.get("prioridadeNome") != "PENDENTE" and dados.get("orgaoNome") != "Em análise pela IA":
-                    triagens_concluidas[cid] = dados
-                    del chamados_pendentes[cid]
+        res = requests.get(f"{BASE_URL}/chamados?apenasMeus=true&size=20&sort=dtAbertura,desc", headers=headers, timeout=15)
+        if res.status_code == 200:
+            for dados in res.json().get("content", []):
+                num = dados.get("endereco", {}).get("numero")
+                if num in chamados_pendentes:
+                    triagens_concluidas[num] = dados
+                    del chamados_pendentes[num]
                     print(
-                        f" -> Chamado ID {cid} concluído em {time.time() - start_wait:.1f}s: "
-                        f"[{dados['prioridadeNome']}] {dados['categoriaNome']} | {dados['orgaoNome']} -> {dados['titulo']}"
+                        f" -> Chamado ID {dados['idChamado']} persistido em {time.time() - start_wait:.1f}s: "
+                        f"[{dados['status']} | {dados['prioridadeNome']}] {dados['categoriaNome']} | {dados['orgaoNome']} -> {dados['titulo']}"
                     )
 
     sucessos = len(triagens_concluidas)

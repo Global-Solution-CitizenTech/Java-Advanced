@@ -36,8 +36,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.springframework.security.access.AccessDeniedException;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -120,7 +122,7 @@ class ChamadoControllerTest {
         ChamadoResponse resp = criarMockResponse(1L, "Buraco na rua", "Cratera profunda na via");
         Page<ChamadoResponse> page = new PageImpl<>(List.of(resp), PageRequest.of(0, 10), 1);
 
-        when(chamadoService.findAll(eq("PENDENTE"), eq("PAVIMENTACAO"), eq("buraco"), eq(true), eq("cidadao@zelafix.com"), any(Pageable.class)))
+        when(chamadoService.findAll(eq("PENDENTE"), eq("PAVIMENTACAO"), eq("buraco"), eq(true), eq(null), eq(null), eq(null), eq("cidadao@zelafix.com"), any(Pageable.class)))
                 .thenReturn(page);
 
         mockMvc.perform(get("/chamados")
@@ -190,7 +192,7 @@ class ChamadoControllerTest {
     }
 
     @Test
-    @DisplayName("POST /chamados (multipart) - Deve receber imagem da ocorrência e endereço criando o chamado com status 201")
+    @DisplayName("POST /chamados (multipart) - Deve receber imagem da ocorrência e endereço encaminhando para triagem com status 202")
     void deveCriarChamadoViaMultipartComFoto() throws Exception {
         byte[] fotoBytes = carregarImagemRuaEsburacada();
         EnderecoRequest enderecoReq = new EnderecoRequest("01001-000", "100", "Em frente ao mercado", "Rua das Flores");
@@ -209,22 +211,17 @@ class ChamadoControllerTest {
                 objectMapper.writeValueAsBytes(enderecoReq)
         );
 
-        ChamadoResponse responseMock = criarMockResponse(10L, "Ocorrência em análise pela IA", "Aguardando análise técnica automática da imagem enviada...");
-        when(chamadoService.create(any(EnderecoRequest.class), any(byte[].class), anyString())).thenReturn(responseMock);
+        doNothing().when(chamadoService).create(any(EnderecoRequest.class), any(byte[].class), anyString());
 
         mockMvc.perform(multipart("/chamados")
                         .file(fotoPart)
                         .file(dadosPart)
                         .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("cidadao@zelafix.com"))))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.idChamado").value(10L))
-                .andExpect(jsonPath("$.titulo").value("Ocorrência em análise pela IA"))
-                .andExpect(jsonPath("$.categoriaNome").value("PAVIMENTACAO"))
-                .andExpect(jsonPath("$.foto").value("/chamados/10/foto"));
+                .andExpect(status().isAccepted());
     }
 
     @Test
-    @DisplayName("POST /chamados (json base64) - Deve receber chamado com foto em Base64 e endereço retornando 201 Created")
+    @DisplayName("POST /chamados (json base64) - Deve receber chamado com foto em Base64 e endereço retornando 202 Accepted")
     void deveCriarChamadoViaJsonComFotoBase64() throws Exception {
         byte[] fotoBytes = carregarImagemRuaEsburacada();
         String fotoBase64 = Base64.getEncoder().encodeToString(fotoBytes);
@@ -232,18 +229,13 @@ class ChamadoControllerTest {
         EnderecoRequest enderecoReq = new EnderecoRequest("01001-000", "100", "Em frente ao mercado", "Rua das Flores");
         ChamadoCreateRequest chamadoReq = new ChamadoCreateRequest(enderecoReq, fotoBase64);
 
-        ChamadoResponse responseMock = criarMockResponse(11L, "Ocorrência em análise pela IA", "Aguardando análise técnica automática da imagem enviada...");
-        when(chamadoService.create(any(EnderecoRequest.class), any(byte[].class), anyString())).thenReturn(responseMock);
+        doNothing().when(chamadoService).create(any(EnderecoRequest.class), any(byte[].class), anyString());
 
         mockMvc.perform(post("/chamados")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(chamadoReq))
                         .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("cidadao@zelafix.com"))))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.idChamado").value(11L))
-                .andExpect(jsonPath("$.titulo").value("Ocorrência em análise pela IA"))
-                .andExpect(jsonPath("$.categoriaNome").value("PAVIMENTACAO"))
-                .andExpect(jsonPath("$.foto").value("/chamados/11/foto"));
+                .andExpect(status().isAccepted());
     }
 
     @Test
@@ -253,7 +245,7 @@ class ChamadoControllerTest {
         ChamadoRequest chamadoReq = new ChamadoRequest(
                 "Buraco concertado parcialmente",
                 "Asfalto ainda apresenta desnível",
-                1L,
+                "VIAS_E_PAVIMENTACAO",
                 enderecoReq
         );
 
@@ -337,9 +329,9 @@ class ChamadoControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /chamados/{id} - Deve excluir chamado com retorno 204 No Content quando usuário for ADMIN")
+    @DisplayName("DELETE /chamados/{id} - Deve excluir chamado com retorno 204 No Content quando usuário for AUTOR ou ADMIN")
     void deveExcluirChamadoComAdmin() throws Exception {
-        doNothing().when(chamadoService).delete(1L);
+        doNothing().when(chamadoService).delete(1L, "admin@zelafix.com");
 
         mockMvc.perform(delete("/chamados/1")
                         .with(SecurityMockMvcRequestPostProcessors.jwt()
@@ -347,12 +339,15 @@ class ChamadoControllerTest {
                                 .jwt(jwt -> jwt.subject("admin@zelafix.com").claim("role", "ADMIN"))))
                 .andExpect(status().isNoContent());
 
-        verify(chamadoService).delete(1L);
+        verify(chamadoService).delete(1L, "admin@zelafix.com");
     }
 
     @Test
-    @DisplayName("DELETE /chamados/{id} - Deve retornar 403 Forbidden quando usuário for GESTOR")
+    @DisplayName("DELETE /chamados/{id} - Deve retornar 403 Forbidden quando usuário não for o autor nem ADMIN")
     void deveBloquearExclusaoChamadoParaGestor() throws Exception {
+        doThrow(new AccessDeniedException("Apenas o autor do chamado ou um administrador pode excluí-lo."))
+                .when(chamadoService).delete(1L, "gestor@zelafix.com");
+
         mockMvc.perform(delete("/chamados/1")
                         .with(SecurityMockMvcRequestPostProcessors.jwt()
                                 .authorities(new SimpleGrantedAuthority("ROLE_GESTOR"))
@@ -366,7 +361,8 @@ class ChamadoControllerTest {
         EstatisticasResponse stats = EstatisticasResponse.of(15L, 5L, 4L, 5L, 1L, 30L);
         when(chamadoService.getStatistics()).thenReturn(stats);
 
-        mockMvc.perform(get("/chamados/estatisticas"))
+        mockMvc.perform(get("/chamados/estatisticas")
+                        .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("cidadao@zelafix.com"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total").value(15L))
                 .andExpect(jsonPath("$.abertos").value(5L))
