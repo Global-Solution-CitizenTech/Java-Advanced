@@ -20,6 +20,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,6 +42,7 @@ class ChamadoAiConsumerTest {
         ChamadoTriagemMessage message = new ChamadoTriagemMessage(1L, 10L, "Pinheiros", fotoBytes);
 
         TriagemIaResult resultado = new TriagemIaResult(
+                true,
                 "Cratera perigosa na via",
                 "Buraco profundo no pavimento asfáltico oferecendo risco aos motoristas.",
                 CategoriaSugerida.VIAS_E_PAVIMENTACAO,
@@ -63,6 +65,29 @@ class ChamadoAiConsumerTest {
         assertEquals("VIAS_E_PAVIMENTACAO", captor.getValue().categoriaNome());
         assertEquals("ALTA", captor.getValue().prioridadeNome());
         assertEquals("SECRETARIA_OBRAS", captor.getValue().orgaoNome());
+    }
+
+    @Test
+    @DisplayName("Deve recusar e descartar chamado sem publicar na fila quando a imagem for inválida")
+    void deveRecusarChamadoQuandoImagemInvalida() {
+        byte[] fotoBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
+        ChamadoTriagemMessage message = new ChamadoTriagemMessage(1L, 10L, "Pinheiros", fotoBytes);
+
+        TriagemIaResult resultadoInvalido = new TriagemIaResult(
+                false,
+                "Imagem fora do escopo de zeladoria urbana",
+                "A imagem enviada é uma captura de tela de jogo e não retrata um problema urbano.",
+                CategoriaSugerida.LIMPEZA_URBANA,
+                PrioridadeChamado.BAIXA,
+                DepartamentoGoverno.SUBPREFEITURA
+        );
+
+        when(aiService.analisarChamado("Pinheiros", fotoBytes)).thenReturn(resultadoInvalido);
+
+        consumer.processarTriagem(message);
+
+        verify(aiService).analisarChamado("Pinheiros", fotoBytes);
+        verifyNoInteractions(rabbitTemplate);
     }
 
     @Test
