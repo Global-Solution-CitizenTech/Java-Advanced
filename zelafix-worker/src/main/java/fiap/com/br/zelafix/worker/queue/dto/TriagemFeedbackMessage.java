@@ -56,7 +56,7 @@ public record TriagemFeedbackMessage(
                 origem.usuarioId(),
                 origem.enderecoId(),
                 origem.foto(),
-                "Ocorrência registrada em " + origem.bairro(),
+                TriagemIaResult.truncarUtf8("Ocorrência registrada em " + origem.bairro(), TriagemIaResult.MAX_TITULO_BYTES),
                 "Chamado registrado em modo de contingência. Aguardando triagem manual.",
                 CategoriaSugerida.VIAS_E_PAVIMENTACAO.name(),
                 PrioridadeChamado.MEDIA.name(),

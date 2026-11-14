@@ -17,7 +17,7 @@ import java.util.function.Consumer;
 @Component
 public class TriagemPendenteStore {
 
-    private static final long TRIAGEM_TIMEOUT_MS = 30_000L;
+    private static final long TRIAGEM_TIMEOUT_MS = 60_000L;
 
     private final Map<String, DeferredResult<ChamadoResponse>> pendentes = new ConcurrentHashMap<>();
 

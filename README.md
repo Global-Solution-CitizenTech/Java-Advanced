@@ -223,7 +223,7 @@ O banco de dados Oracle é inicializado automaticamente com usuários de teste v
 | **Cidadão** | Enzo Okuizumi | `enzo.okuizumi@gmail.com` | `123mudar` | Criar ocorrências com foto + endereço, apoiar com votos, editar próprios dados e consultar histórico. |
 | **Gestor Público** | Eng. Roberto Santos | `roberto.gestor@subprefeitura.sp.gov.br` | `Senha#123` | Agente público: atualizar status dos chamados (`PENDENTE`, `EM_ANALISE`, `EM_EXECUCAO`, `CONCLUIDO`, `REJEITADO`). |
 | **Gestor Público** | Coordenador Lucas Mendes | `lucas.zeladoria@subprefeitura.sp.gov.br` | `Senha#123` | Agente público: acompanhar triagens, atualizar status e registrar observações técnicas. |
-| **Administrador Geral** | Administrador Geral | `admin@zelafix.com.br` | Configurada via `${ADMIN_BCRYPT_HASH}` (`123mudar` em `.env.example`) | Acesso irrestrito: CRUD de usuários, chamados, categorias, status, endereços e alteração de perfis. |
+| **Administrador Geral** | Administrador Geral | `admin@zelafix.com.br` | `123mudar` | Acesso irrestrito: CRUD de usuários, chamados, categorias, status, endereços e alteração de perfis. |
 
 ---
 
