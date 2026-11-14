@@ -6,6 +6,8 @@ import org.springframework.util.MimeType;
 import org.springframework.util.MimeTypeUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ImageMimeTypeDetectorTest {
 
@@ -51,5 +53,16 @@ class ImageMimeTypeDetectorTest {
     void deveRetornarFallbackParaJpeg() {
         assertEquals(MimeTypeUtils.IMAGE_JPEG, ImageMimeTypeDetector.detectar(null));
         assertEquals(MimeTypeUtils.IMAGE_JPEG, ImageMimeTypeDetector.detectar(new byte[]{0, 1}));
+    }
+
+    @Test
+    @DisplayName("Deve validar se os bytes correspondem a uma imagem suportada")
+    void deveValidarSeBytesSaoImagemSuportada() {
+        assertTrue(ImageMimeTypeDetector.isImagemSuportada(new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0}));
+        assertTrue(ImageMimeTypeDetector.isImagemSuportada(new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}));
+        assertTrue(ImageMimeTypeDetector.isImagemSuportada(new byte[]{'G', 'I', 'F', '8', '9', 'a'}));
+        assertFalse(ImageMimeTypeDetector.isImagemSuportada(null));
+        assertFalse(ImageMimeTypeDetector.isImagemSuportada(new byte[0]));
+        assertFalse(ImageMimeTypeDetector.isImagemSuportada(new byte[]{0, 1, 2, 3}));
     }
 }

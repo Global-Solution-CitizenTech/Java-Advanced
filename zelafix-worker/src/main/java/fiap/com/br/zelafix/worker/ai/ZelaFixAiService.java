@@ -5,17 +5,19 @@ import fiap.com.br.zelafix.worker.ai.util.ImageMimeTypeDetector;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MimeType;
 
 /**
  * Serviço de Inteligência Artificial Generativa e Multimodal com Spring AI.
  *
- * Implementado no padrão idiomático das aulas da FIAP:
- * - Injeção direta de ChatClient.Builder sem verificações defensivas de null.
- * - defaultSystem centralizado e SimpleLoggerAdvisor para rastreamento de prompts.
- * - Suporte a visão multimodal via MimeTypeUtils e ByteArrayResource.
- * - Structured Output com desserialização automática em BeanOutputConverter (.entity()).
+ * Recursos utilizados:
+ * - Injeção idiomática de {@link ChatClient.Builder} com {@link SimpleLoggerAdvisor}.
+ * - Tool Calling declarativo ({@link TriagemNormativaTools}) para normas municipais e SLA.
+ * - Visão multimodal com detecção de MIME type e prompt parametrizado.
+ * - Structured Output validado com {@code EntityParamSpec::validateSchema} e limite UTF-8 Oracle.
+ * - Resiliência com {@link Retryable} (backoff exponencial + jitter).
  */
 @Service
 public class ZelaFixAiService {
@@ -30,41 +32,45 @@ public class ZelaFixAiService {
             1. VALIDAÇÃO DE ESCOPO (ocorrenciaValida):
                - Defina ocorrenciaValida = true SOMENTE se a imagem for uma fotografia real de espaço público urbano (rua, avenida, calçada, praça, ciclovia, poste, bueiro, árvore em via pública ou semáforo) apresentando um problema visível de manutenção ou zeladoria.
                - Defina ocorrenciaValida = false se a imagem for captura de tela (print de celular, PC ou jogo), meme, anime, desenho/ilustração, selfie, pessoa, animal doméstico, prato de comida, objeto pessoal, ambiente interno residencial/comercial ou paisagem sem nenhum problema urbano. Quando for false, preencha o título como "Imagem fora do escopo de zeladoria urbana" e explique na descrição o que foi identificado na imagem.
-            2. LINGUAGEM E ESTILO EM PORTUGUÊS DO BRASIL (pt-BR):
+            2. CONSULTA DE NORMAS E SLA (TOOL CALLING):
+               - Quando ocorrenciaValida = true, utilize consultarNormaMunicipal para confirmar decreto e órgão competente da categoria e calcularPrazoSla para obter o prazo limite da prioridade.
+               - Quando ocorrenciaValida = false, NÃO chame nenhuma ferramenta e responda diretamente.
+            3. LINGUAGEM E ESTILO EM PORTUGUÊS DO BRASIL (pt-BR):
                - Escreva EXCLUSIVAMENTE em português do Brasil claro, natural e gramaticalmente correto.
                - É PROIBIDO usar palavras em inglês (como "distresses", "streak", "damage", "road"), palavras inventadas (como "descolhimento" ou "explência") ou traduções literais truncadas.
                - Não chame ruas ou calçadas comuns de "viaduto" ou "estrada"; utilize termos urbanos corretos: "rua", "via pública", "pista", "calçada", "passeio", "meio-fio", "sarjeta", "faixa de pedestres", "bueiro", "boca de lobo" ou "asfalto".
-            3. TÍTULO (titulo):
+            4. TÍTULO (titulo):
                - Deve ter entre 20 e 60 caracteres (MÁXIMO ABSOLUTO de 70 caracteres, pois caracteres acentuados ocupam 2 bytes na coluna VARCHAR2(100 BYTE) do Oracle).
                - Use formato normal de frase (apenas a inicial maiúscula; NUNCA escreva tudo em MAIÚSCULAS / CAPS LOCK).
                - Exemplos de bons títulos: "Buraco profundo no asfalto próximo ao meio-fio", "Calçada quebrada junto à faixa de pedestres", "Acúmulo de lixo e entulho na calçada", "Alagamento na rua por bueiro entupido".
-            4. DESCRIÇÃO (descricao):
+            5. DESCRIÇÃO (descricao):
                - Texto direto em 2 ou 3 frases curtas, tendo entre 80 e 550 caracteres (MÁXIMO ABSOLUTO de 600 caracteres, respeitando com folga o limite de bytes UTF-8 da coluna VARCHAR2(1000 BYTE) do Oracle).
                - Descreva: o problema visível na foto, o risco para pedestres ou motoristas e o serviço municipal necessário (ex.: operação tapa-buraco, reparo de calçada, limpeza urbana, desobstrução de drenagem).
-            5. CLASSIFICAÇÃO EXATA DOS ENUMS:
+            6. CLASSIFICAÇÃO EXATA DOS ENUMS:
                - categoriaSugerida: ILUMINACAO_PUBLICA, VIAS_E_PAVIMENTACAO, DRENAGEM_E_ESGOTO, LIMPEZA_URBANA, ARVORES_E_PARQUES ou SINALIZACAO_E_TRANSITO.
                - prioridade: BAIXA, MEDIA, ALTA ou URGENTE.
                - orgaoResponsavel: SECRETARIA_OBRAS (buracos, asfalto, calçadas), CET_TRANSITO (semáforos, placas, faixas de pedestres), ILUMINACAO_PUBLICA (postes e luminárias), DEFESA_CIVIL (desabamentos, risco estrutural grave), SUBPREFEITURA (limpeza urbana, coleta de lixo, entulho, poda de árvores e praças) ou SANEAMENTO_BASICO (bueiros, drenagem, alagamentos e esgoto).
             """;
 
-    public ZelaFixAiService(ChatClient.Builder builder) {
+    public ZelaFixAiService(ChatClient.Builder builder, TriagemNormativaTools triagemTools) {
         this.chatClient = builder
                 .defaultSystem(SYSTEM_PROMPT)
+                .defaultTools(triagemTools)
                 .defaultAdvisors(new SimpleLoggerAdvisor())
                 .build();
     }
 
+    @Retryable(maxRetries = 2, delay = 500, jitter = 150, multiplier = 2, maxDelay = 2_000)
     public TriagemIaResult analisarChamado(String bairro, byte[] fotoBytes) {
-        String userPrompt = "Analise a foto desta ocorrência urbana registrada no bairro %s e gere os dados completos do chamado."
-                .formatted(bairro);
-
         return chatClient.prompt()
                 .user(u -> {
-                    u.text(userPrompt);
+                    u.text("Analise a foto desta ocorrência urbana registrada no bairro {bairro} e gere os dados completos do chamado.");
+                    u.param("bairro", bairro);
                     MimeType mimeType = ImageMimeTypeDetector.detectar(fotoBytes);
                     u.media(mimeType, new ByteArrayResource(fotoBytes));
                 })
                 .call()
-                .entity(TriagemIaResult.class);
+                .entity(TriagemIaResult.class, ChatClient.EntityParamSpec::validateSchema)
+                .comLimitesOracle();
     }
 }

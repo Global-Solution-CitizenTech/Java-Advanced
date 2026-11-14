@@ -120,7 +120,7 @@ class RabbitWorkerConfigTest {
         JacksonJsonMessageConverter converter = (JacksonJsonMessageConverter) rabbitConfig.jsonMessageConverter();
 
         byte[] fotoBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
-        ChamadoTriagemMessage original = new ChamadoTriagemMessage(1L, 999L, "Pinheiros", fotoBytes);
+        ChamadoTriagemMessage original = new ChamadoTriagemMessage("corr-1", 1L, 999L, "Pinheiros", fotoBytes);
 
         Message message = converter.toMessage(original, new MessageProperties());
         assertNotNull(message);
@@ -132,6 +132,7 @@ class RabbitWorkerConfigTest {
         assertInstanceOf(ChamadoTriagemMessage.class, result);
 
         ChamadoTriagemMessage deserialized = (ChamadoTriagemMessage) result;
+        assertEquals(original.correlationId(), deserialized.correlationId());
         assertEquals(original.usuarioId(), deserialized.usuarioId());
         assertEquals(original.enderecoId(), deserialized.enderecoId());
         assertEquals(original.bairro(), deserialized.bairro());

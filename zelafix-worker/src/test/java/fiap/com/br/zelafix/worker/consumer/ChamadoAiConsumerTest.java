@@ -40,7 +40,7 @@ class ChamadoAiConsumerTest {
     @DisplayName("Deve processar triagem multimodal assíncrona enviando os dados e a foto para o Spring AI")
     void deveProcessarTriagem() {
         byte[] fotoBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
-        ChamadoTriagemMessage message = new ChamadoTriagemMessage(1L, 10L, "Pinheiros", fotoBytes);
+        ChamadoTriagemMessage message = new ChamadoTriagemMessage("corr-1", 1L, 10L, "Pinheiros", fotoBytes);
 
         TriagemIaResult resultado = new TriagemIaResult(
                 true,
@@ -62,6 +62,7 @@ class ChamadoAiConsumerTest {
                 eq(RabbitWorkerConfig.ROUTING_KEY_CHAMADO_TRIAGEM_CONCLUIDA),
                 captor.capture()
         );
+        assertEquals("corr-1", captor.getValue().correlationId());
         assertFalse(captor.getValue().recusado());
         assertEquals("EM_ANALISE", captor.getValue().statusNome());
         assertEquals("VIAS_E_PAVIMENTACAO", captor.getValue().categoriaNome());
@@ -73,7 +74,7 @@ class ChamadoAiConsumerTest {
     @DisplayName("Deve publicar feedback de recusa na fila de retorno quando a imagem for inválida")
     void deveRecusarChamadoQuandoImagemInvalida() {
         byte[] fotoBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
-        ChamadoTriagemMessage message = new ChamadoTriagemMessage(1L, 10L, "Pinheiros", fotoBytes);
+        ChamadoTriagemMessage message = new ChamadoTriagemMessage("corr-2", 1L, 10L, "Pinheiros", fotoBytes);
 
         TriagemIaResult resultadoInvalido = new TriagemIaResult(
                 false,
@@ -94,6 +95,7 @@ class ChamadoAiConsumerTest {
                 eq(RabbitWorkerConfig.ROUTING_KEY_CHAMADO_TRIAGEM_CONCLUIDA),
                 captor.capture()
         );
+        assertEquals("corr-2", captor.getValue().correlationId());
         assertTrue(captor.getValue().recusado());
         assertEquals(1L, captor.getValue().usuarioId());
         assertEquals("A imagem enviada é uma captura de tela de jogo e não retrata um problema urbano.", captor.getValue().descricao());
@@ -103,7 +105,7 @@ class ChamadoAiConsumerTest {
     @DisplayName("Deve publicar feedback de contingência com status PENDENTE quando a IA falhar")
     void deveAplicarContingenciaQuandoIaFalhar() {
         byte[] fotoBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
-        ChamadoTriagemMessage message = new ChamadoTriagemMessage(1L, 10L, "Pinheiros", fotoBytes);
+        ChamadoTriagemMessage message = new ChamadoTriagemMessage("corr-3", 1L, 10L, "Pinheiros", fotoBytes);
 
         when(aiService.analisarChamado("Pinheiros", fotoBytes)).thenThrow(new RuntimeException("Azure timeout"));
 
@@ -115,6 +117,7 @@ class ChamadoAiConsumerTest {
                 eq(RabbitWorkerConfig.ROUTING_KEY_CHAMADO_TRIAGEM_CONCLUIDA),
                 captor.capture()
         );
+        assertEquals("corr-3", captor.getValue().correlationId());
         assertEquals("PENDENTE", captor.getValue().statusNome());
         assertEquals("VIAS_E_PAVIMENTACAO", captor.getValue().categoriaNome());
         assertEquals("MEDIA", captor.getValue().prioridadeNome());

@@ -8,6 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.MessageSourceResolvable;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpInputMessage;
@@ -16,16 +17,23 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.io.ByteArrayInputStream;
@@ -40,6 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -148,6 +157,19 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("Deve tratar InsufficientAuthenticationException retornando 401 de token")
+    void deveTratarAuthenticationExceptionParaTokenAusente() {
+        InsufficientAuthenticationException ex = new InsufficientAuthenticationException("Full authentication is required");
+
+        ResponseEntity<GlobalExceptionHandler.ApiErrorResponse> response =
+                exceptionHandler.handleAuthentication(ex, request);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertEquals(401, response.getBody().status());
+        assertEquals("Token de autenticação ausente, inválido ou expirado.", response.getBody().message());
+    }
+
+    @Test
     @DisplayName("Deve tratar AccessDeniedException e retornar 403")
     void deveTratarAccessDeniedException() {
         AccessDeniedException ex = new AccessDeniedException("Access denied");
@@ -157,6 +179,20 @@ class GlobalExceptionHandlerTest {
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
         assertEquals(403, response.getBody().status());
+        assertEquals("Você não possui permissão para acessar este recurso.", response.getBody().message());
+    }
+
+    @Test
+    @DisplayName("Deve preservar mensagem de domínio na AccessDeniedException quando informada")
+    void devePreservarMensagemCustomizadaNaAccessDeniedException() {
+        AccessDeniedException ex = new AccessDeniedException("Apenas o autor do chamado ou um administrador pode excluí-lo.");
+
+        ResponseEntity<GlobalExceptionHandler.ApiErrorResponse> response =
+                exceptionHandler.handleAccessDenied(ex, request);
+
+        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        assertEquals(403, response.getBody().status());
+        assertEquals("Apenas o autor do chamado ou um administrador pode excluí-lo.", response.getBody().message());
     }
 
     @Test
@@ -349,5 +385,76 @@ class GlobalExceptionHandlerTest {
                 exceptionHandler.handleGenericException(ex, request);
 
         assertNull(response);
+    }
+
+    @Test
+    @DisplayName("Deve tratar RestClientException retornando 503 Service Unavailable para ViaCEP")
+    void deveTratarRestClientExceptionCom503ViaCep() {
+        RestClientException ex = new RestClientException("Connection timed out");
+
+        ResponseEntity<GlobalExceptionHandler.ApiErrorResponse> response =
+                exceptionHandler.handleRestClientException(ex, request);
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
+        assertEquals(503, response.getBody().status());
+        assertTrue(response.getBody().message().contains("CEP"));
+    }
+
+    @Test
+    @DisplayName("Deve tratar HandlerMethodValidationException retornando 400 Bad Request")
+    void deveTratarHandlerMethodValidationException() {
+        MessageSourceResolvable erro = mock(MessageSourceResolvable.class);
+        when(erro.getDefaultMessage()).thenReturn("Parâmetro inválido");
+        HandlerMethodValidationException ex = mock(HandlerMethodValidationException.class);
+        doReturn(List.of(erro)).when(ex).getAllErrors();
+
+        ResponseEntity<GlobalExceptionHandler.ApiErrorResponse> response =
+                exceptionHandler.handleHandlerMethodValidation(ex, request);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals(400, response.getBody().status());
+        assertEquals("Parâmetro inválido", response.getBody().message());
+    }
+
+    @Test
+    @DisplayName("Deve tratar JpaSystemException mapeando erros Oracle ou fallback 500")
+    void deveTratarJpaSystemException() {
+        JpaSystemException duplicateEx = new JpaSystemException(new RuntimeException("ORA-00001: unique constraint violated"));
+        ResponseEntity<GlobalExceptionHandler.ApiErrorResponse> duplicateResp =
+                exceptionHandler.handleJpaSystem(duplicateEx, request);
+        assertEquals(HttpStatus.CONFLICT, duplicateResp.getStatusCode());
+
+        JpaSystemException genericEx = new JpaSystemException(new RuntimeException("Erro desconhecido"));
+        ResponseEntity<GlobalExceptionHandler.ApiErrorResponse> genericResp =
+                exceptionHandler.handleJpaSystem(genericEx, request);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, genericResp.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve tratar erros de upload multipart ausente e tamanho excedido")
+    void deveTratarErrosDeUploadMultipart() {
+        MissingServletRequestPartException missingPart = new MissingServletRequestPartException("foto");
+        ResponseEntity<GlobalExceptionHandler.ApiErrorResponse> missingResp =
+                exceptionHandler.handleMissingPart(missingPart, request);
+        assertEquals(HttpStatus.BAD_REQUEST, missingResp.getStatusCode());
+        assertTrue(missingResp.getBody().message().contains("foto"));
+
+        MaxUploadSizeExceededException maxSize = new MaxUploadSizeExceededException(10_485_760L);
+        ResponseEntity<GlobalExceptionHandler.ApiErrorResponse> maxSizeResp =
+                exceptionHandler.handleMaxUploadSize(maxSize, request);
+        assertEquals(HttpStatus.CONTENT_TOO_LARGE, maxSizeResp.getStatusCode());
+    }
+
+    @Test
+    @DisplayName("Deve tratar AsyncRequestTimeoutException e retornar 504 Gateway Timeout")
+    void deveTratarAsyncRequestTimeoutException() {
+        AsyncRequestTimeoutException ex = new AsyncRequestTimeoutException();
+
+        ResponseEntity<GlobalExceptionHandler.ApiErrorResponse> response =
+                exceptionHandler.handleAsyncRequestTimeout(ex, request);
+
+        assertEquals(HttpStatus.GATEWAY_TIMEOUT, response.getStatusCode());
+        assertEquals(504, response.getBody().status());
+        assertTrue(response.getBody().message().contains("tempo limite"));
     }
 }
