@@ -6,6 +6,7 @@ import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
+import fiap.com.br.zelafix.chamado.dto.RecusaIaResponse;
 import fiap.com.br.zelafix.chamado.orgao.OrgaoGovernoEnum;
 import fiap.com.br.zelafix.chamado.orgao.OrgaoGovernoService;
 import fiap.com.br.zelafix.chamado.prioridade.PrioridadeEnum;
@@ -38,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -54,6 +56,7 @@ public class ChamadoService {
     private final HistChamadoRepository histChamadoRepository;
     private final VotoChamadoRepository votoChamadoRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final Map<Long, String> recusasRecentes = new ConcurrentHashMap<>();
 
     // =========================================================================
     // 1. CONSULTAS E LISTAGENS
@@ -154,6 +157,16 @@ public class ChamadoService {
                 salvo,
                 statusService.findByNome(StatusChamadoEnum.valueOf(feedback.statusNome()))
         ));
+    }
+
+    public void registrarRecusaIa(Long usuarioId, String motivo) {
+        recusasRecentes.put(usuarioId, motivo);
+    }
+
+    @Transactional(readOnly = true)
+    public RecusaIaResponse consumirRecusaRecente(String email) {
+        Long usuarioId = usuarioService.findByEmail(email).getIdUsuario();
+        return new RecusaIaResponse(recusasRecentes.remove(usuarioId));
     }
 
     // =========================================================================

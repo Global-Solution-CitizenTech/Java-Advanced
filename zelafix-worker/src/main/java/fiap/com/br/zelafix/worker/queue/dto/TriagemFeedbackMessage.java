@@ -14,7 +14,8 @@ public record TriagemFeedbackMessage(
         String categoriaNome,
         String prioridadeNome,
         String orgaoNome,
-        String statusNome
+        String statusNome,
+        boolean recusado
 ) {
     public static TriagemFeedbackMessage sucesso(ChamadoTriagemMessage origem, TriagemIaResult resultado) {
         return new TriagemFeedbackMessage(
@@ -26,7 +27,23 @@ public record TriagemFeedbackMessage(
                 resultado.categoriaSugerida().name(),
                 resultado.prioridade().name(),
                 resultado.orgaoResponsavel().name(),
-                "EM_ANALISE"
+                "EM_ANALISE",
+                false
+        );
+    }
+
+    public static TriagemFeedbackMessage recusa(ChamadoTriagemMessage origem, TriagemIaResult resultado) {
+        return new TriagemFeedbackMessage(
+                origem.usuarioId(),
+                origem.enderecoId(),
+                null,
+                resultado.titulo(),
+                resultado.descricao(),
+                null,
+                null,
+                null,
+                null,
+                true
         );
     }
 
@@ -40,7 +57,8 @@ public record TriagemFeedbackMessage(
                 CategoriaSugerida.VIAS_E_PAVIMENTACAO.name(),
                 PrioridadeChamado.MEDIA.name(),
                 DepartamentoGoverno.SUBPREFEITURA.name(),
-                "PENDENTE"
+                "PENDENTE",
+                false
         );
     }
 }

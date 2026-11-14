@@ -6,6 +6,7 @@ import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
+import fiap.com.br.zelafix.chamado.dto.RecusaIaResponse;
 import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.endereco.dto.EnderecoResponse;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
@@ -370,5 +371,17 @@ class ChamadoControllerTest {
                 .andExpect(jsonPath("$.resolvidos").value(5L))
                 .andExpect(jsonPath("$.rejeitados").value(1L))
                 .andExpect(jsonPath("$.totalApoios").value(30L));
+    }
+
+    @Test
+    @DisplayName("GET /chamados/recusa-recente - Deve retornar motivo da recusa da IA com 200 OK")
+    void deveRetornarRecusaRecente() throws Exception {
+        when(chamadoService.consumirRecusaRecente("cidadao@zelafix.com"))
+                .thenReturn(new RecusaIaResponse("A foto enviada é uma captura de tela de jogo."));
+
+        mockMvc.perform(get("/chamados/recusa-recente")
+                        .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("cidadao@zelafix.com"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.motivo").value("A foto enviada é uma captura de tela de jogo."));
     }
 }
