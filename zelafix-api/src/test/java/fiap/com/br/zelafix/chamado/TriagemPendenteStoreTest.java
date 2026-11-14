@@ -53,6 +53,19 @@ class TriagemPendenteStoreTest {
     }
 
     @Test
+    @DisplayName("Deve completar DeferredResult com erro técnico quando worker/persistência falhar")
+    void deveFalharTriagemPendente() {
+        AtomicReference<String> correlationIdRef = new AtomicReference<>();
+        DeferredResult<ChamadoResponse> deferred = store.registrar(correlationIdRef::set);
+
+        RuntimeException falha = new RuntimeException("Cota excedida");
+        store.falhar(correlationIdRef.get(), falha);
+
+        assertTrue(deferred.hasResult());
+        assertEquals(falha, deferred.getResult());
+    }
+
+    @Test
     @DisplayName("Deve remover pendência e propagar erro quando publicação falhar")
     void deveLimparPendenciaQuandoPublicadorFalhar() {
         AtomicReference<String> correlationIdRef = new AtomicReference<>();

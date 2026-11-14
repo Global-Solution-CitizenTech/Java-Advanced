@@ -16,7 +16,8 @@ public record TriagemFeedbackMessage(
         String prioridadeNome,
         String orgaoNome,
         String statusNome,
-        boolean recusado
+        boolean recusado,
+        String erro
 ) {
     public static TriagemFeedbackMessage sucesso(ChamadoTriagemMessage origem, TriagemIaResult resultado) {
         return new TriagemFeedbackMessage(
@@ -30,7 +31,8 @@ public record TriagemFeedbackMessage(
                 resultado.prioridade().name(),
                 resultado.orgaoResponsavel().name(),
                 "EM_ANALISE",
-                false
+                false,
+                null
         );
     }
 
@@ -46,7 +48,8 @@ public record TriagemFeedbackMessage(
                 null,
                 null,
                 null,
-                true
+                true,
+                null
         );
     }
 
@@ -62,7 +65,25 @@ public record TriagemFeedbackMessage(
                 PrioridadeChamado.MEDIA.name(),
                 DepartamentoGoverno.SUBPREFEITURA.name(),
                 "PENDENTE",
-                false
+                false,
+                null
+        );
+    }
+
+    public static TriagemFeedbackMessage erro(ChamadoTriagemMessage origem, String mensagem) {
+        return new TriagemFeedbackMessage(
+                origem.correlationId(),
+                origem.usuarioId(),
+                origem.enderecoId(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                mensagem
         );
     }
 }

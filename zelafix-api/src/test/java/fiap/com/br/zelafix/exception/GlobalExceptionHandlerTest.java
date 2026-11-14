@@ -457,4 +457,17 @@ class GlobalExceptionHandlerTest {
         assertEquals(504, response.getBody().status());
         assertTrue(response.getBody().message().contains("tempo limite"));
     }
+
+    @Test
+    @DisplayName("Deve tratar TriagemIndisponivelException e retornar 503 Service Unavailable")
+    void deveTratarTriagemIndisponivelException() {
+        TriagemIndisponivelException ex = new TriagemIndisponivelException("Worker indisponível");
+
+        ResponseEntity<GlobalExceptionHandler.ApiErrorResponse> response =
+                exceptionHandler.handleTriagemIndisponivel(ex, request);
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
+        assertEquals(503, response.getBody().status());
+        assertEquals("Worker indisponível", response.getBody().message());
+    }
 }

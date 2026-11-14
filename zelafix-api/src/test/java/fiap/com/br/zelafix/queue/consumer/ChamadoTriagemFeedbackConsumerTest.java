@@ -4,6 +4,7 @@ import fiap.com.br.zelafix.chamado.ChamadoService;
 import fiap.com.br.zelafix.chamado.TriagemPendenteStore;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.endereco.dto.EnderecoResponse;
+import fiap.com.br.zelafix.exception.TriagemIndisponivelException;
 import fiap.com.br.zelafix.queue.dto.TriagemFeedbackMessage;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -95,5 +98,21 @@ class ChamadoTriagemFeedbackConsumerTest {
 
         verify(triagemPendenteStore).rejeitar("corr-2", message.descricao());
         verifyNoInteractions(chamadoService);
+    }
+
+    @Test
+    @DisplayName("Deve falhar DeferredResult imediatamente quando worker reportar erro ou persistência falhar")
+    void deveFalharImediatamenteQuandoErroOuExcecaoNaPersistencia() {
+        var comErro = new TriagemFeedbackMessage("corr-3", 1L, 2L, null, null, null, null, null, null, null, false, "Worker indisponível");
+        feedbackConsumer.receberFeedbackTriagem(comErro);
+        verify(triagemPendenteStore).falhar(eq("corr-3"), any(TriagemIndisponivelException.class));
+        verifyNoInteractions(chamadoService);
+
+        var valido = new TriagemFeedbackMessage("corr-4", 1L, 2L, new byte[]{1}, "Título", "Desc", "LIMPEZA_URBANA", "MEDIA", "SUBPREFEITURA", "PENDENTE", false);
+        RuntimeException falhaBanco = new RuntimeException("ORA-12899");
+        when(chamadoService.aplicarTriagemIa(valido)).thenThrow(falhaBanco);
+
+        feedbackConsumer.receberFeedbackTriagem(valido);
+        verify(triagemPendenteStore).falhar("corr-4", falhaBanco);
     }
 }

@@ -14,11 +14,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -137,6 +141,16 @@ class ZelaFixAiServiceTest {
 
         assertTrue(resultado.titulo().getBytes(StandardCharsets.UTF_8).length <= TriagemIaResult.MAX_TITULO_BYTES);
         assertTrue(resultado.descricao().getBytes(StandardCharsets.UTF_8).length <= TriagemIaResult.MAX_DESCRICAO_BYTES);
+    }
+
+    @Test
+    @DisplayName("Não deve tentar retry para erros 4xx/429 nem permitir repetição em cadeia")
+    void naoDeveFazerRetryParaErroClienteOuQuota() {
+        var predicate = new ZelaFixAiService.AbortOnClientErrorPredicate();
+        var tooManyRequests = HttpClientErrorException.create(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", HttpHeaders.EMPTY, new byte[0], null);
+        assertFalse(predicate.shouldRetry(null, tooManyRequests));
+        assertFalse(predicate.shouldRetry(null, new RuntimeException(tooManyRequests)));
+        assertTrue(predicate.shouldRetry(null, new RuntimeException("Timeout transitório")));
     }
 
     private void stubRespostaIa(TriagemIaResult resposta) {

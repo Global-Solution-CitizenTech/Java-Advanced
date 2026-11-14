@@ -43,7 +43,11 @@ public class ChamadoAiConsumer {
             }
             return TriagemFeedbackMessage.sucesso(message, resultado);
         } catch (Exception e) {
-            log.error("Falha na IA durante triagem para usuário ID {}. Aplicando contingência PENDENTE: {}", message.usuarioId(), e.getMessage());
+            if ("NonTransientAiException".equals(e.getClass().getSimpleName()) || (e.getMessage() != null && e.getMessage().contains("429"))) {
+                log.error("Cota/limite de taxa (4xx/429) no Azure AI Foundry para usuário ID {}. Aplicando contingência PENDENTE: {}", message.usuarioId(), e.getMessage());
+            } else {
+                log.error("Falha na IA durante triagem para usuário ID {}. Aplicando contingência PENDENTE: {}", message.usuarioId(), e.getMessage());
+            }
             return TriagemFeedbackMessage.contingencia(message);
         }
     }
