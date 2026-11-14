@@ -18,15 +18,11 @@ public class ChamadoEventProducer {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void publicarTriagem(ChamadoTriagemMessage message) {
-        log.info("Publicando evento de triagem no RabbitMQ para o chamado ID: {}", message.idChamado());
-        try {
-            rabbitTemplate.convertAndSend(
-                    RabbitConfig.EXCHANGE_NAME,
-                    RabbitConfig.ROUTING_KEY_CHAMADO_TRIAGEM,
-                    message
-            );
-        } catch (Exception e) {
-            log.warn("RabbitMQ offline ou falha ao publicar mensagem de triagem ({}). O processamento seguirá em modo síncrono/fallback.", e.getMessage());
-        }
+        log.info("Publicando evento de triagem no RabbitMQ para o usuário ID: {}", message.usuarioId());
+        rabbitTemplate.convertAndSend(
+                RabbitConfig.EXCHANGE_NAME,
+                RabbitConfig.ROUTING_KEY_CHAMADO_TRIAGEM,
+                message
+        );
     }
 }

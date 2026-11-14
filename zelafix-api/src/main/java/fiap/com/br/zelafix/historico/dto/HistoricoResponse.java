@@ -13,7 +13,7 @@ public record HistoricoResponse(
         return new HistoricoResponse(
                 h.getIdHist(),
                 h.getDtMudanca().toString(),
-                h.getStatus().getNmStatus(),
+                h.getStatus().getNmStatus().name(),
                 h.getObservacoes(),
                 h.getUsuario().getNmUsuario()
         );

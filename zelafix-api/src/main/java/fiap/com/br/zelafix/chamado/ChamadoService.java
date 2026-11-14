@@ -1,36 +1,37 @@
 package fiap.com.br.zelafix.chamado;
 
-import fiap.com.br.zelafix.categoria.Categoria;
+import fiap.com.br.zelafix.categoria.CategoriaEnum;
 import fiap.com.br.zelafix.categoria.CategoriaService;
-import fiap.com.br.zelafix.chamado.dto.ChamadoCreateRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
+import fiap.com.br.zelafix.chamado.orgao.OrgaoGovernoEnum;
+import fiap.com.br.zelafix.chamado.orgao.OrgaoGovernoService;
+import fiap.com.br.zelafix.chamado.prioridade.PrioridadeEnum;
+import fiap.com.br.zelafix.chamado.prioridade.PrioridadeService;
 import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.EnderecoService;
 import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.exception.ResourceNotFoundException;
 import fiap.com.br.zelafix.historico.HistChamado;
 import fiap.com.br.zelafix.historico.HistChamadoRepository;
-import fiap.com.br.zelafix.chamado.orgao.OrgaoGoverno;
-import fiap.com.br.zelafix.chamado.orgao.OrgaoGovernoService;
-import fiap.com.br.zelafix.chamado.prioridade.Prioridade;
-import fiap.com.br.zelafix.chamado.prioridade.PrioridadeService;
+import fiap.com.br.zelafix.historico.status.Status;
+import fiap.com.br.zelafix.historico.status.StatusChamadoEnum;
+import fiap.com.br.zelafix.historico.status.StatusService;
 import fiap.com.br.zelafix.queue.dto.ChamadoTriagemMessage;
 import fiap.com.br.zelafix.queue.dto.TriagemFeedbackMessage;
 import fiap.com.br.zelafix.queue.dto.VotoMessage;
-import fiap.com.br.zelafix.status.Status;
-import fiap.com.br.zelafix.status.StatusChamadoEnum;
-import fiap.com.br.zelafix.status.StatusService;
 import fiap.com.br.zelafix.usuario.CargoUsuario;
 import fiap.com.br.zelafix.usuario.Usuario;
 import fiap.com.br.zelafix.usuario.UsuarioService;
+import fiap.com.br.zelafix.util.ImageMimeTypeDetector;
 import fiap.com.br.zelafix.voto.VotoChamadoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,11 +60,11 @@ public class ChamadoService {
     // =========================================================================
 
     @Transactional(readOnly = true)
-    public Page<ChamadoResponse> findAll(String status, String categoria, String busca, Boolean apenasMeus, String email, Pageable pageable) {
+    public Page<ChamadoResponse> findAll(String status, String categoria, String busca, Boolean apenasMeus, String cidade, String bairro, String estado, String email, Pageable pageable) {
         Long currentUserId = usuarioService.findByEmail(email).getIdUsuario();
         Long autorId = Boolean.TRUE.equals(apenasMeus) ? currentUserId : null;
 
-        Page<Chamado> chamados = chamadoRepository.findByFiltros(status, categoria, autorId, busca, pageable);
+        Page<Chamado> chamados = chamadoRepository.findByFiltros(status, categoria, autorId, cidade, bairro, estado, busca, pageable);
         return enriquecerPagina(chamados, currentUserId);
     }
 
@@ -72,7 +73,7 @@ public class ChamadoService {
         Chamado chamado = findChamadoById(id);
         Long userId = usuarioService.findByEmail(email).getIdUsuario();
         List<HistChamado> historicos = histChamadoRepository.findByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(id);
-        String status = historicos.isEmpty() ? StatusChamadoEnum.PENDENTE.name() : historicos.getFirst().getStatus().getNmStatus();
+        String status = historicos.isEmpty() ? StatusChamadoEnum.PENDENTE.name() : historicos.getFirst().getStatus().getNmStatus().name();
         return ChamadoResponse.fromEntity(
                 chamado,
                 status,
@@ -91,31 +92,11 @@ public class ChamadoService {
     // =========================================================================
 
     @Transactional
-    public ChamadoResponse create(EnderecoRequest enderecoRequest, byte[] fotoBytes, String email) {
+    public void create(EnderecoRequest enderecoRequest, byte[] fotoBytes, String email) {
+        ImageMimeTypeDetector.detectar(fotoBytes);
         Usuario autor = usuarioService.findByEmail(email);
-        Categoria categoriaInicial = categoriaService.findDefault();
-        Prioridade prioridadeInicial = prioridadeService.findByNameOrCreate("PENDENTE");
-        OrgaoGoverno orgaoInicial = orgaoGovernoService.findByNameOrCreate("Em análise pela IA");
         Endereco endereco = enderecoService.findOrCreateByCepAndNumero(enderecoRequest);
-        Status statusInicial = statusService.findByNameOrCreate(StatusChamadoEnum.PENDENTE.name());
-
-        Chamado salvo = chamadoRepository.save(ChamadoCreateRequest.toEntity(
-                autor,
-                categoriaInicial,
-                prioridadeInicial,
-                orgaoInicial,
-                endereco,
-                fotoBytes
-        ));
-        votoChamadoRepository.save(new VotoMessage(salvo.getIdChamado(), autor.getIdUsuario(), "VOTAR").toEntity(salvo, autor));
-        HistChamado histInicial = new ChamadoStatusRequest(
-                StatusChamadoEnum.PENDENTE.name(),
-                "Chamado registrado no sistema com status PENDENTE."
-        ).toEntity(salvo, autor, statusInicial);
-        histChamadoRepository.save(histInicial);
-        eventPublisher.publishEvent(ChamadoTriagemMessage.from(salvo));
-
-        return ChamadoResponse.fromEntity(salvo, StatusChamadoEnum.PENDENTE.name(), 1L, true, List.of(histInicial));
+        eventPublisher.publishEvent(ChamadoTriagemMessage.from(autor, endereco, fotoBytes));
     }
 
     @Transactional
@@ -126,15 +107,17 @@ public class ChamadoService {
 
         chamadoRepository.save(request.toEntity(
                 chamado,
-                categoriaService.findById(request.categoriaId()),
+                categoriaService.findByNome(CategoriaEnum.valueOf(request.categoria().trim().toUpperCase())),
                 enderecoService.findOrCreateByCepAndNumero(request.endereco())
         ));
         return findDetailsById(id, email);
     }
 
     @Transactional
-    public void delete(Long id) {
+    public void delete(Long id, String email) {
         Chamado chamado = findChamadoById(id);
+        Usuario usuario = usuarioService.findByEmail(email);
+        validarPermissaoExclusao(chamado, usuario);
         votoChamadoRepository.deleteByChamadoIdChamado(id);
         histChamadoRepository.deleteByChamadoIdChamado(id);
         chamadoRepository.delete(chamado);
@@ -150,7 +133,7 @@ public class ChamadoService {
         Usuario operador = usuarioService.findByEmail(email);
         validarPermissaoGestao(operador);
 
-        Status novoStatus = statusService.findByNameOrCreate(request.status());
+        Status novoStatus = statusService.findByNome(StatusChamadoEnum.valueOf(request.status().trim().toUpperCase()));
         histChamadoRepository.save(request.toEntity(chamado, operador, novoStatus));
 
         return findDetailsById(id, email);
@@ -158,19 +141,19 @@ public class ChamadoService {
 
     @Transactional
     public void aplicarTriagemIa(TriagemFeedbackMessage feedback) {
-        chamadoRepository.findById(feedback.idChamado()).ifPresent(chamado -> {
-            Chamado atualizado = feedback.toEntity(
-                    chamado,
-                    categoriaService.findByNameOrCreate(feedback.categoriaNome()),
-                    prioridadeService.findByNameOrCreate(feedback.prioridadeNome()),
-                    orgaoGovernoService.findByNameOrCreate(feedback.orgaoNome())
-            );
-            chamadoRepository.save(atualizado);
-            histChamadoRepository.save(feedback.toEntity(
-                    atualizado,
-                    statusService.findByNameOrCreate(StatusChamadoEnum.EM_ANALISE.name())
-            ));
-        });
+        Usuario autor = usuarioService.findById(feedback.usuarioId());
+        Chamado salvo = chamadoRepository.save(feedback.toEntity(
+                autor,
+                enderecoService.findById(feedback.enderecoId()),
+                categoriaService.findByNome(CategoriaEnum.valueOf(feedback.categoriaNome())),
+                prioridadeService.findByNome(PrioridadeEnum.valueOf(feedback.prioridadeNome())),
+                orgaoGovernoService.findByNome(OrgaoGovernoEnum.valueOf(feedback.orgaoNome()))
+        ));
+        votoChamadoRepository.save(new VotoMessage(salvo.getIdChamado(), autor.getIdUsuario(), "VOTAR").toEntity(salvo, autor));
+        histChamadoRepository.save(feedback.toEntity(
+                salvo,
+                statusService.findByNome(StatusChamadoEnum.valueOf(feedback.statusNome()))
+        ));
     }
 
     // =========================================================================
@@ -194,11 +177,11 @@ public class ChamadoService {
     public EstatisticasResponse getStatistics() {
         return EstatisticasResponse.of(
                 chamadoRepository.count(),
-                chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.PENDENTE.name()),
-                chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.EM_ANALISE.name()) +
-                chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.EM_EXECUCAO.name()),
-                chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.CONCLUIDO.name()),
-                chamadoRepository.countByStatusNmStatusIgnoreCase(StatusChamadoEnum.REJEITADO.name()),
+                chamadoRepository.countByStatusNmStatus(StatusChamadoEnum.PENDENTE),
+                chamadoRepository.countByStatusNmStatus(StatusChamadoEnum.EM_ANALISE) +
+                chamadoRepository.countByStatusNmStatus(StatusChamadoEnum.EM_EXECUCAO),
+                chamadoRepository.countByStatusNmStatus(StatusChamadoEnum.CONCLUIDO),
+                chamadoRepository.countByStatusNmStatus(StatusChamadoEnum.REJEITADO),
                 votoChamadoRepository.count()
         );
     }
@@ -217,6 +200,12 @@ public class ChamadoService {
                 && usuario.getCargo() != CargoUsuario.GESTOR
                 && usuario.getCargo() != CargoUsuario.ADMIN) {
             throw new IllegalArgumentException("Você não tem permissão para editar este chamado.");
+        }
+    }
+
+    private void validarPermissaoExclusao(Chamado chamado, Usuario usuario) {
+        if (!chamado.getUsuario().getIdUsuario().equals(usuario.getIdUsuario()) && usuario.getCargo() != CargoUsuario.ADMIN) {
+            throw new AccessDeniedException("Apenas o autor do chamado ou um administrador pode excluí-lo.");
         }
     }
 
@@ -253,7 +242,7 @@ public class ChamadoService {
         Map<Long, String> statusMap = histChamadoRepository.findLatestByChamadoIds(ids).stream()
                 .collect(Collectors.toMap(
                         h -> h.getChamado().getIdChamado(),
-                        h -> h.getStatus().getNmStatus(),
+                        h -> h.getStatus().getNmStatus().name(),
                         (existente, substituto) -> existente
                 ));
         Map<Long, Long> votosCountMap = votoChamadoRepository.countVotosByChamadoIds(ids).stream()

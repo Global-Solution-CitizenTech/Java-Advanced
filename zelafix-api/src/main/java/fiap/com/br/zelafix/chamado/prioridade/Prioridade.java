@@ -2,6 +2,8 @@ package fiap.com.br.zelafix.chamado.prioridade;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -26,6 +28,7 @@ public class Prioridade {
     @Column(name = "id_prioridade")
     private Long idPrioridade;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "nm_prioridade", length = 20, nullable = false, unique = true)
-    private String nmPrioridade;
+    private PrioridadeEnum nmPrioridade;
 }

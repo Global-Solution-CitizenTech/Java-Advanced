@@ -21,15 +21,18 @@ class ChamadoTriagemFeedbackConsumerTest {
     private ChamadoTriagemFeedbackConsumer feedbackConsumer;
 
     @Test
-    @DisplayName("Deve delegar a triagem da IA para o ChamadoService atualizar o chamado")
+    @DisplayName("Deve delegar a triagem da IA para o ChamadoService persistir o chamado")
     void deveDelegarFeedbackParaService() {
         var message = new TriagemFeedbackMessage(
-                42L,
+                1L,
+                2L,
+                new byte[]{1, 2, 3},
                 "Cratera aberta na avenida",
                 "Afundamento asfáltico profundo na faixa direita oferecendo risco iminente.",
-                "Vias e Pavimentação",
+                "VIAS_E_PAVIMENTACAO",
                 "URGENTE",
-                "Secretaria Municipal de Infraestrutura Urbana e Obras"
+                "SECRETARIA_OBRAS",
+                "EM_ANALISE"
         );
 
         feedbackConsumer.receberFeedbackTriagem(message);

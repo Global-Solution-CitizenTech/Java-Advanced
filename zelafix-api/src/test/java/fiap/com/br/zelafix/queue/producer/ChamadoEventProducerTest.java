@@ -11,7 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -28,7 +28,7 @@ class ChamadoEventProducerTest {
     @Test
     @DisplayName("Deve publicar evento de triagem com a exchange e routing key corretas")
     void devePublicarEventoDeTriagem() {
-        ChamadoTriagemMessage msg = new ChamadoTriagemMessage(10L, "Centro", new byte[]{1, 2, 3});
+        ChamadoTriagemMessage msg = new ChamadoTriagemMessage(1L, 10L, "Centro", new byte[]{1, 2, 3});
 
         producer.publicarTriagem(msg);
 
@@ -40,14 +40,14 @@ class ChamadoEventProducerTest {
     }
 
     @Test
-    @DisplayName("Deve capturar exceção do RabbitMQ sem quebrar o fluxo chamador (fallback resiliente)")
-    void deveCapturarFalhaDoRabbitMQComResiliencia() {
-        ChamadoTriagemMessage msg = new ChamadoTriagemMessage(10L, "Centro", new byte[]{1, 2, 3});
+    @DisplayName("Deve propagar AmqpException quando o RabbitMQ estiver indisponível")
+    void devePropagarExcecaoDoRabbitMQ() {
+        ChamadoTriagemMessage msg = new ChamadoTriagemMessage(1L, 10L, "Centro", new byte[]{1, 2, 3});
 
         doThrow(new AmqpException("Broker connection refused"))
                 .when(rabbitTemplate)
                 .convertAndSend(eq(RabbitConfig.EXCHANGE_NAME), eq(RabbitConfig.ROUTING_KEY_CHAMADO_TRIAGEM), eq(msg));
 
-        assertDoesNotThrow(() -> producer.publicarTriagem(msg));
+        assertThrows(AmqpException.class, () -> producer.publicarTriagem(msg));
     }
 }

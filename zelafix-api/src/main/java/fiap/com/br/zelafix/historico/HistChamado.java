@@ -1,7 +1,7 @@
 package fiap.com.br.zelafix.historico;
 
 import fiap.com.br.zelafix.chamado.Chamado;
-import fiap.com.br.zelafix.status.Status;
+import fiap.com.br.zelafix.historico.status.Status;
 import fiap.com.br.zelafix.usuario.Usuario;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

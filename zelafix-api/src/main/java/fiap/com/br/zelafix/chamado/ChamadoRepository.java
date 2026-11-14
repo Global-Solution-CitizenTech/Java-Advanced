@@ -9,28 +9,33 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import fiap.com.br.zelafix.historico.status.StatusChamadoEnum;
+
 import java.util.Optional;
 
 @Repository
 public interface ChamadoRepository extends JpaRepository<Chamado, Long>, JpaSpecificationExecutor<Chamado> {
 
     @Override
-    @EntityGraph(attributePaths = {"categoria", "usuario", "endereco.bairro.cidade.estado"})
+    @EntityGraph(attributePaths = {"categoria", "prioridade", "orgaoGoverno", "usuario", "endereco.bairro.cidade.estado"})
     Optional<Chamado> findById(Long id);
 
     boolean existsByUsuarioIdUsuario(Long idUsuario);
 
-    @EntityGraph(attributePaths = {"categoria", "usuario", "endereco.bairro.cidade.estado"})
+    @EntityGraph(attributePaths = {"categoria", "prioridade", "orgaoGoverno", "usuario", "endereco.bairro.cidade.estado"})
     @Query("""
         SELECT c FROM Chamado c
         WHERE (:status IS NULL OR EXISTS (
             SELECT h FROM HistChamado h 
             WHERE h.chamado = c 
-              AND LOWER(h.status.nmStatus) = LOWER(:status)
+              AND LOWER(CAST(h.status.nmStatus AS string)) = LOWER(:status)
               AND h.idHist = (SELECT MAX(h2.idHist) FROM HistChamado h2 WHERE h2.chamado = c)
         ))
-          AND (:categoria IS NULL OR LOWER(c.categoria.nmCategoria) = LOWER(:categoria))
+          AND (:categoria IS NULL OR LOWER(CAST(c.categoria.nmCategoria AS string)) = LOWER(:categoria))
           AND (:usuarioId IS NULL OR c.usuario.idUsuario = :usuarioId)
+          AND (:cidade IS NULL OR LOWER(c.endereco.bairro.cidade.nome) = LOWER(:cidade))
+          AND (:bairro IS NULL OR LOWER(c.endereco.bairro.nome) = LOWER(:bairro))
+          AND (:estado IS NULL OR LOWER(c.endereco.bairro.cidade.estado.nome) = LOWER(:estado))
           AND (:busca IS NULL OR LOWER(c.titulo) LIKE LOWER(CONCAT('%', :busca, '%'))
                              OR LOWER(c.descricao) LIKE LOWER(CONCAT('%', :busca, '%'))
                              OR LOWER(c.endereco.bairro.nome) LIKE LOWER(CONCAT('%', :busca, '%')))
@@ -39,6 +44,9 @@ public interface ChamadoRepository extends JpaRepository<Chamado, Long>, JpaSpec
             @Param("status") String status,
             @Param("categoria") String categoria,
             @Param("usuarioId") Long usuarioId,
+            @Param("cidade") String cidade,
+            @Param("bairro") String bairro,
+            @Param("estado") String estado,
             @Param("busca") String busca,
             Pageable pageable
     );
@@ -48,9 +56,9 @@ public interface ChamadoRepository extends JpaRepository<Chamado, Long>, JpaSpec
         WHERE EXISTS (
             SELECT h FROM HistChamado h 
             WHERE h.chamado = c 
-              AND LOWER(h.status.nmStatus) = LOWER(:nmStatus)
+              AND h.status.nmStatus = :nmStatus
               AND h.idHist = (SELECT MAX(h2.idHist) FROM HistChamado h2 WHERE h2.chamado = c)
         )
     """)
-    long countByStatusNmStatusIgnoreCase(@Param("nmStatus") String nmStatus);
+    long countByStatusNmStatus(@Param("nmStatus") StatusChamadoEnum nmStatus);
 }

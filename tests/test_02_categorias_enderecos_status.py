@@ -15,41 +15,8 @@ def test_categorias_enderecos_status():
     cidadao_auth = requests.post(f"{BASE_URL}/login", json={"email": "enzo.okuizumi@gmail.com", "senha": "123mudar"}).json()
     cidadao_headers = {"Authorization": f"Bearer {cidadao_auth['token']}"}
 
-    # 2.1 Listar categorias
-    print("\n[2.1] Listando categorias cadastradas (GET /categorias)...")
-    res = requests.get(f"{BASE_URL}/categorias", headers=cidadao_headers)
-    assert res.status_code == 200, f"Falha ao listar categorias: {res.status_code} - {res.text}"
-    categorias = res.json()
-    assert len(categorias) > 0, "Deveria haver categorias cadastradas"
-    print(f" -> Sucesso! Encontradas {len(categorias)} categorias:")
-    for cat in categorias[:3]:
-        print(f"    - ID {cat['id']}: {cat['nome']}")
-
-    # 2.2 Criar categoria como Admin
-    nova_cat_nome = f"Zeladoria Especial {random.randint(1000, 9999)}"
-    print(f"\n[2.2] Criando nova categoria '{nova_cat_nome}' como Admin (POST /categorias)...")
-    res = requests.post(f"{BASE_URL}/categorias", headers=admin_headers, json={"nome": nova_cat_nome})
-    assert res.status_code == 201, f"Falha ao criar categoria: {res.status_code} - {res.text}"
-    cat_criada = res.json()
-    print(f" -> Sucesso! Categoria criada com ID {cat_criada['id']} - Nome: {cat_criada['nome']}")
-
-    # 2.3 Tentativa de criar categoria com nome vazio (Validação de Bean)
-    print("\n[2.3] Tentando criar categoria com nome vazio...")
-    res = requests.post(f"{BASE_URL}/categorias", headers=admin_headers, json={"nome": "   "})
-    assert res.status_code == 400, f"Deveria retornar 400, retornou {res.status_code}"
-    print(f" -> Sucesso! Bloqueado com 400 Bad Request.")
-
-    # 2.4 Listar Status disponíveis
-    print("\n[2.4] Listando status do sistema (GET /status)...")
-    res = requests.get(f"{BASE_URL}/status", headers=cidadao_headers)
-    assert res.status_code == 200, f"Falha ao listar status: {res.status_code} - {res.text}"
-    statuses = res.json()
-    status_nomes = [s["nome"] for s in statuses]
-    print(f" -> Sucesso! Status disponíveis: {status_nomes}")
-    assert "PENDENTE" in status_nomes, "Status PENDENTE ausente"
-
-    # 2.5 Admin listando endereços (GET /enderecos)
-    print("\n[2.5] Admin listando endereços cadastrados (GET /enderecos)...")
+    # 2.1 Admin listando endereços (GET /enderecos)
+    print("\n[2.1] Admin listando endereços cadastrados (GET /enderecos)...")
     res = requests.get(f"{BASE_URL}/enderecos", headers=admin_headers)
     assert res.status_code == 200, f"Falha ao listar endereços: {res.status_code} - {res.text}"
     page = res.json()

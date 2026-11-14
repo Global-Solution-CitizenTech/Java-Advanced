@@ -2,6 +2,8 @@ package fiap.com.br.zelafix.categoria;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -26,6 +28,7 @@ public class Categoria {
     @Column(name = "id_categoria")
     private Long idCategoria;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "nm_categoria", length = 50, nullable = false, unique = true)
-    private String nmCategoria;
+    private CategoriaEnum nmCategoria;
 }
