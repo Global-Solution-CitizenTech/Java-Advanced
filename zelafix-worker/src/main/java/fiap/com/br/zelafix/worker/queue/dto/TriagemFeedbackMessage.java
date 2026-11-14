@@ -6,6 +6,7 @@ import fiap.com.br.zelafix.worker.ai.enums.DepartamentoGoverno;
 import fiap.com.br.zelafix.worker.ai.enums.PrioridadeChamado;
 
 public record TriagemFeedbackMessage(
+        String correlationId,
         Long usuarioId,
         Long enderecoId,
         byte[] foto,
@@ -14,10 +15,13 @@ public record TriagemFeedbackMessage(
         String categoriaNome,
         String prioridadeNome,
         String orgaoNome,
-        String statusNome
+        String statusNome,
+        boolean recusado,
+        String erro
 ) {
     public static TriagemFeedbackMessage sucesso(ChamadoTriagemMessage origem, TriagemIaResult resultado) {
         return new TriagemFeedbackMessage(
+                origem.correlationId(),
                 origem.usuarioId(),
                 origem.enderecoId(),
                 origem.foto(),
@@ -26,21 +30,60 @@ public record TriagemFeedbackMessage(
                 resultado.categoriaSugerida().name(),
                 resultado.prioridade().name(),
                 resultado.orgaoResponsavel().name(),
-                "EM_ANALISE"
+                "EM_ANALISE",
+                false,
+                null
+        );
+    }
+
+    public static TriagemFeedbackMessage recusa(ChamadoTriagemMessage origem, TriagemIaResult resultado) {
+        return new TriagemFeedbackMessage(
+                origem.correlationId(),
+                origem.usuarioId(),
+                origem.enderecoId(),
+                null,
+                resultado.titulo(),
+                resultado.descricao(),
+                null,
+                null,
+                null,
+                null,
+                true,
+                null
         );
     }
 
     public static TriagemFeedbackMessage contingencia(ChamadoTriagemMessage origem) {
         return new TriagemFeedbackMessage(
+                origem.correlationId(),
                 origem.usuarioId(),
                 origem.enderecoId(),
                 origem.foto(),
-                "Ocorrência registrada em " + origem.bairro(),
+                TriagemIaResult.truncarUtf8("Ocorrência registrada em " + origem.bairro(), TriagemIaResult.MAX_TITULO_BYTES),
                 "Chamado registrado em modo de contingência. Aguardando triagem manual.",
                 CategoriaSugerida.VIAS_E_PAVIMENTACAO.name(),
                 PrioridadeChamado.MEDIA.name(),
                 DepartamentoGoverno.SUBPREFEITURA.name(),
-                "PENDENTE"
+                "PENDENTE",
+                false,
+                null
+        );
+    }
+
+    public static TriagemFeedbackMessage erro(ChamadoTriagemMessage origem, String mensagem) {
+        return new TriagemFeedbackMessage(
+                origem.correlationId(),
+                origem.usuarioId(),
+                origem.enderecoId(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                mensagem
         );
     }
 }

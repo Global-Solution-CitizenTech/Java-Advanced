@@ -19,6 +19,7 @@ jobs:
 
       - name: Sincronizar com Azure Repos
         run: |
+          set -o pipefail
           git remote add azure "${{ secrets.AZURE_REPOS_URL }}"
 
           if [ "${{ github.ref_name }}" = "main" ]; then

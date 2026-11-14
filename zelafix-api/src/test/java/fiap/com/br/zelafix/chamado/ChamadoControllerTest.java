@@ -1,7 +1,7 @@
 package fiap.com.br.zelafix.chamado;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import fiap.com.br.zelafix.chamado.dto.ChamadoCreateRequest;
+import fiap.com.br.zelafix.chamado.dto.ChamadoFiltroRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
@@ -24,22 +24,23 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.web.context.request.async.DeferredResult;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.springframework.security.access.AccessDeniedException;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -49,6 +50,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {
@@ -122,7 +124,10 @@ class ChamadoControllerTest {
         ChamadoResponse resp = criarMockResponse(1L, "Buraco na rua", "Cratera profunda na via");
         Page<ChamadoResponse> page = new PageImpl<>(List.of(resp), PageRequest.of(0, 10), 1);
 
-        when(chamadoService.findAll(eq("PENDENTE"), eq("PAVIMENTACAO"), eq("buraco"), eq(true), eq(null), eq(null), eq(null), eq("cidadao@zelafix.com"), any(Pageable.class)))
+        when(chamadoService.findAll(
+                eq(new ChamadoFiltroRequest("PENDENTE", "PAVIMENTACAO", "buraco", true, null, null, null)),
+                eq("cidadao@zelafix.com"),
+                any(Pageable.class)))
                 .thenReturn(page);
 
         mockMvc.perform(get("/chamados")
@@ -192,10 +197,9 @@ class ChamadoControllerTest {
     }
 
     @Test
-    @DisplayName("POST /chamados (multipart) - Deve receber imagem da ocorrência e endereço encaminhando para triagem com status 202")
+    @DisplayName("POST /chamados (multipart) - Deve aguardar triagem IA via DeferredResult e retornar 201 Created com ChamadoResponse")
     void deveCriarChamadoViaMultipartComFoto() throws Exception {
         byte[] fotoBytes = carregarImagemRuaEsburacada();
-        EnderecoRequest enderecoReq = new EnderecoRequest("01001-000", "100", "Em frente ao mercado", "Rua das Flores");
 
         MockMultipartFile fotoPart = new MockMultipartFile(
                 "foto",
@@ -204,38 +208,92 @@ class ChamadoControllerTest {
                 fotoBytes
         );
 
-        MockMultipartFile dadosPart = new MockMultipartFile(
-                "dados",
-                "",
-                MediaType.APPLICATION_JSON_VALUE,
-                objectMapper.writeValueAsBytes(enderecoReq)
-        );
+        ChamadoResponse resp = criarMockResponse(1L, "Cratera na via", "Buraco profundo no asfalto", "EM_ANALISE");
+        DeferredResult<ChamadoResponse> deferred = new DeferredResult<>();
+        deferred.setResult(resp);
 
-        doNothing().when(chamadoService).create(any(EnderecoRequest.class), any(byte[].class), anyString());
+        when(chamadoService.create(any(EnderecoRequest.class), any(byte[].class), eq("cidadao@zelafix.com")))
+                .thenReturn(deferred);
 
-        mockMvc.perform(multipart("/chamados")
+        MvcResult mvcResult = mockMvc.perform(multipart("/chamados")
                         .file(fotoPart)
-                        .file(dadosPart)
+                        .param("cep", "01001-000")
+                        .param("numero", "100")
+                        .param("referencia", "Em frente ao mercado")
+                        .param("rua", "Rua das Flores")
                         .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("cidadao@zelafix.com"))))
-                .andExpect(status().isAccepted());
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(mvcResult))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.idChamado").value(1L))
+                .andExpect(jsonPath("$.titulo").value("Cratera na via"))
+                .andExpect(jsonPath("$.status").value("EM_ANALISE"));
     }
 
     @Test
-    @DisplayName("POST /chamados (json base64) - Deve receber chamado com foto em Base64 e endereço retornando 202 Accepted")
-    void deveCriarChamadoViaJsonComFotoBase64() throws Exception {
-        byte[] fotoBytes = carregarImagemRuaEsburacada();
-        String fotoBase64 = Base64.getEncoder().encodeToString(fotoBytes);
+    @DisplayName("POST /chamados (multipart) - Deve retornar 400 Bad Request em JSON quando a IA recusar a imagem")
+    void deveRetornar400QuandoIaRecusarNaCriacao() throws Exception {
+        MockMultipartFile fotoPart = new MockMultipartFile(
+                "foto",
+                "rua-esburacada.png",
+                MediaType.IMAGE_PNG_VALUE,
+                carregarImagemRuaEsburacada()
+        );
 
-        EnderecoRequest enderecoReq = new EnderecoRequest("01001-000", "100", "Em frente ao mercado", "Rua das Flores");
-        ChamadoCreateRequest chamadoReq = new ChamadoCreateRequest(enderecoReq, fotoBase64);
+        DeferredResult<ChamadoResponse> deferred = new DeferredResult<>();
+        deferred.setErrorResult(new IllegalArgumentException("A foto enviada é uma captura de tela de jogo."));
 
-        doNothing().when(chamadoService).create(any(EnderecoRequest.class), any(byte[].class), anyString());
+        when(chamadoService.create(any(EnderecoRequest.class), any(byte[].class), eq("cidadao@zelafix.com")))
+                .thenReturn(deferred);
 
-        mockMvc.perform(post("/chamados")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(chamadoReq))
+        MvcResult mvcResult = mockMvc.perform(multipart("/chamados")
+                        .file(fotoPart)
+                        .param("cep", "01001-000")
+                        .param("numero", "100")
+                        .param("referencia", "Em frente ao mercado")
                         .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("cidadao@zelafix.com"))))
-                .andExpect(status().isAccepted());
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(mvcResult))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value("A foto enviada é uma captura de tela de jogo."));
+    }
+
+    @Test
+    @DisplayName("POST /chamados (multipart) - Deve retornar 400 Bad Request quando campos do endereço forem inválidos")
+    void deveValidarCamposEnderecoNoCreateMultipart() throws Exception {
+        MockMultipartFile fotoPart = new MockMultipartFile(
+                "foto",
+                "rua-esburacada.png",
+                MediaType.IMAGE_PNG_VALUE,
+                carregarImagemRuaEsburacada()
+        );
+
+        mockMvc.perform(multipart("/chamados")
+                        .file(fotoPart)
+                        .param("cep", "invalido")
+                        .param("numero", "")
+                        .param("referencia", "")
+                        .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("cidadao@zelafix.com"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erros").isArray());
+    }
+
+    @Test
+    @DisplayName("POST /chamados (multipart) - Deve retornar 400 Bad Request quando part 'foto' não for enviada")
+    void deveRetornar400QuandoPartFotoEstiverAusenteNoCreate() throws Exception {
+        mockMvc.perform(multipart("/chamados")
+                        .param("cep", "01001-000")
+                        .param("numero", "100")
+                        .param("referencia", "Em frente ao mercado")
+                        .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("cidadao@zelafix.com"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value("O arquivo ou campo obrigatório 'foto' não foi enviado."));
     }
 
     @Test
@@ -282,7 +340,7 @@ class ChamadoControllerTest {
     }
 
     @Test
-    @DisplayName("PATCH /chamados/{id}/status - Deve retornar 403 Forbidden quando usuário for CIDADAO")
+    @DisplayName("PATCH /chamados/{id}/status - Deve retornar 403 Forbidden em JSON quando usuário for CIDADAO")
     void deveBloquearAtualizacaoStatusParaCidadao() throws Exception {
         ChamadoStatusRequest statusReq = new ChamadoStatusRequest("CONCLUIDO", "Tentativa indevida de conclusão por cidadão.");
 
@@ -292,7 +350,31 @@ class ChamadoControllerTest {
                                 .jwt(jwt -> jwt.subject("cidadao@zelafix.com").claim("role", "CIDADAO")))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(statusReq)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.message").value("Você não possui permissão para acessar este recurso."));
+    }
+
+    @Test
+    @DisplayName("PUT /chamados/{id} - Deve retornar 403 Forbidden quando outro cidadão tentar editar")
+    void deveBloquearEdicaoChamadoParaOutroUsuario() throws Exception {
+        ChamadoRequest chamadoReq = new ChamadoRequest(
+                "Tentativa indevida",
+                "Descrição",
+                "VIAS_E_PAVIMENTACAO",
+                new EnderecoRequest("01001-000", "100", "Em frente ao mercado", "Rua das Flores")
+        );
+
+        when(chamadoService.update(eq(1L), any(ChamadoRequest.class), eq("outro@zelafix.com")))
+                .thenThrow(new AccessDeniedException("Apenas o autor do chamado ou um gestor/administrador pode editá-lo."));
+
+        mockMvc.perform(put("/chamados/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(chamadoReq))
+                        .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("outro@zelafix.com"))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.message").value("Apenas o autor do chamado ou um gestor/administrador pode editá-lo."));
     }
 
     @Test
@@ -370,5 +452,16 @@ class ChamadoControllerTest {
                 .andExpect(jsonPath("$.resolvidos").value(5L))
                 .andExpect(jsonPath("$.rejeitados").value(1L))
                 .andExpect(jsonPath("$.totalApoios").value(30L));
+    }
+
+    @Test
+    @DisplayName("GET /chamados - Deve retornar 401 Unauthorized sem token ou com Bearer inválido")
+    void deveRetornar401QuandoNaoAutenticado() throws Exception {
+        mockMvc.perform(get("/chamados"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/chamados")
+                        .header("Authorization", "Bearer token-invalido"))
+                .andExpect(status().isUnauthorized());
     }
 }

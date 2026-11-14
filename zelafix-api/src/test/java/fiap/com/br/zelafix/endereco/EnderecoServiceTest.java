@@ -20,6 +20,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.client.RestClientException;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,8 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -128,24 +128,14 @@ class EnderecoServiceTest {
     }
 
     @Test
-    @DisplayName("Deve criar novo endereço e normalizar dados se ViaCep falhar ou estiver fora do ar")
-    void deveCriarEnderecoComFallbackQuandoViaCepFalhar() {
+    @DisplayName("Deve propagar RestClientException quando ViaCEP estiver indisponível")
+    void devePropagarRestClientExceptionQuandoViaCepFalhar() {
         EnderecoRequest req = new EnderecoRequest("99999-999", "500", "Avenida Desconhecida", "Bloco B");
 
-        when(viaCepService.getEnderecoPorCep("99999999")).thenThrow(new RuntimeException("ViaCEP indisponível"));
-        when(estadoRepository.findByNomeIgnoreCase(anyString())).thenReturn(Optional.of(estadoSP));
-        when(cidadeRepository.findByNomeIgnoreCaseAndEstadoId(anyString(), anyLong())).thenReturn(Optional.of(cidadeSP));
-        when(bairroRepository.findByNomeIgnoreCaseAndCidadeId(anyString(), anyLong())).thenReturn(Optional.of(bairroCentro));
-        when(enderecoRepository.findFirstByCepAndNumeroAndBairroIdOrderByIdAsc(anyString(), anyString(), anyLong()))
-                .thenReturn(Optional.empty());
-        when(enderecoRepository.save(any(Endereco.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(viaCepService.getEnderecoPorCep("99999999")).thenThrow(new RestClientException("ViaCEP indisponível"));
 
-        Endereco criado = enderecoService.findOrCreateByCepAndNumero(req);
-
-        assertNotNull(criado);
-        assertEquals("99999999", criado.getCep());
-        assertEquals("500", criado.getNumero());
-        verify(enderecoRepository).save(any(Endereco.class));
+        assertThrows(RestClientException.class, () -> enderecoService.findOrCreateByCepAndNumero(req));
+        verify(enderecoRepository, never()).save(any(Endereco.class));
     }
 
     @Test

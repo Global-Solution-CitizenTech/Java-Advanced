@@ -35,7 +35,7 @@ INSERT INTO endereco (cep, rua, numero, referencia, bairro_id_bairro)
 VALUES ('01311000', 'Avenida Paulista', '1000', 'Gabinete de Tecnologia', 1);
 
 INSERT INTO usuario (nm_usuario, email, senha, cargo, endereco_id_endereco)
-VALUES ('Administrador Geral', 'admin@zelafix.com.br', '${ADMIN_BCRYPT_HASH}', 'ADMIN', 1);
+VALUES ('Administrador Geral', 'admin@zelafix.com.br', '$2a$10$SXCHKmagXlo4hjWTaTfWIeGT6Qh8BWLEUgWHsxPEWDxKpQX1Q96Yi', 'ADMIN', 1);
 
 INSERT INTO telefone (num_ddd, num_tel, usuario_id_usuario)
 VALUES ('11', '999990000', 1);

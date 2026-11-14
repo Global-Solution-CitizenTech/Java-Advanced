@@ -25,14 +25,17 @@ public class UsuarioService {
     private final VotoChamadoRepository votoChamadoRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Transactional(readOnly = true)
     public Page<Usuario> findAll(Pageable pageable) {
         return usuarioRepository.findAll(pageable);
     }
 
+    @Transactional(readOnly = true)
     public Usuario findById(Long id) {
         return findUsuarioById(id);
     }
 
+    @Transactional(readOnly = true)
     public Usuario findByEmail(String email) {
         return usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário com e-mail " + email + " não encontrado."));

@@ -2,6 +2,7 @@ package fiap.com.br.zelafix.worker;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.resilience.annotation.EnableResilientMethods;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
@@ -14,6 +15,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication
 @EnableScheduling
+@EnableResilientMethods
 public class ZelaFixWorkerApplication {
 
     public static void main(String[] args) {

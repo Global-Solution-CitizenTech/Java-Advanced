@@ -5,7 +5,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.util.MimeType;
 import org.springframework.util.MimeTypeUtils;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ImageMimeTypeDetectorTest {
 
@@ -51,5 +59,21 @@ class ImageMimeTypeDetectorTest {
     void deveRetornarFallbackParaJpeg() {
         assertEquals(MimeTypeUtils.IMAGE_JPEG, ImageMimeTypeDetector.detectar(null));
         assertEquals(MimeTypeUtils.IMAGE_JPEG, ImageMimeTypeDetector.detectar(new byte[]{0, 1}));
+    }
+
+    @Test
+    @DisplayName("Deve redimensionar imagem maior que 768px para envio econômico à IA e preservar stubs")
+    void deveRedimensionarImagemGrande() throws IOException {
+        byte[] stub = new byte[]{1, 2, 3};
+        assertSame(stub, ImageMimeTypeDetector.redimensionarParaIa(stub));
+
+        BufferedImage img = new BufferedImage(1600, 1200, BufferedImage.TYPE_INT_RGB);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ImageIO.write(img, "png", out);
+
+        byte[] reduzida = ImageMimeTypeDetector.redimensionarParaIa(out.toByteArray());
+        BufferedImage lida = ImageIO.read(new ByteArrayInputStream(reduzida));
+        assertEquals(MimeTypeUtils.IMAGE_JPEG, ImageMimeTypeDetector.detectar(reduzida));
+        assertTrue(lida.getWidth() <= 768 && lida.getHeight() <= 768);
     }
 }

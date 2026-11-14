@@ -1,7 +1,5 @@
-import requests
-import json
 import base64
-import time
+import requests
 
 BASE_URL = "http://localhost:8080"
 
@@ -23,50 +21,41 @@ def test_chamados_crud_lifecycle():
     cidadao_auth = requests.post(f"{BASE_URL}/login", json={"email": "enzo.okuizumi@gmail.com", "senha": "123mudar"}).json()
     cidadao_headers = {"Authorization": f"Bearer {cidadao_auth['token']}"}
 
-    # 3.1 Criar chamado via JSON com foto em base64 (somente foto + endereco)
-    print("\n[3.1] Criando chamado via JSON com foto Base64...")
-    payload_json = {
-        "endereco": {
+    # 3.1 Criar chamado 1 via Multipart/form-data com arquivo binário de imagem
+    print("\n[3.1] Criando chamado 1 via Multipart (campos de endereço + part 'foto')...")
+    res = requests.post(
+        f"{BASE_URL}/chamados",
+        headers=cidadao_headers,
+        data={
             "cep": "01310-100",
             "numero": "500",
             "referencia": "Em frente à farmácia",
             "rua": "Avenida Paulista"
         },
-        "fotoBase64": DUMMY_PNG_B64
-    }
-    res = requests.post(f"{BASE_URL}/chamados", headers=cidadao_headers, json=payload_json)
-    assert res.status_code == 202, f"Falha ao criar chamado JSON: {res.status_code} - {res.text}"
-    print(" -> Sucesso! Chamado JSON enviado para a fila de triagem (202 Accepted).")
+        files={"foto": ("bueiro1.png", DUMMY_PNG_BYTES, "image/png")},
+        timeout=40
+    )
+    assert res.status_code == 201, f"Falha ao criar chamado 1: {res.status_code} - {res.text}"
+    chamado_json_id = res.json()["idChamado"]
+    print(f" -> Sucesso! Chamado ID {chamado_json_id} criado com triagem da IA (201 Created).")
 
-    # 3.2 Criar chamado via Multipart/form-data com arquivo binário de imagem
-    print("\n[3.2] Criando chamado via Multipart (part 'dados' + part 'foto')...")
-    chamado_dados = {
-        "cep": "01310-100",
-        "numero": "750",
-        "referencia": "Esquina com Alameda Campinas",
-        "rua": "Avenida Paulista"
-    }
-    files = {
-        "dados": (None, json.dumps(chamado_dados), "application/json"),
-        "foto": ("bueiro.png", DUMMY_PNG_BYTES, "image/png")
-    }
-    res = requests.post(f"{BASE_URL}/chamados", headers=cidadao_headers, files=files)
-    assert res.status_code == 202, f"Falha ao criar chamado Multipart: {res.status_code} - {res.text}"
-    print(" -> Sucesso! Chamado Multipart enviado para a fila de triagem (202 Accepted). Aguardando persistência pelo worker...")
-
-    chamado_json_id = None
-    chamado_multipart_id = None
-    for _ in range(30):
-        time.sleep(2)
-        lista = requests.get(f"{BASE_URL}/chamados?apenasMeus=true&sort=dtAbertura,desc", headers=cidadao_headers).json()["content"]
-        for item in lista:
-            if item["endereco"]["numero"] == "500" and not chamado_json_id:
-                chamado_json_id = item["idChamado"]
-            elif item["endereco"]["numero"] == "750" and not chamado_multipart_id:
-                chamado_multipart_id = item["idChamado"]
-        if chamado_json_id and chamado_multipart_id:
-            break
-    assert chamado_json_id and chamado_multipart_id, "Worker não persistiu os chamados criados dentro do tempo limite."
+    # 3.2 Criar chamado 2 via Multipart/form-data com arquivo binário de imagem
+    print("\n[3.2] Criando chamado 2 via Multipart (campos de endereço + part 'foto')...")
+    res = requests.post(
+        f"{BASE_URL}/chamados",
+        headers=cidadao_headers,
+        data={
+            "cep": "01310-100",
+            "numero": "750",
+            "referencia": "Esquina com Alameda Campinas",
+            "rua": "Avenida Paulista"
+        },
+        files={"foto": ("bueiro.png", DUMMY_PNG_BYTES, "image/png")},
+        timeout=40
+    )
+    assert res.status_code == 201, f"Falha ao criar chamado 2: {res.status_code} - {res.text}"
+    chamado_multipart_id = res.json()["idChamado"]
+    print(f" -> Sucesso! Chamado ID {chamado_multipart_id} criado com triagem da IA (201 Created).")
 
     # 3.3 Obter foto binária do chamado (GET /chamados/{id}/foto)
     print(f"\n[3.3] Baixando a foto binária do chamado ID {chamado_multipart_id}...")
@@ -78,16 +67,24 @@ def test_chamados_crud_lifecycle():
 
     # 3.4 Validações de Entrada (Foto e Endereço obrigatórios)
     print("\n[3.4] Testando validações de entrada na abertura...")
-    # Sem foto
-    res = requests.post(f"{BASE_URL}/chamados", headers=cidadao_headers, json={
-        "endereco": {"cep": "01310-100", "numero": "1", "referencia": "Ref"}
-    })
+    # Sem foto (multipart sem part 'foto')
+    res = requests.post(
+        f"{BASE_URL}/chamados",
+        headers=cidadao_headers,
+        files={
+            "cep": (None, "01310-100"),
+            "numero": (None, "1"),
+            "referencia": (None, "Ref")
+        }
+    )
     assert res.status_code == 400, f"Deveria falhar sem foto: {res.status_code}"
 
-    # Sem endereço
-    res = requests.post(f"{BASE_URL}/chamados", headers=cidadao_headers, json={
-        "fotoBase64": DUMMY_PNG_B64
-    })
+    # Sem endereço (multipart somente com foto)
+    res = requests.post(
+        f"{BASE_URL}/chamados",
+        headers=cidadao_headers,
+        files={"foto": ("bueiro.png", DUMMY_PNG_BYTES, "image/png")}
+    )
     assert res.status_code == 400, f"Deveria falhar sem endereço: {res.status_code}"
 
     # PUT com categoria inexistente

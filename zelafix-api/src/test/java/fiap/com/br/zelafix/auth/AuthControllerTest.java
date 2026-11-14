@@ -5,7 +5,6 @@ import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.bairro.Bairro;
 import fiap.com.br.zelafix.endereco.cidade.Cidade;
 import fiap.com.br.zelafix.endereco.estado.Estado;
-import fiap.com.br.zelafix.auth.dto.LoginRequest;
 import fiap.com.br.zelafix.usuario.CargoUsuario;
 import fiap.com.br.zelafix.usuario.Usuario;
 import fiap.com.br.zelafix.usuario.UsuarioService;
@@ -60,7 +59,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("Deve autenticar com sucesso e retornar token Bearer JWT e dados do usuário")
     void deveAutenticarComSucesso() throws Exception {
-        LoginRequest request = new LoginRequest("cidadao@zelafix.com.br", "Senha@123");
+        var request = new AuthController.LoginRequest("cidadao@zelafix.com.br", "Senha@123");
 
         Estado estado = Estado.builder().id(1L).nome("SP").build();
         Cidade cidade = Cidade.builder().id(1L).nome("São Paulo").estado(estado).build();
@@ -102,7 +101,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("Deve retornar 401 Unauthorized para credenciais incorretas")
     void deveRetornar401ParaCredenciaisInvalidas() throws Exception {
-        LoginRequest request = new LoginRequest("cidadao@zelafix.com.br", "SenhaIncorreta");
+        var request = new AuthController.LoginRequest("cidadao@zelafix.com.br", "SenhaIncorreta");
 
         when(authenticationManager.authenticate(any()))
                 .thenThrow(new BadCredentialsException("Bad credentials"));

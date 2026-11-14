@@ -14,13 +14,20 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.HttpClientErrorException;
 
+import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,12 +39,15 @@ class ZelaFixAiServiceTest {
     @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     private ChatClient chatClient;
 
+    private final TriagemNormativaTools triagemTools = new TriagemNormativaTools();
+
     private ZelaFixAiService aiService;
 
     @BeforeEach
     void setUp() {
-        when(builder.defaultSystem(anyString()).defaultAdvisors(any(Advisor[].class)).build()).thenReturn(chatClient);
-        aiService = new ZelaFixAiService(builder);
+        when(builder.defaultSystem(anyString()).defaultTools(triagemTools).defaultAdvisors(any(Advisor[].class)).build())
+                .thenReturn(chatClient);
+        aiService = new ZelaFixAiService(builder, triagemTools);
     }
 
     @Test
@@ -52,8 +62,7 @@ class ZelaFixAiServiceTest {
                 DepartamentoGoverno.DEFESA_CIVIL
         );
 
-        when(chatClient.prompt().user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any()).call().entity(TriagemIaResult.class))
-                .thenReturn(esperado);
+        stubRespostaIa(esperado);
 
         TriagemIaResult resultado = aiService.analisarChamado(
                 "Grajaú",
@@ -79,8 +88,7 @@ class ZelaFixAiServiceTest {
                 DepartamentoGoverno.SECRETARIA_OBRAS
         );
 
-        when(chatClient.prompt().user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any()).call().entity(TriagemIaResult.class))
-                .thenReturn(esperado);
+        stubRespostaIa(esperado);
 
         TriagemIaResult resultado = aiService.analisarChamado("Santana", pngBytes);
 
@@ -101,13 +109,55 @@ class ZelaFixAiServiceTest {
                 DepartamentoGoverno.CET_TRANSITO
         );
 
-        when(chatClient.prompt().user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any()).call().entity(TriagemIaResult.class))
-                .thenReturn(esperado);
+        stubRespostaIa(esperado);
 
         TriagemIaResult resultado = aiService.analisarChamado("Consolação", webpBytes);
 
         assertNotNull(resultado);
         assertEquals(PrioridadeChamado.ALTA, resultado.prioridade());
         assertEquals(DepartamentoGoverno.CET_TRANSITO, resultado.orgaoResponsavel());
+    }
+
+    @Test
+    @DisplayName("Deve truncar título e descrição respeitando limite UTF-8 em bytes do Oracle")
+    void deveTruncarCamposLongosParaLimiteUtf8Oracle() {
+        String tituloAcentuadoLongo = "Buracão profundo com iluminação pública comprometida na calçada próxima à estação ".repeat(2);
+        String descricaoLonga = "Descrição detalhada da ocorrência urbana com acentuação ".repeat(25);
+        TriagemIaResult respostaLonga = new TriagemIaResult(
+                true,
+                tituloAcentuadoLongo,
+                descricaoLonga,
+                CategoriaSugerida.VIAS_E_PAVIMENTACAO,
+                PrioridadeChamado.ALTA,
+                DepartamentoGoverno.SECRETARIA_OBRAS
+        );
+
+        stubRespostaIa(respostaLonga);
+
+        TriagemIaResult resultado = aiService.analisarChamado(
+                "Pinheiros",
+                new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0}
+        );
+
+        assertTrue(resultado.titulo().getBytes(StandardCharsets.UTF_8).length <= TriagemIaResult.MAX_TITULO_BYTES);
+        assertTrue(resultado.descricao().getBytes(StandardCharsets.UTF_8).length <= TriagemIaResult.MAX_DESCRICAO_BYTES);
+    }
+
+    @Test
+    @DisplayName("Não deve tentar retry para erros 4xx/429 nem permitir repetição em cadeia")
+    void naoDeveFazerRetryParaErroClienteOuQuota() {
+        var predicate = new ZelaFixAiService.AbortOnClientErrorPredicate();
+        var tooManyRequests = HttpClientErrorException.create(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", HttpHeaders.EMPTY, new byte[0], null);
+        assertFalse(predicate.shouldRetry(null, tooManyRequests));
+        assertFalse(predicate.shouldRetry(null, new RuntimeException(tooManyRequests)));
+        assertTrue(predicate.shouldRetry(null, new RuntimeException("Timeout transitório")));
+    }
+
+    private void stubRespostaIa(TriagemIaResult resposta) {
+        when(chatClient.prompt()
+                .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
+                .call()
+                .entity(eq(TriagemIaResult.class), ArgumentMatchers.<Consumer<ChatClient.EntityParamSpec>>any()))
+                .thenReturn(resposta);
     }
 }
