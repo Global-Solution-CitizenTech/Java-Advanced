@@ -32,7 +32,7 @@ public class ZelaFixAiService {
             3. Gere uma descrição técnica detalhada (máximo 1000 caracteres) explicando o problema observado, riscos aos cidadãos e recomendação de atendimento.
             4. Classifique a categoriaSugerida rigorosamente entre os valores permitidos (ILUMINACAO_PUBLICA, VIAS_E_PAVIMENTACAO, DRENAGEM_E_ESGOTO, LIMPEZA_URBANA, ARVORES_E_PARQUES ou SINALIZACAO_E_TRANSITO).
             5. Classifique a prioridade rigorosamente entre os valores permitidos (BAIXA, MEDIA, ALTA ou URGENTE).
-            6. Selecione o departamento governamental municipal competente para atuar no reparo.
+            6. Classifique o orgaoResponsavel rigorosamente entre os valores permitidos (SECRETARIA_OBRAS, CET_TRANSITO, ILUMINACAO_PUBLICA, DEFESA_CIVIL, SUBPREFEITURA ou SANEAMENTO_BASICO — para demandas de limpeza urbana, lixo, árvores e parques, utilize SUBPREFEITURA).
             """;
 
     public ZelaFixAiService(ChatClient.Builder builder) {

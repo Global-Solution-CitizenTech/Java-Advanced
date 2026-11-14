@@ -21,18 +21,9 @@ public class ChamadoAiConsumer {
 
     @RabbitListener(queues = RabbitWorkerConfig.QUEUE_CHAMADO_TRIAGEM)
     public void processarTriagem(ChamadoTriagemMessage message) {
-        log.info("Processando triagem assíncrona com Spring AI para o chamado ID: {}", message.idChamado());
+        log.info("Processando triagem assíncrona com Spring AI para usuário ID: {}", message.usuarioId());
 
-        TriagemIaResult resultado = aiService.analisarChamado(message.bairro(), message.foto());
-
-        var feedback = new TriagemFeedbackMessage(
-                message.idChamado(),
-                resultado.titulo(),
-                resultado.descricao(),
-                resultado.categoriaSugerida().getNomeCategoria(),
-                resultado.prioridade().name(),
-                resultado.orgaoResponsavel().getNomeOficial()
-        );
+        TriagemFeedbackMessage feedback = gerarFeedback(message);
 
         rabbitTemplate.convertAndSend(
                 RabbitWorkerConfig.EXCHANGE_NAME,
@@ -40,6 +31,16 @@ public class ChamadoAiConsumer {
                 feedback
         );
 
-        log.info("Triagem IA concluída e publicada na fila de retorno para o chamado ID: {}", message.idChamado());
+        log.info("Triagem concluída (status={}) e publicada para usuário ID: {}", feedback.statusNome(), message.usuarioId());
+    }
+
+    private TriagemFeedbackMessage gerarFeedback(ChamadoTriagemMessage message) {
+        try {
+            TriagemIaResult resultado = aiService.analisarChamado(message.bairro(), message.foto());
+            return TriagemFeedbackMessage.sucesso(message, resultado);
+        } catch (Exception e) {
+            log.error("Falha na IA durante triagem para usuário ID {}. Aplicando contingência PENDENTE: {}", message.usuarioId(), e.getMessage());
+            return TriagemFeedbackMessage.contingencia(message);
+        }
     }
 }

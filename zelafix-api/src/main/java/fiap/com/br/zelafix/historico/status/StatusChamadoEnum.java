@@ -1,4 +1,4 @@
-package fiap.com.br.zelafix.status;
+package fiap.com.br.zelafix.historico.status;
 
 public enum StatusChamadoEnum {
     PENDENTE,

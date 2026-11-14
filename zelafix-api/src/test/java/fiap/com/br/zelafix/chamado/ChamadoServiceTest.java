@@ -1,6 +1,7 @@
 package fiap.com.br.zelafix.chamado;
 
 import fiap.com.br.zelafix.categoria.Categoria;
+import fiap.com.br.zelafix.categoria.CategoriaEnum;
 import fiap.com.br.zelafix.categoria.CategoriaService;
 import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
@@ -13,15 +14,18 @@ import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.endereco.estado.Estado;
 import fiap.com.br.zelafix.historico.HistChamado;
 import fiap.com.br.zelafix.historico.HistChamadoRepository;
+import fiap.com.br.zelafix.historico.status.Status;
+import fiap.com.br.zelafix.historico.status.StatusChamadoEnum;
+import fiap.com.br.zelafix.historico.status.StatusService;
 import fiap.com.br.zelafix.chamado.orgao.OrgaoGoverno;
+import fiap.com.br.zelafix.chamado.orgao.OrgaoGovernoEnum;
 import fiap.com.br.zelafix.chamado.orgao.OrgaoGovernoService;
 import fiap.com.br.zelafix.chamado.prioridade.Prioridade;
+import fiap.com.br.zelafix.chamado.prioridade.PrioridadeEnum;
 import fiap.com.br.zelafix.chamado.prioridade.PrioridadeService;
 import fiap.com.br.zelafix.queue.dto.ChamadoTriagemMessage;
 import fiap.com.br.zelafix.queue.dto.TriagemFeedbackMessage;
 import fiap.com.br.zelafix.queue.dto.VotoMessage;
-import fiap.com.br.zelafix.status.Status;
-import fiap.com.br.zelafix.status.StatusService;
 import fiap.com.br.zelafix.usuario.CargoUsuario;
 import fiap.com.br.zelafix.usuario.Usuario;
 import fiap.com.br.zelafix.usuario.UsuarioService;
@@ -45,6 +49,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -85,7 +90,7 @@ class ChamadoServiceTest {
 
     private Usuario usuario;
     private Categoria categoria;
-    private Prioridade prioridadePendente;
+    private Prioridade prioridadeInicial;
     private OrgaoGoverno orgaoInicial;
     private Status statusPendente;
     private Status statusEmAnalise;
@@ -102,27 +107,26 @@ class ChamadoServiceTest {
 
         categoria = Categoria.builder()
                 .idCategoria(1L)
-                .nmCategoria("Buraco na Rua")
+                .nmCategoria(CategoriaEnum.VIAS_E_PAVIMENTACAO)
                 .build();
 
-        prioridadePendente = Prioridade.builder()
-                .idPrioridade(5L)
-                .nmPrioridade("PENDENTE")
+        prioridadeInicial = Prioridade.builder()
+                .idPrioridade(2L)
+                .nmPrioridade(PrioridadeEnum.MEDIA)
                 .build();
-
         orgaoInicial = OrgaoGoverno.builder()
-                .idOrgao(7L)
-                .nmOrgao("Em análise pela IA")
+                .idOrgao(5L)
+                .nmOrgao(OrgaoGovernoEnum.SUBPREFEITURA)
                 .build();
 
         statusPendente = Status.builder()
                 .idStatus(1L)
-                .nmStatus("PENDENTE")
+                .nmStatus(StatusChamadoEnum.PENDENTE)
                 .build();
 
         statusEmAnalise = Status.builder()
                 .idStatus(2L)
-                .nmStatus("EM_ANALISE")
+                .nmStatus(StatusChamadoEnum.EM_ANALISE)
                 .build();
 
         Estado estado = Estado.builder().id(1L).nome("São Paulo").build();
@@ -140,48 +144,22 @@ class ChamadoServiceTest {
     }
 
     @Test
-    @DisplayName("Deve criar um chamado com status PENDENTE e publicar evento no RabbitMQ")
+    @DisplayName("Deve validar imagem e publicar evento de triagem no RabbitMQ ao criar chamado")
     void deveCriarChamadoComSucesso() {
         EnderecoRequest enderecoRequest = new EnderecoRequest("05422001", "720", "Esquina com Fradique", "Rua dos Pinheiros");
-        byte[] fotoBytes = "bytes".getBytes(StandardCharsets.UTF_8);
+        byte[] fotoBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
 
         when(usuarioService.findByEmail(usuario.getEmail())).thenReturn(usuario);
-        when(categoriaService.findDefault()).thenReturn(categoria);
-        when(prioridadeService.findByNameOrCreate("PENDENTE")).thenReturn(prioridadePendente);
-        when(orgaoGovernoService.findByNameOrCreate("Em análise pela IA")).thenReturn(orgaoInicial);
-        when(statusService.findByNameOrCreate("PENDENTE")).thenReturn(statusPendente);
         when(enderecoService.findOrCreateByCepAndNumero(any())).thenReturn(endereco);
 
-        Chamado chamadoSalvo = Chamado.builder()
-                .idChamado(100L)
-                .titulo("Ocorrência em análise pela IA")
-                .descricao("Aguardando análise técnica automática da imagem enviada...")
-                .foto(fotoBytes)
-                .categoria(categoria)
-                .prioridade(prioridadePendente)
-                .orgaoGoverno(orgaoInicial)
-                .usuario(usuario)
-                .endereco(endereco)
-                .dtAbertura(LocalDateTime.now())
-                .build();
-
-        when(chamadoRepository.save(any())).thenReturn(chamadoSalvo);
-
-        ChamadoResponse response = chamadoService.create(enderecoRequest, fotoBytes, usuario.getEmail());
-
-        assertNotNull(response);
-        assertEquals(100L, response.idChamado());
-        assertEquals("Ocorrência em análise pela IA", response.titulo());
-        assertEquals("PENDENTE", response.prioridadeNome());
-        assertEquals("Em análise pela IA", response.orgaoNome());
-        assertEquals("PENDENTE", response.status());
+        chamadoService.create(enderecoRequest, fotoBytes, usuario.getEmail());
 
         ArgumentCaptor<ChamadoTriagemMessage> triagemCaptor = ArgumentCaptor.forClass(ChamadoTriagemMessage.class);
         verify(eventPublisher, times(1)).publishEvent(triagemCaptor.capture());
-        assertArrayEquals(chamadoSalvo.getFoto(), triagemCaptor.getValue().foto());
+        assertEquals(1L, triagemCaptor.getValue().usuarioId());
+        assertEquals(1L, triagemCaptor.getValue().enderecoId());
+        assertArrayEquals(fotoBytes, triagemCaptor.getValue().foto());
         assertEquals("Pinheiros", triagemCaptor.getValue().bairro());
-        verify(histChamadoRepository, times(1)).save(any());
-        verify(votoChamadoRepository, times(1)).save(any());
     }
 
     @Test
@@ -194,7 +172,7 @@ class ChamadoServiceTest {
                 .usuario(usuario)
                 .endereco(endereco)
                 .categoria(categoria)
-                .prioridade(prioridadePendente)
+                .prioridade(prioridadeInicial)
                 .orgaoGoverno(orgaoInicial)
                 .foto("bytes".getBytes(StandardCharsets.UTF_8))
                 .dtAbertura(LocalDateTime.now())
@@ -222,7 +200,7 @@ class ChamadoServiceTest {
                 .usuario(usuario)
                 .endereco(endereco)
                 .categoria(categoria)
-                .prioridade(prioridadePendente)
+                .prioridade(prioridadeInicial)
                 .orgaoGoverno(orgaoInicial)
                 .foto("bytes".getBytes(StandardCharsets.UTF_8))
                 .dtAbertura(LocalDateTime.now())
@@ -271,14 +249,14 @@ class ChamadoServiceTest {
                 .cargo(CargoUsuario.GESTOR)
                 .build();
 
-        Status statusNovo = Status.builder().idStatus(4L).nmStatus("CONCLUIDO").build();
+        Status statusNovo = Status.builder().idStatus(4L).nmStatus(StatusChamadoEnum.CONCLUIDO).build();
 
         Chamado chamado = Chamado.builder()
                 .idChamado(500L)
                 .titulo("Asfalto afundando")
                 .descricao("Perigo")
                 .categoria(categoria)
-                .prioridade(prioridadePendente)
+                .prioridade(prioridadeInicial)
                 .orgaoGoverno(orgaoInicial)
                 .endereco(endereco)
                 .usuario(usuario)
@@ -288,7 +266,7 @@ class ChamadoServiceTest {
 
         when(chamadoRepository.findById(500L)).thenReturn(Optional.of(chamado));
         when(usuarioService.findByEmail(gestor.getEmail())).thenReturn(gestor);
-        when(statusService.findByNameOrCreate("CONCLUIDO")).thenReturn(statusNovo);
+        when(statusService.findByNome(StatusChamadoEnum.CONCLUIDO)).thenReturn(statusNovo);
 
         ChamadoStatusRequest request = new ChamadoStatusRequest("CONCLUIDO", "Serviço finalizado com sucesso.");
 
@@ -308,14 +286,14 @@ class ChamadoServiceTest {
                 .cargo(CargoUsuario.ADMIN)
                 .build();
 
-        Status statusNovo = Status.builder().idStatus(4L).nmStatus("CONCLUIDO").build();
+        Status statusNovo = Status.builder().idStatus(4L).nmStatus(StatusChamadoEnum.CONCLUIDO).build();
 
         Chamado chamado = Chamado.builder()
                 .idChamado(600L)
                 .titulo("Vazamento de água")
                 .descricao("Urgente")
                 .categoria(categoria)
-                .prioridade(prioridadePendente)
+                .prioridade(prioridadeInicial)
                 .orgaoGoverno(orgaoInicial)
                 .endereco(endereco)
                 .usuario(usuario)
@@ -325,7 +303,7 @@ class ChamadoServiceTest {
 
         when(chamadoRepository.findById(600L)).thenReturn(Optional.of(chamado));
         when(usuarioService.findByEmail(admin.getEmail())).thenReturn(admin);
-        when(statusService.findByNameOrCreate("CONCLUIDO")).thenReturn(statusNovo);
+        when(statusService.findByNome(StatusChamadoEnum.CONCLUIDO)).thenReturn(statusNovo);
 
         ChamadoStatusRequest request = new ChamadoStatusRequest("CONCLUIDO", "Resolvido por intervenção direta de admin.");
 
@@ -336,16 +314,18 @@ class ChamadoServiceTest {
     }
 
     @Test
-    @DisplayName("ADMIN pode deletar chamado por ID")
-    void devePermitirAdminDeletarChamado() {
+    @DisplayName("ADMIN ou AUTOR pode deletar chamado por ID")
+    void devePermitirAutorOuAdminDeletarChamado() {
         Chamado chamado = Chamado.builder()
                 .idChamado(700L)
                 .titulo("Chamado para exclusão")
+                .usuario(usuario)
                 .build();
 
         when(chamadoRepository.findById(700L)).thenReturn(Optional.of(chamado));
+        when(usuarioService.findByEmail(usuario.getEmail())).thenReturn(usuario);
 
-        chamadoService.delete(700L);
+        chamadoService.delete(700L, usuario.getEmail());
 
         verify(votoChamadoRepository).deleteByChamadoIdChamado(700L);
         verify(histChamadoRepository).deleteByChamadoIdChamado(700L);
@@ -353,21 +333,42 @@ class ChamadoServiceTest {
     }
 
     @Test
+    @DisplayName("Deve bloquear GESTOR ou outro cidadão ao tentar deletar chamado alheio")
+    void deveBloquearExclusaoPorNaoAutorSemCargoAdmin() {
+        Usuario gestor = Usuario.builder()
+                .idUsuario(2L)
+                .email("gestor@zelafix.com.br")
+                .cargo(CargoUsuario.GESTOR)
+                .build();
+
+        Chamado chamado = Chamado.builder()
+                .idChamado(701L)
+                .titulo("Chamado do cidadão")
+                .usuario(usuario)
+                .build();
+
+        when(chamadoRepository.findById(701L)).thenReturn(Optional.of(chamado));
+        when(usuarioService.findByEmail(gestor.getEmail())).thenReturn(gestor);
+
+        assertThrows(AccessDeniedException.class, () -> chamadoService.delete(701L, gestor.getEmail()));
+    }
+
+    @Test
     @DisplayName("Deve buscar chamados paginados com carregamento em lote de status, votos e apoio (sem N+1)")
     void deveBuscarChamadosComCarregamentoEmLote() {
-        Chamado c1 = Chamado.builder().idChamado(10L).titulo("Buraco 1").categoria(categoria).prioridade(prioridadePendente).orgaoGoverno(orgaoInicial).usuario(usuario).endereco(endereco).dtAbertura(LocalDateTime.now()).build();
-        Chamado c2 = Chamado.builder().idChamado(20L).titulo("Buraco 2").categoria(categoria).prioridade(prioridadePendente).orgaoGoverno(orgaoInicial).usuario(usuario).endereco(endereco).dtAbertura(LocalDateTime.now()).build();
+        Chamado c1 = Chamado.builder().idChamado(10L).titulo("Buraco 1").categoria(categoria).prioridade(prioridadeInicial).orgaoGoverno(orgaoInicial).usuario(usuario).endereco(endereco).dtAbertura(LocalDateTime.now()).build();
+        Chamado c2 = Chamado.builder().idChamado(20L).titulo("Buraco 2").categoria(categoria).prioridade(prioridadeInicial).orgaoGoverno(orgaoInicial).usuario(usuario).endereco(endereco).dtAbertura(LocalDateTime.now()).build();
         Page<Chamado> page = new PageImpl<>(List.of(c1, c2));
 
         when(usuarioService.findByEmail(usuario.getEmail())).thenReturn(usuario);
-        when(chamadoRepository.findByFiltros(null, null, null, null, Pageable.unpaged())).thenReturn(page);
+        when(chamadoRepository.findByFiltros(null, null, null, null, null, null, null, Pageable.unpaged())).thenReturn(page);
 
         HistChamado h1 = HistChamado.builder().chamado(c1).status(statusPendente).build();
         when(histChamadoRepository.findLatestByChamadoIds(List.of(10L, 20L))).thenReturn(List.of(h1));
         when(votoChamadoRepository.countVotosByChamadoIds(List.of(10L, 20L))).thenReturn(List.<Object[]>of(new Object[]{10L, 5L}));
         when(votoChamadoRepository.findChamadoIdsApoiadosPorMim(List.of(10L, 20L), 1L)).thenReturn(Set.of(10L));
 
-        Page<ChamadoResponse> resultado = chamadoService.findAll(null, null, null, null, usuario.getEmail(), Pageable.unpaged());
+        Page<ChamadoResponse> resultado = chamadoService.findAll(null, null, null, null, null, null, null, usuario.getEmail(), Pageable.unpaged());
 
         assertEquals(2, resultado.getTotalElements());
         assertEquals("PENDENTE", resultado.getContent().get(0).status());
@@ -379,43 +380,54 @@ class ChamadoServiceTest {
     }
 
     @Test
-    @DisplayName("Deve aplicar triagem da IA no chamado e registrar histórico com status EM_ANALISE")
+    @DisplayName("Deve persistir chamado definitivo após triagem da IA e registrar voto e histórico com status EM_ANALISE")
     void deveAplicarTriagemIa() {
-        Chamado chamado = Chamado.builder().idChamado(100L).usuario(usuario).build();
-        Categoria catIa = Categoria.builder().idCategoria(2L).nmCategoria("Vias e Pavimentação").build();
-        Prioridade prioAlta = Prioridade.builder().idPrioridade(3L).nmPrioridade("ALTA").build();
-        OrgaoGoverno orgao = OrgaoGoverno.builder().idOrgao(1L).nmOrgao("Secretaria Municipal de Infraestrutura Urbana e Obras").build();
+        byte[] fotoBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
+        Categoria catIa = Categoria.builder().idCategoria(2L).nmCategoria(CategoriaEnum.VIAS_E_PAVIMENTACAO).build();
+        Prioridade prioAlta = Prioridade.builder().idPrioridade(3L).nmPrioridade(PrioridadeEnum.ALTA).build();
+        OrgaoGoverno orgao = OrgaoGoverno.builder().idOrgao(1L).nmOrgao(OrgaoGovernoEnum.SECRETARIA_OBRAS).build();
 
-        when(chamadoRepository.findById(100L)).thenReturn(Optional.of(chamado));
-        when(categoriaService.findByNameOrCreate("Vias e Pavimentação")).thenReturn(catIa);
-        when(prioridadeService.findByNameOrCreate("ALTA")).thenReturn(prioAlta);
-        when(orgaoGovernoService.findByNameOrCreate("Secretaria Municipal de Infraestrutura Urbana e Obras")).thenReturn(orgao);
-        when(statusService.findByNameOrCreate("EM_ANALISE")).thenReturn(statusEmAnalise);
+        when(usuarioService.findById(1L)).thenReturn(usuario);
+        when(enderecoService.findById(1L)).thenReturn(endereco);
+        when(categoriaService.findByNome(CategoriaEnum.VIAS_E_PAVIMENTACAO)).thenReturn(catIa);
+        when(prioridadeService.findByNome(PrioridadeEnum.ALTA)).thenReturn(prioAlta);
+        when(orgaoGovernoService.findByNome(OrgaoGovernoEnum.SECRETARIA_OBRAS)).thenReturn(orgao);
+        when(statusService.findByNome(StatusChamadoEnum.EM_ANALISE)).thenReturn(statusEmAnalise);
+        when(chamadoRepository.save(any(Chamado.class))).thenAnswer(inv -> {
+            Chamado c = inv.getArgument(0);
+            c.setIdChamado(100L);
+            return c;
+        });
 
         var feedback = new TriagemFeedbackMessage(
-                100L,
+                1L,
+                1L,
+                fotoBytes,
                 "Cratera aberta no asfalto",
                 "Reparo emergencial recomendado devido ao risco viário.",
-                "Vias e Pavimentação",
+                "VIAS_E_PAVIMENTACAO",
                 "ALTA",
-                "Secretaria Municipal de Infraestrutura Urbana e Obras"
+                "SECRETARIA_OBRAS",
+                "EM_ANALISE"
         );
         chamadoService.aplicarTriagemIa(feedback);
 
         ArgumentCaptor<Chamado> chamadoCaptor = ArgumentCaptor.forClass(Chamado.class);
         verify(chamadoRepository).save(chamadoCaptor.capture());
-        Chamado atualizado = chamadoCaptor.getValue();
-        assertEquals(100L, atualizado.getIdChamado());
-        assertEquals("Cratera aberta no asfalto", atualizado.getTitulo());
-        assertEquals("Reparo emergencial recomendado devido ao risco viário.", atualizado.getDescricao());
-        assertEquals(catIa, atualizado.getCategoria());
-        assertEquals(prioAlta, atualizado.getPrioridade());
-        assertEquals(orgao, atualizado.getOrgaoGoverno());
+        Chamado criado = chamadoCaptor.getValue();
+        assertEquals(100L, criado.getIdChamado());
+        assertEquals("Cratera aberta no asfalto", criado.getTitulo());
+        assertEquals("Reparo emergencial recomendado devido ao risco viário.", criado.getDescricao());
+        assertEquals(catIa, criado.getCategoria());
+        assertEquals(prioAlta, criado.getPrioridade());
+        assertEquals(orgao, criado.getOrgaoGoverno());
+
+        verify(votoChamadoRepository).save(any(VotoChamado.class));
 
         ArgumentCaptor<HistChamado> histCaptor = ArgumentCaptor.forClass(HistChamado.class);
         verify(histChamadoRepository).save(histCaptor.capture());
         HistChamado historico = histCaptor.getValue();
-        assertEquals(atualizado, historico.getChamado());
+        assertEquals(criado, historico.getChamado());
         assertEquals(usuario, historico.getUsuario());
         assertEquals(statusEmAnalise, historico.getStatus());
         assertTrue(historico.getObservacoes().getBytes(StandardCharsets.UTF_8).length <= 255);
@@ -436,7 +448,7 @@ class ChamadoServiceTest {
                 .descricao("Descrição Original")
                 .usuario(usuario) // criado pelo cidadão (id 1)
                 .categoria(categoria)
-                .prioridade(prioridadePendente)
+                .prioridade(prioridadeInicial)
                 .orgaoGoverno(orgaoInicial)
                 .endereco(endereco)
                 .foto("bytes".getBytes(StandardCharsets.UTF_8))
@@ -446,13 +458,13 @@ class ChamadoServiceTest {
         ChamadoRequest requestEdicao = new ChamadoRequest(
                 "Título Atualizado pelo Gestor",
                 "Descrição atualizada para obras",
-                1L,
+                "VIAS_E_PAVIMENTACAO",
                 new EnderecoRequest("01311000", "50", "Em frente ao parque", "Avenida Paulista")
         );
 
         when(chamadoRepository.findById(150L)).thenReturn(Optional.of(chamado));
         when(usuarioService.findByEmail(gestor.getEmail())).thenReturn(gestor);
-        when(categoriaService.findById(1L)).thenReturn(categoria);
+        when(categoriaService.findByNome(CategoriaEnum.VIAS_E_PAVIMENTACAO)).thenReturn(categoria);
         when(enderecoService.findOrCreateByCepAndNumero(any())).thenReturn(endereco);
         when(chamadoRepository.save(any())).thenReturn(chamado);
         HistChamado histMock = HistChamado.builder()
@@ -474,7 +486,7 @@ class ChamadoServiceTest {
         assertEquals(150L, atualizado.getIdChamado());
         assertEquals("Título Atualizado pelo Gestor", atualizado.getTitulo());
         assertEquals("Descrição atualizada para obras", atualizado.getDescricao());
-        assertEquals(prioridadePendente, atualizado.getPrioridade());
+        assertEquals(prioridadeInicial, atualizado.getPrioridade());
         assertEquals(orgaoInicial, atualizado.getOrgaoGoverno());
     }
 
@@ -494,7 +506,7 @@ class ChamadoServiceTest {
                 .build();
 
         ChamadoRequest requestEdicao = new ChamadoRequest(
-                "Invasão de chamado", "Desc", 1L,
+                "Invasão de chamado", "Desc", "VIAS_E_PAVIMENTACAO",
                 new EnderecoRequest("01311000", "50", "Referência", "Avenida Paulista")
         );
 

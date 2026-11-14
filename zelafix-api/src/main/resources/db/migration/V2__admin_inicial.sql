@@ -16,12 +16,12 @@ INSERT INTO bairro (nm_bairro, cidade_id_cidade) VALUES ('Mooca', 1);
 INSERT INTO bairro (nm_bairro, cidade_id_cidade) VALUES ('Santana', 1);
 
 -- 4. CATEGORIA
-INSERT INTO categoria (nm_categoria) VALUES ('Iluminação Pública');
-INSERT INTO categoria (nm_categoria) VALUES ('Vias e Pavimentação');
-INSERT INTO categoria (nm_categoria) VALUES ('Drenagem e Esgoto');
-INSERT INTO categoria (nm_categoria) VALUES ('Limpeza Urbana');
-INSERT INTO categoria (nm_categoria) VALUES ('Árvores e Parques');
-INSERT INTO categoria (nm_categoria) VALUES ('Sinalização e Trânsito');
+INSERT INTO categoria (nm_categoria) VALUES ('ILUMINACAO_PUBLICA');
+INSERT INTO categoria (nm_categoria) VALUES ('VIAS_E_PAVIMENTACAO');
+INSERT INTO categoria (nm_categoria) VALUES ('DRENAGEM_E_ESGOTO');
+INSERT INTO categoria (nm_categoria) VALUES ('LIMPEZA_URBANA');
+INSERT INTO categoria (nm_categoria) VALUES ('ARVORES_E_PARQUES');
+INSERT INTO categoria (nm_categoria) VALUES ('SINALIZACAO_E_TRANSITO');
 
 -- 5. STATUS
 INSERT INTO status (nm_status) VALUES ('PENDENTE');
@@ -45,13 +45,11 @@ INSERT INTO prioridade (nm_prioridade) VALUES ('BAIXA');
 INSERT INTO prioridade (nm_prioridade) VALUES ('MEDIA');
 INSERT INTO prioridade (nm_prioridade) VALUES ('ALTA');
 INSERT INTO prioridade (nm_prioridade) VALUES ('URGENTE');
-INSERT INTO prioridade (nm_prioridade) VALUES ('PENDENTE');
 
 -- 8. ORGAO_GOVERNO
-INSERT INTO orgao_governo (orgao_governo) VALUES ('Secretaria Municipal de Infraestrutura Urbana e Obras');
-INSERT INTO orgao_governo (orgao_governo) VALUES ('Companhia de Engenharia de Tráfego (CET)');
-INSERT INTO orgao_governo (orgao_governo) VALUES ('Departamento de Iluminação Pública (Ilume)');
-INSERT INTO orgao_governo (orgao_governo) VALUES ('Coordenação Municipal de Defesa Civil');
-INSERT INTO orgao_governo (orgao_governo) VALUES ('Subprefeitura Regional');
-INSERT INTO orgao_governo (orgao_governo) VALUES ('Companhia de Saneamento Básico e Drenagem');
-INSERT INTO orgao_governo (orgao_governo) VALUES ('Em análise pela IA');
+INSERT INTO orgao_governo (orgao_governo) VALUES ('SECRETARIA_OBRAS');
+INSERT INTO orgao_governo (orgao_governo) VALUES ('CET_TRANSITO');
+INSERT INTO orgao_governo (orgao_governo) VALUES ('ILUMINACAO_PUBLICA');
+INSERT INTO orgao_governo (orgao_governo) VALUES ('DEFESA_CIVIL');
+INSERT INTO orgao_governo (orgao_governo) VALUES ('SUBPREFEITURA');
+INSERT INTO orgao_governo (orgao_governo) VALUES ('SANEAMENTO_BASICO');

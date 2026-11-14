@@ -1,7 +1,7 @@
 import requests
 import json
 import base64
-import random
+import time
 
 BASE_URL = "http://localhost:8080"
 
@@ -35,12 +35,8 @@ def test_chamados_crud_lifecycle():
         "fotoBase64": DUMMY_PNG_B64
     }
     res = requests.post(f"{BASE_URL}/chamados", headers=cidadao_headers, json=payload_json)
-    assert res.status_code == 201, f"Falha ao criar chamado JSON: {res.status_code} - {res.text}"
-    chamado_json_body = res.json()
-    chamado_json_id = chamado_json_body["idChamado"]
-    assert chamado_json_body["prioridadeNome"] == "PENDENTE", f"Prioridade inicial inesperada: {chamado_json_body['prioridadeNome']}"
-    assert chamado_json_body["orgaoNome"] == "Em análise pela IA", f"Órgão inicial inesperado: {chamado_json_body['orgaoNome']}"
-    print(f" -> Sucesso! Chamado ID {chamado_json_id} criado via JSON.")
+    assert res.status_code == 202, f"Falha ao criar chamado JSON: {res.status_code} - {res.text}"
+    print(" -> Sucesso! Chamado JSON enviado para a fila de triagem (202 Accepted).")
 
     # 3.2 Criar chamado via Multipart/form-data com arquivo binário de imagem
     print("\n[3.2] Criando chamado via Multipart (part 'dados' + part 'foto')...")
@@ -55,9 +51,22 @@ def test_chamados_crud_lifecycle():
         "foto": ("bueiro.png", DUMMY_PNG_BYTES, "image/png")
     }
     res = requests.post(f"{BASE_URL}/chamados", headers=cidadao_headers, files=files)
-    assert res.status_code == 201, f"Falha ao criar chamado Multipart: {res.status_code} - {res.text}"
-    chamado_multipart_id = res.json()["idChamado"]
-    print(f" -> Sucesso! Chamado ID {chamado_multipart_id} criado via Multipart.")
+    assert res.status_code == 202, f"Falha ao criar chamado Multipart: {res.status_code} - {res.text}"
+    print(" -> Sucesso! Chamado Multipart enviado para a fila de triagem (202 Accepted). Aguardando persistência pelo worker...")
+
+    chamado_json_id = None
+    chamado_multipart_id = None
+    for _ in range(30):
+        time.sleep(2)
+        lista = requests.get(f"{BASE_URL}/chamados?apenasMeus=true&sort=dtAbertura,desc", headers=cidadao_headers).json()["content"]
+        for item in lista:
+            if item["endereco"]["numero"] == "500" and not chamado_json_id:
+                chamado_json_id = item["idChamado"]
+            elif item["endereco"]["numero"] == "750" and not chamado_multipart_id:
+                chamado_multipart_id = item["idChamado"]
+        if chamado_json_id and chamado_multipart_id:
+            break
+    assert chamado_json_id and chamado_multipart_id, "Worker não persistiu os chamados criados dentro do tempo limite."
 
     # 3.3 Obter foto binária do chamado (GET /chamados/{id}/foto)
     print(f"\n[3.3] Baixando a foto binária do chamado ID {chamado_multipart_id}...")
@@ -85,7 +94,7 @@ def test_chamados_crud_lifecycle():
     res = requests.put(f"{BASE_URL}/chamados/{chamado_json_id}", headers=cidadao_headers, json={
         "titulo": "Título válido",
         "descricao": "Descrição válida detalhada",
-        "categoriaId": 99999,
+        "categoria": "CATEGORIA_INEXISTENTE",
         "endereco": {"cep": "01310-100", "numero": "1", "referencia": "Ref"}
     })
     assert res.status_code in [400, 404], f"Deveria falhar categoria inexistente no PUT: {res.status_code}"
