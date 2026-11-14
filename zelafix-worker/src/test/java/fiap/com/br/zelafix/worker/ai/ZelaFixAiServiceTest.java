@@ -44,6 +44,7 @@ class ZelaFixAiServiceTest {
     @DisplayName("Deve inicializar o ChatClient com o System Prompt e executar triagem tipada com Enums e imagem")
     void deveExecutarTriagemComSucesso() {
         TriagemIaResult esperado = new TriagemIaResult(
+                true,
                 "Muro rachado com risco de queda",
                 "Estrutura de contenção apresenta fissuras graves próximas à via pública.",
                 CategoriaSugerida.VIAS_E_PAVIMENTACAO,
@@ -70,6 +71,7 @@ class ZelaFixAiServiceTest {
     void deveProcessarFotoPng() {
         byte[] pngBytes = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
         TriagemIaResult esperado = new TriagemIaResult(
+                true,
                 "Bueiro entupido na via",
                 "Boca de lobo obstruída por resíduos sólidos causando acúmulo de água.",
                 CategoriaSugerida.DRENAGEM_E_ESGOTO,
@@ -91,6 +93,7 @@ class ZelaFixAiServiceTest {
     void deveProcessarFotoWebp() {
         byte[] webpBytes = new byte[]{'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'};
         TriagemIaResult esperado = new TriagemIaResult(
+                true,
                 "Semáforo apagado em cruzamento",
                 "Conjunto semafórico sem alimentação elétrica aumentando o risco de colisões.",
                 CategoriaSugerida.SINALIZACAO_E_TRANSITO,
