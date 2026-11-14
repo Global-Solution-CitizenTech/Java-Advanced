@@ -25,10 +25,12 @@ public class EnderecoService {
     private final BairroRepository bairroRepository;
     private final ViaCepService viaCepService;
 
+    @Transactional(readOnly = true)
     public Page<Endereco> findAll(Pageable pageable) {
         return enderecoRepository.findAll(pageable);
     }
 
+    @Transactional(readOnly = true)
     public Endereco findById(Long id) {
         return findEnderecoById(id);
     }
@@ -75,12 +77,7 @@ public class EnderecoService {
     }
 
     private ViaCepResponse obterDadosCep(String cep) {
-        ViaCepResponse dados;
-        try {
-            dados = viaCepService.getEnderecoPorCep(cep.replaceAll("\\D", ""));
-        } catch (Exception e) {
-            return new ViaCepResponse("Não Informado", "Não Informado", "São Paulo", "São Paulo", false);
-        }
+        ViaCepResponse dados = viaCepService.getEnderecoPorCep(cep.replaceAll("\\D", ""));
         if (dados == null || Boolean.TRUE.equals(dados.erro())) {
             throw new IllegalArgumentException("CEP " + cep + " não encontrado.");
         }

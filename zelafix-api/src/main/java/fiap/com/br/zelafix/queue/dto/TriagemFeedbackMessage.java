@@ -1,5 +1,6 @@
 package fiap.com.br.zelafix.queue.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import fiap.com.br.zelafix.categoria.Categoria;
 import fiap.com.br.zelafix.chamado.Chamado;
 import fiap.com.br.zelafix.chamado.orgao.OrgaoGoverno;
@@ -11,7 +12,9 @@ import fiap.com.br.zelafix.usuario.Usuario;
 
 import java.time.LocalDateTime;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record TriagemFeedbackMessage(
+        String correlationId,
         Long usuarioId,
         Long enderecoId,
         byte[] foto,

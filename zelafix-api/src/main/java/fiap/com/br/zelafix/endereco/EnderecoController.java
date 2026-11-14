@@ -32,12 +32,14 @@ public class EnderecoController {
     private final EnderecoService enderecoService;
 
     @GetMapping
+    @ResponseStatus(HttpStatus.OK)
     @Operation(summary = "[ADMIN] Listar todos os endereços com paginação")
     public Page<EnderecoResponse> findAll(@PageableDefault(size = 10, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
         return enderecoService.findAll(pageable).map(EnderecoResponse::fromEntity);
     }
 
     @GetMapping("/{id}")
+    @ResponseStatus(HttpStatus.OK)
     @Operation(summary = "[ADMIN] Buscar endereço por ID")
     public EnderecoResponse findById(@PathVariable Long id) {
         return EnderecoResponse.fromEntity(enderecoService.findById(id));
@@ -51,6 +53,7 @@ public class EnderecoController {
     }
 
     @PutMapping("/{id}")
+    @ResponseStatus(HttpStatus.OK)
     @Operation(summary = "[ADMIN] Atualizar endereço")
     public EnderecoResponse update(@PathVariable Long id, @Valid @RequestBody EnderecoRequest enderecoRequest) {
         return EnderecoResponse.fromEntity(enderecoService.update(id, enderecoRequest));

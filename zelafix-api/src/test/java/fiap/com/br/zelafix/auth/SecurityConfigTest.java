@@ -60,7 +60,7 @@ class SecurityConfigTest {
                 Instant.now(),
                 Instant.now().plusSeconds(3600),
                 Map.of("alg", "RS256"),
-                Map.of("sub", "gestor@zelafix.com.br", "role", "gestor")
+                Map.of("sub", "gestor@zelafix.com.br", "role", "GESTOR")
         );
 
         var auth = converter.convert(jwt);

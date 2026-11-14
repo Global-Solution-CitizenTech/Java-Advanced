@@ -5,14 +5,17 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.AmqpException;
+import org.springframework.context.MessageSourceResolvable;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.data.core.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
@@ -24,12 +27,17 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Slf4j
 @RestControllerAdvice
@@ -100,14 +108,21 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleAuthentication(
             AuthenticationException exception, HttpServletRequest request) {
         log.warn("Falha de autenticação para a requisição {}", request.getRequestURI());
-        return error(HttpStatus.UNAUTHORIZED, "Credenciais inválidas: e-mail ou senha incorretos.", request);
+        String mensagem = exception instanceof BadCredentialsException
+                ? "Credenciais inválidas: e-mail ou senha incorretos."
+                : "Token de autenticação ausente, inválido ou expirado.";
+        return error(HttpStatus.UNAUTHORIZED, mensagem, request);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiErrorResponse> handleAccessDenied(
             AccessDeniedException exception, HttpServletRequest request) {
         log.warn("Acesso negado para a requisição {}", request.getRequestURI());
-        return error(HttpStatus.FORBIDDEN, "Você não possui permissão para acessar este recurso.", request);
+        String rawMessage = exception.getMessage();
+        String mensagem = (rawMessage != null && !rawMessage.isBlank() && !"Access Denied".equalsIgnoreCase(rawMessage.trim()))
+                ? rawMessage
+                : "Você não possui permissão para acessar este recurso.";
+        return error(HttpStatus.FORBIDDEN, mensagem, request);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -151,6 +166,31 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, mensagem, request);
     }
 
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ApiErrorResponse> handleMissingPart(
+            MissingServletRequestPartException exception, HttpServletRequest request) {
+        log.warn("Parte obrigatória de upload ausente: {}", exception.getRequestPartName());
+        String mensagem = String.format("O arquivo ou campo obrigatório '%s' não foi enviado.", exception.getRequestPartName());
+        return error(HttpStatus.BAD_REQUEST, mensagem, request);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleMaxUploadSize(
+            MaxUploadSizeExceededException exception, HttpServletRequest request) {
+        log.warn("Arquivo enviado excede o limite permitido: {}", exception.getMessage());
+        return error(HttpStatus.CONTENT_TOO_LARGE, "O arquivo enviado excede o tamanho máximo permitido (10 MB).", request);
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ApiErrorResponse> handleHandlerMethodValidation(
+            HandlerMethodValidationException exception, HttpServletRequest request) {
+        log.warn("Parâmetro de requisição inválido: {}", exception.getMessage());
+        String mensagem = String.join("; ", exception.getAllErrors().stream()
+                .map(MessageSourceResolvable::getDefaultMessage)
+                .toList());
+        return error(HttpStatus.BAD_REQUEST, mensagem, request);
+    }
+
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ApiErrorResponse> handleMethodNotSupported(
             HttpRequestMethodNotSupportedException exception, HttpServletRequest request) {
@@ -171,17 +211,24 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleDataIntegrityViolation(
             DataIntegrityViolationException exception, HttpServletRequest request) {
         log.error("Erro de consistência/integridade no banco de dados", exception);
-        String msg = exception.getMostSpecificCause() != null ? exception.getMostSpecificCause().getMessage() : "";
-        if (msg != null && (msg.contains("ORA-00001") || msg.toLowerCase().contains("unique") || msg.toLowerCase().contains("duplicate"))) {
-            return error(HttpStatus.CONFLICT,
-                    "Registro duplicado. Verifique se o e-mail ou outro dado único já está cadastrado.", request);
-        }
-        if (msg != null && msg.contains("ORA-12899")) {
-            return error(HttpStatus.BAD_REQUEST,
-                    "Tamanho de texto excede o limite máximo permitido pela coluna no banco de dados.", request);
-        }
-        return error(HttpStatus.BAD_REQUEST,
-                "Erro de integridade de dados. Verifique os valores e chaves únicas.", request);
+        return mapOraclePersistenceCause(
+                exception.getMostSpecificCause(),
+                HttpStatus.BAD_REQUEST,
+                "Erro de integridade de dados. Verifique os valores e chaves únicas.",
+                request
+        );
+    }
+
+    @ExceptionHandler(JpaSystemException.class)
+    public ResponseEntity<ApiErrorResponse> handleJpaSystem(
+            JpaSystemException exception, HttpServletRequest request) {
+        log.error("Erro de persistência JPA no banco de dados", exception);
+        return mapOraclePersistenceCause(
+                exception.getMostSpecificCause(),
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Ocorreu um erro interno inesperado no servidor.",
+                request
+        );
     }
 
     @ExceptionHandler({ConcurrencyFailureException.class, ObjectOptimisticLockingFailureException.class})
@@ -210,9 +257,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RestClientException.class)
     public ResponseEntity<ApiErrorResponse> handleRestClientException(
             RestClientException exception, HttpServletRequest request) {
-        log.warn("Falha na comunicação com serviço externo/IA: {}", exception.getMessage());
-        return error(HttpStatus.BAD_GATEWAY,
-                "Serviço de análise por IA temporariamente indisponível. Tente novamente em instantes.", request);
+        log.error("Falha na integração com serviço externo (ViaCEP): {}", exception.getMessage());
+        return error(HttpStatus.SERVICE_UNAVAILABLE,
+                "O serviço de consulta de CEP está indisponível no momento. Tente novamente mais tarde.", request);
     }
 
     @ExceptionHandler(AsyncRequestNotUsableException.class)
@@ -221,6 +268,15 @@ public class GlobalExceptionHandler {
         log.debug("Cliente encerrou a conexão antes da conclusão da resposta em {}: {}",
                 request.getRequestURI(), exception.getMessage());
         return null;
+    }
+
+    @ExceptionHandler(AsyncRequestTimeoutException.class)
+    public ResponseEntity<ApiErrorResponse> handleAsyncRequestTimeout(
+            AsyncRequestTimeoutException exception, HttpServletRequest request) {
+        log.warn("Tempo limite excedido aguardando triagem assíncrona em {}: {}",
+                request.getRequestURI(), exception.getMessage());
+        return error(HttpStatus.GATEWAY_TIMEOUT,
+                "A análise da ocorrência excedeu o tempo limite. Tente novamente em instantes.", request);
     }
 
     @ExceptionHandler(Exception.class)
@@ -246,6 +302,25 @@ public class GlobalExceptionHandler {
             current = current.getCause();
         }
         return false;
+    }
+
+    private ResponseEntity<ApiErrorResponse> mapOraclePersistenceCause(
+            Throwable cause,
+            HttpStatus fallbackStatus,
+            String fallbackMessage,
+            HttpServletRequest request
+    ) {
+        String msg = Objects.toString(cause.getMessage(), "");
+        String lower = msg.toLowerCase();
+        if (msg.contains("ORA-00001") || lower.contains("unique") || lower.contains("duplicate")) {
+            return error(HttpStatus.CONFLICT,
+                    "Registro duplicado. Verifique se o e-mail ou outro dado único já está cadastrado.", request);
+        }
+        if (msg.contains("ORA-12899")) {
+            return error(HttpStatus.BAD_REQUEST,
+                    "Tamanho de texto excede o limite máximo permitido pela coluna no banco de dados.", request);
+        }
+        return error(fallbackStatus, fallbackMessage, request);
     }
 
     private ResponseEntity<ApiErrorResponse> error(

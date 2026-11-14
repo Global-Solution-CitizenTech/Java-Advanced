@@ -3,6 +3,7 @@ package fiap.com.br.zelafix.chamado;
 import fiap.com.br.zelafix.categoria.Categoria;
 import fiap.com.br.zelafix.categoria.CategoriaEnum;
 import fiap.com.br.zelafix.categoria.CategoriaService;
+import fiap.com.br.zelafix.chamado.dto.ChamadoFiltroRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
@@ -12,6 +13,7 @@ import fiap.com.br.zelafix.endereco.bairro.Bairro;
 import fiap.com.br.zelafix.endereco.cidade.Cidade;
 import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.endereco.estado.Estado;
+import fiap.com.br.zelafix.exception.ResourceNotFoundException;
 import fiap.com.br.zelafix.historico.HistChamado;
 import fiap.com.br.zelafix.historico.HistChamadoRepository;
 import fiap.com.br.zelafix.historico.status.Status;
@@ -38,6 +40,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.nio.charset.StandardCharsets;
@@ -45,19 +48,23 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.springframework.amqp.AmqpException;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.context.request.async.DeferredResult;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -85,6 +92,8 @@ class ChamadoServiceTest {
     private VotoChamadoRepository votoChamadoRepository;
     @Mock
     private ApplicationEventPublisher eventPublisher;
+    @Spy
+    private TriagemPendenteStore triagemPendenteStore = new TriagemPendenteStore();
 
     @InjectMocks
     private ChamadoService chamadoService;
@@ -145,7 +154,7 @@ class ChamadoServiceTest {
     }
 
     @Test
-    @DisplayName("Deve validar imagem e publicar evento de triagem no RabbitMQ ao criar chamado")
+    @DisplayName("Deve validar imagem e publicar evento de triagem com correlationId no RabbitMQ ao criar chamado")
     void deveCriarChamadoComSucesso() {
         EnderecoRequest enderecoRequest = new EnderecoRequest("05422001", "720", "Esquina com Fradique", "Rua dos Pinheiros");
         byte[] fotoBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
@@ -153,14 +162,17 @@ class ChamadoServiceTest {
         when(usuarioService.findByEmail(usuario.getEmail())).thenReturn(usuario);
         when(enderecoService.findOrCreateByCepAndNumero(any())).thenReturn(endereco);
 
-        chamadoService.create(enderecoRequest, fotoBytes, usuario.getEmail());
+        DeferredResult<ChamadoResponse> deferred = chamadoService.create(enderecoRequest, fotoBytes, usuario.getEmail());
 
         ArgumentCaptor<ChamadoTriagemMessage> triagemCaptor = ArgumentCaptor.forClass(ChamadoTriagemMessage.class);
         verify(eventPublisher, times(1)).publishEvent(triagemCaptor.capture());
+        assertNotNull(triagemCaptor.getValue().correlationId());
+        assertFalse(triagemCaptor.getValue().correlationId().isBlank());
         assertEquals(1L, triagemCaptor.getValue().usuarioId());
         assertEquals(1L, triagemCaptor.getValue().enderecoId());
         assertArrayEquals(fotoBytes, triagemCaptor.getValue().foto());
         assertEquals("Pinheiros", triagemCaptor.getValue().bairro());
+        assertFalse(deferred.hasResult());
     }
 
     @Test
@@ -235,7 +247,7 @@ class ChamadoServiceTest {
 
         ChamadoStatusRequest request = new ChamadoStatusRequest("CONCLUIDO", "Resolvido");
 
-        assertThrows(IllegalArgumentException.class, () ->
+        assertThrows(AccessDeniedException.class, () ->
                 chamadoService.updateStatus(400L, request, usuario.getEmail())
         );
     }
@@ -369,7 +381,7 @@ class ChamadoServiceTest {
         when(votoChamadoRepository.countVotosByChamadoIds(List.of(10L, 20L))).thenReturn(List.<Object[]>of(new Object[]{10L, 5L}));
         when(votoChamadoRepository.findChamadoIdsApoiadosPorMim(List.of(10L, 20L), 1L)).thenReturn(Set.of(10L));
 
-        Page<ChamadoResponse> resultado = chamadoService.findAll(null, null, null, null, null, null, null, usuario.getEmail(), Pageable.unpaged());
+        Page<ChamadoResponse> resultado = chamadoService.findAll(ChamadoFiltroRequest.vazio(), usuario.getEmail(), Pageable.unpaged());
 
         assertEquals(2, resultado.getTotalElements());
         assertEquals("PENDENTE", resultado.getContent().get(0).status());
@@ -399,8 +411,10 @@ class ChamadoServiceTest {
             c.setIdChamado(100L);
             return c;
         });
+        when(histChamadoRepository.save(any(HistChamado.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var feedback = new TriagemFeedbackMessage(
+                "corr-10",
                 1L,
                 1L,
                 fotoBytes,
@@ -412,7 +426,9 @@ class ChamadoServiceTest {
                 "EM_ANALISE",
                 false
         );
-        chamadoService.aplicarTriagemIa(feedback);
+        ChamadoResponse response = chamadoService.aplicarTriagemIa(feedback);
+        assertEquals(100L, response.idChamado());
+        assertEquals("EM_ANALISE", response.status());
 
         ArgumentCaptor<Chamado> chamadoCaptor = ArgumentCaptor.forClass(Chamado.class);
         verify(chamadoRepository).save(chamadoCaptor.capture());
@@ -515,21 +531,48 @@ class ChamadoServiceTest {
         when(chamadoRepository.findById(151L)).thenReturn(Optional.of(chamado));
         when(usuarioService.findByEmail(outroCidadao.getEmail())).thenReturn(outroCidadao);
 
-        assertThrows(IllegalArgumentException.class, () ->
+        assertThrows(AccessDeniedException.class, () ->
                 chamadoService.update(151L, requestEdicao, outroCidadao.getEmail())
         );
     }
 
     @Test
-    @DisplayName("Deve registrar e consumir apenas uma vez a recusa recente da IA por usuário")
-    void deveRegistrarEConsumirRecusaRecente() {
+    @DisplayName("Deve rejeitar bytes inválidos ao criar chamado")
+    void deveRejeitarImagemInvalidaAoCriarChamado() {
+        EnderecoRequest enderecoRequest = new EnderecoRequest("05422001", "720", "Esquina com Fradique", "Rua dos Pinheiros");
+
+        assertThrows(IllegalArgumentException.class, () ->
+                chamadoService.create(enderecoRequest, new byte[]{0x01, 0x02, 0x03, 0x04}, usuario.getEmail())
+        );
+
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("Deve lançar ResourceNotFoundException quando foto do chamado estiver ausente ou vazia")
+    void deveLancarResourceNotFoundQuandoFotoEstiverVazia() {
+        Chamado chamadoSemFoto = Chamado.builder()
+                .idChamado(10L)
+                .foto(new byte[0])
+                .build();
+
+        when(chamadoRepository.findById(10L)).thenReturn(Optional.of(chamadoSemFoto));
+
+        assertThrows(ResourceNotFoundException.class, () -> chamadoService.getPhoto(10L));
+    }
+
+    @Test
+    @DisplayName("Deve propagar AmqpException e limpar triagem pendente quando publicação no RabbitMQ falhar")
+    void deveLimparTriagemPendenteQuandoPublicacaoFalhar() {
+        EnderecoRequest enderecoRequest = new EnderecoRequest("05422001", "720", "Esquina com Fradique", "Rua dos Pinheiros");
+        byte[] fotoBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
+
         when(usuarioService.findByEmail(usuario.getEmail())).thenReturn(usuario);
-        chamadoService.registrarRecusaIa(usuario.getIdUsuario(), "A foto não retrata problema urbano.");
+        when(enderecoService.findOrCreateByCepAndNumero(any())).thenReturn(endereco);
+        doThrow(new AmqpException("Broker offline")).when(eventPublisher).publishEvent(any(ChamadoTriagemMessage.class));
 
-        var primeiraLeitura = chamadoService.consumirRecusaRecente(usuario.getEmail());
-        var segundaLeitura = chamadoService.consumirRecusaRecente(usuario.getEmail());
-
-        assertEquals("A foto não retrata problema urbano.", primeiraLeitura.motivo());
-        assertNull(segundaLeitura.motivo());
+        assertThrows(AmqpException.class, () ->
+                chamadoService.create(enderecoRequest, fotoBytes, usuario.getEmail())
+        );
     }
 }

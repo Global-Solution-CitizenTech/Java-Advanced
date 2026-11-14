@@ -2,11 +2,11 @@ package fiap.com.br.zelafix.chamado;
 
 import fiap.com.br.zelafix.categoria.CategoriaEnum;
 import fiap.com.br.zelafix.categoria.CategoriaService;
+import fiap.com.br.zelafix.chamado.dto.ChamadoFiltroRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
-import fiap.com.br.zelafix.chamado.dto.RecusaIaResponse;
 import fiap.com.br.zelafix.chamado.orgao.OrgaoGovernoEnum;
 import fiap.com.br.zelafix.chamado.orgao.OrgaoGovernoService;
 import fiap.com.br.zelafix.chamado.prioridade.PrioridadeEnum;
@@ -35,11 +35,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.async.DeferredResult;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -56,18 +56,20 @@ public class ChamadoService {
     private final HistChamadoRepository histChamadoRepository;
     private final VotoChamadoRepository votoChamadoRepository;
     private final ApplicationEventPublisher eventPublisher;
-    private final Map<Long, String> recusasRecentes = new ConcurrentHashMap<>();
+    private final TriagemPendenteStore triagemPendenteStore;
 
     // =========================================================================
     // 1. CONSULTAS E LISTAGENS
     // =========================================================================
 
     @Transactional(readOnly = true)
-    public Page<ChamadoResponse> findAll(String status, String categoria, String busca, Boolean apenasMeus, String cidade, String bairro, String estado, String email, Pageable pageable) {
+    public Page<ChamadoResponse> findAll(ChamadoFiltroRequest filtro, String email, Pageable pageable) {
         Long currentUserId = usuarioService.findByEmail(email).getIdUsuario();
-        Long autorId = Boolean.TRUE.equals(apenasMeus) ? currentUserId : null;
+        Long autorId = Boolean.TRUE.equals(filtro.apenasMeus()) ? currentUserId : null;
 
-        Page<Chamado> chamados = chamadoRepository.findByFiltros(status, categoria, autorId, cidade, bairro, estado, busca, pageable);
+        Page<Chamado> chamados = chamadoRepository.findByFiltros(
+                filtro.status(), filtro.categoria(), autorId, filtro.cidade(), filtro.bairro(), filtro.estado(), filtro.busca(), pageable
+        );
         return enriquecerPagina(chamados, currentUserId);
     }
 
@@ -86,20 +88,29 @@ public class ChamadoService {
         );
     }
 
+    @Transactional(readOnly = true)
     public byte[] getPhoto(Long id) {
-        return findChamadoById(id).getFoto();
+        byte[] foto = findChamadoById(id).getFoto();
+        if (foto == null || foto.length == 0) {
+            throw new ResourceNotFoundException("Foto do chamado com id " + id + " não encontrada.");
+        }
+        return foto;
     }
 
     // =========================================================================
     // 2. CICLO DE VIDA DO CHAMADO (ABERTURA, EDIÇÃO, EXCLUSÃO)
     // =========================================================================
 
-    @Transactional
-    public void create(EnderecoRequest enderecoRequest, byte[] fotoBytes, String email) {
-        ImageMimeTypeDetector.detectar(fotoBytes);
+    public DeferredResult<ChamadoResponse> create(EnderecoRequest enderecoRequest, byte[] fotoBytes, String email) {
+        if (!ImageMimeTypeDetector.isImagemSuportada(fotoBytes)) {
+            throw new IllegalArgumentException("Arquivo enviado não é uma imagem válida. Formatos suportados: JPEG, PNG, WEBP e GIF.");
+        }
         Usuario autor = usuarioService.findByEmail(email);
         Endereco endereco = enderecoService.findOrCreateByCepAndNumero(enderecoRequest);
-        eventPublisher.publishEvent(ChamadoTriagemMessage.from(autor, endereco, fotoBytes));
+
+        return triagemPendenteStore.registrar(correlationId ->
+                eventPublisher.publishEvent(ChamadoTriagemMessage.from(correlationId, autor, endereco, fotoBytes))
+        );
     }
 
     @Transactional
@@ -143,7 +154,7 @@ public class ChamadoService {
     }
 
     @Transactional
-    public void aplicarTriagemIa(TriagemFeedbackMessage feedback) {
+    public ChamadoResponse aplicarTriagemIa(TriagemFeedbackMessage feedback) {
         Usuario autor = usuarioService.findById(feedback.usuarioId());
         Chamado salvo = chamadoRepository.save(feedback.toEntity(
                 autor,
@@ -153,20 +164,11 @@ public class ChamadoService {
                 orgaoGovernoService.findByNome(OrgaoGovernoEnum.valueOf(feedback.orgaoNome()))
         ));
         votoChamadoRepository.save(new VotoMessage(salvo.getIdChamado(), autor.getIdUsuario(), "VOTAR").toEntity(salvo, autor));
-        histChamadoRepository.save(feedback.toEntity(
+        HistChamado historico = histChamadoRepository.save(feedback.toEntity(
                 salvo,
                 statusService.findByNome(StatusChamadoEnum.valueOf(feedback.statusNome()))
         ));
-    }
-
-    public void registrarRecusaIa(Long usuarioId, String motivo) {
-        recusasRecentes.put(usuarioId, motivo);
-    }
-
-    @Transactional(readOnly = true)
-    public RecusaIaResponse consumirRecusaRecente(String email) {
-        Long usuarioId = usuarioService.findByEmail(email).getIdUsuario();
-        return new RecusaIaResponse(recusasRecentes.remove(usuarioId));
+        return ChamadoResponse.fromEntity(salvo, feedback.statusNome(), 1L, true, List.of(historico));
     }
 
     // =========================================================================
@@ -212,7 +214,7 @@ public class ChamadoService {
         if (!chamado.getUsuario().getIdUsuario().equals(usuario.getIdUsuario())
                 && usuario.getCargo() != CargoUsuario.GESTOR
                 && usuario.getCargo() != CargoUsuario.ADMIN) {
-            throw new IllegalArgumentException("Você não tem permissão para editar este chamado.");
+            throw new AccessDeniedException("Você não tem permissão para editar este chamado.");
         }
     }
 
@@ -224,7 +226,7 @@ public class ChamadoService {
 
     private void validarPermissaoGestao(Usuario operador) {
         if (operador.getCargo() != CargoUsuario.GESTOR && operador.getCargo() != CargoUsuario.ADMIN) {
-            throw new IllegalArgumentException("Apenas funcionários da prefeitura ou administradores têm permissão para atualizar o status do chamado.");
+            throw new AccessDeniedException("Apenas funcionários da prefeitura ou administradores têm permissão para atualizar o status do chamado.");
         }
     }
 

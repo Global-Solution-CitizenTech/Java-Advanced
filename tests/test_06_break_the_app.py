@@ -1,5 +1,5 @@
+import base64
 import requests
-import json
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import collections
@@ -49,16 +49,19 @@ def break_the_app():
     if erros_v:
         print(f" -> Erros: {len(erros_v)} (Ex: {erros_v[0]})")
 
-    # 3. Rajada de 50 Criações Concorrentes com foto em Base64
-    print("\n[6.2] STRESS DE CRIAÇÃO: 50 chamados simultâneos com foto Base64 em 15 threads...")
-    DUMMY_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+    # 3. Rajada de 50 Criações Concorrentes via Multipart
+    print("\n[6.2] STRESS DE CRIAÇÃO: 50 chamados simultâneos via Multipart em 15 threads...")
+    DUMMY_PNG_BYTES = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
     def criar(idx):
         start = time.time()
         try:
-            r = requests.post(f"{BASE_URL}/chamados", headers=headers, json={
-                "endereco": {"cep": "01310-100", "numero": str(2000 + idx), "referencia": f"Stress {idx}", "rua": "Paulista"},
-                "fotoBase64": DUMMY_B64
-            }, timeout=25)
+            r = requests.post(
+                f"{BASE_URL}/chamados",
+                headers=headers,
+                data={"cep": "01310-100", "numero": str(2000 + idx), "referencia": f"Stress {idx}", "rua": "Paulista"},
+                files={"foto": ("stress.png", DUMMY_PNG_BYTES, "image/png")},
+                timeout=35
+            )
             return r.status_code, time.time() - start, r.text if r.status_code != 201 else None
         except Exception as e:
             return 0, time.time() - start, str(e)

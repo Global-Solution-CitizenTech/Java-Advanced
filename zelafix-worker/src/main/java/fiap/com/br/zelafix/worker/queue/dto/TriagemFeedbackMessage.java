@@ -6,6 +6,7 @@ import fiap.com.br.zelafix.worker.ai.enums.DepartamentoGoverno;
 import fiap.com.br.zelafix.worker.ai.enums.PrioridadeChamado;
 
 public record TriagemFeedbackMessage(
+        String correlationId,
         Long usuarioId,
         Long enderecoId,
         byte[] foto,
@@ -19,6 +20,7 @@ public record TriagemFeedbackMessage(
 ) {
     public static TriagemFeedbackMessage sucesso(ChamadoTriagemMessage origem, TriagemIaResult resultado) {
         return new TriagemFeedbackMessage(
+                origem.correlationId(),
                 origem.usuarioId(),
                 origem.enderecoId(),
                 origem.foto(),
@@ -34,6 +36,7 @@ public record TriagemFeedbackMessage(
 
     public static TriagemFeedbackMessage recusa(ChamadoTriagemMessage origem, TriagemIaResult resultado) {
         return new TriagemFeedbackMessage(
+                origem.correlationId(),
                 origem.usuarioId(),
                 origem.enderecoId(),
                 null,
@@ -49,6 +52,7 @@ public record TriagemFeedbackMessage(
 
     public static TriagemFeedbackMessage contingencia(ChamadoTriagemMessage origem) {
         return new TriagemFeedbackMessage(
+                origem.correlationId(),
                 origem.usuarioId(),
                 origem.enderecoId(),
                 origem.foto(),

@@ -1,13 +1,13 @@
 package fiap.com.br.zelafix.auth;
 
-import fiap.com.br.zelafix.auth.dto.LoginRequest;
-import fiap.com.br.zelafix.auth.dto.LoginResponse;
 import fiap.com.br.zelafix.usuario.Usuario;
 import fiap.com.br.zelafix.usuario.UsuarioService;
 import fiap.com.br.zelafix.usuario.dto.UsuarioResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -25,6 +25,17 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
     private final UsuarioService usuarioService;
+
+    public record LoginRequest(
+            @NotBlank(message = "O e-mail é obrigatório.")
+            @Email(message = "Formato de e-mail inválido.")
+            String email,
+
+            @NotBlank(message = "A senha é obrigatória.")
+            String senha
+    ) {}
+
+    public record LoginResponse(String token, UsuarioResponse user) {}
 
     @PostMapping("/login")
     @ResponseStatus(HttpStatus.OK)

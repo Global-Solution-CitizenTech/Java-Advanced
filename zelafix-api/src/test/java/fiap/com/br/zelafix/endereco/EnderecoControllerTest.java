@@ -87,11 +87,13 @@ class EnderecoControllerTest {
     }
 
     @Test
-    @DisplayName("GET /enderecos - Deve retornar 403 Forbidden para cidadão comum")
+    @DisplayName("GET /enderecos - Deve retornar 403 Forbidden em JSON para cidadão comum")
     void deveBloquearListagemDeEnderecosParaCidadao() throws Exception {
         mockMvc.perform(get("/enderecos")
                         .with(SecurityMockMvcRequestPostProcessors.user("cidadao@zelafix.com.br").roles("CIDADAO")))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.message").value("Você não possui permissão para acessar este recurso."));
     }
 
     @Test

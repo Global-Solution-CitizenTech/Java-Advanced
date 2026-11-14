@@ -75,7 +75,7 @@ Java-Advanced/
 │       │   └── resources/
 │       │       ├── application.properties
 │       │       └── db/migration/     # Flyway V1 (DDL), V2 (Domínios Base + Admin), V3 (Dados Iniciais)
-│       └── test/                     # Testes unitários, E2E da IA (src/test/e2e/) e suíte Python em tests/
+│       └── test/                     # Testes unitários e de controller; suíte E2E Python em tests/
 │
 └── zelafix-worker/                   # MICROSSERVIÇO 2: Worker Reativo Stateless
     ├── Dockerfile                    # Multi-stage build leve (sem JDBC/JPA, non-root)
