@@ -17,6 +17,11 @@ public class ChamadoTriagemFeedbackConsumer {
 
     @RabbitListener(queues = RabbitConfig.QUEUE_CHAMADO_TRIAGEM_CONCLUIDA)
     public void receberFeedbackTriagem(TriagemFeedbackMessage feedback) {
+        if (feedback.recusado()) {
+            log.warn("Triagem recusada pela IA para usuário ID {}: {}", feedback.usuarioId(), feedback.descricao());
+            chamadoService.registrarRecusaIa(feedback.usuarioId(), feedback.descricao());
+            return;
+        }
         log.info("Recebida triagem da IA para usuário ID {}: [{}] {} - {}", feedback.usuarioId(), feedback.prioridadeNome(), feedback.orgaoNome(), feedback.categoriaNome());
         chamadoService.aplicarTriagemIa(feedback);
     }

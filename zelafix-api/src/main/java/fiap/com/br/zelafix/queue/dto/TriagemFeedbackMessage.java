@@ -20,7 +20,8 @@ public record TriagemFeedbackMessage(
         String categoriaNome,
         String prioridadeNome,
         String orgaoNome,
-        String statusNome
+        String statusNome,
+        boolean recusado
 ) {
     public Chamado toEntity(
             Usuario usuario,

@@ -54,6 +54,7 @@ import org.springframework.security.access.AccessDeniedException;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -408,7 +409,8 @@ class ChamadoServiceTest {
                 "VIAS_E_PAVIMENTACAO",
                 "ALTA",
                 "SECRETARIA_OBRAS",
-                "EM_ANALISE"
+                "EM_ANALISE",
+                false
         );
         chamadoService.aplicarTriagemIa(feedback);
 
@@ -516,5 +518,18 @@ class ChamadoServiceTest {
         assertThrows(IllegalArgumentException.class, () ->
                 chamadoService.update(151L, requestEdicao, outroCidadao.getEmail())
         );
+    }
+
+    @Test
+    @DisplayName("Deve registrar e consumir apenas uma vez a recusa recente da IA por usuário")
+    void deveRegistrarEConsumirRecusaRecente() {
+        when(usuarioService.findByEmail(usuario.getEmail())).thenReturn(usuario);
+        chamadoService.registrarRecusaIa(usuario.getIdUsuario(), "A foto não retrata problema urbano.");
+
+        var primeiraLeitura = chamadoService.consumirRecusaRecente(usuario.getEmail());
+        var segundaLeitura = chamadoService.consumirRecusaRecente(usuario.getEmail());
+
+        assertEquals("A foto não retrata problema urbano.", primeiraLeitura.motivo());
+        assertNull(segundaLeitura.motivo());
     }
 }

@@ -10,6 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class ChamadoTriagemFeedbackConsumerTest {
@@ -32,11 +33,34 @@ class ChamadoTriagemFeedbackConsumerTest {
                 "VIAS_E_PAVIMENTACAO",
                 "URGENTE",
                 "SECRETARIA_OBRAS",
-                "EM_ANALISE"
+                "EM_ANALISE",
+                false
         );
 
         feedbackConsumer.receberFeedbackTriagem(message);
 
         verify(chamadoService).aplicarTriagemIa(message);
+    }
+
+    @Test
+    @DisplayName("Deve registrar recusa da IA sem persistir o chamado quando recusado for true")
+    void deveRegistrarRecusaQuandoImagemInvalida() {
+        var message = new TriagemFeedbackMessage(
+                1L,
+                2L,
+                null,
+                "Imagem fora do escopo de zeladoria urbana",
+                "A foto enviada é uma captura de tela de jogo e não mostra ocorrência urbana.",
+                null,
+                null,
+                null,
+                null,
+                true
+        );
+
+        feedbackConsumer.receberFeedbackTriagem(message);
+
+        verify(chamadoService).registrarRecusaIa(1L, "A foto enviada é uma captura de tela de jogo e não mostra ocorrência urbana.");
+        verifyNoMoreInteractions(chamadoService);
     }
 }

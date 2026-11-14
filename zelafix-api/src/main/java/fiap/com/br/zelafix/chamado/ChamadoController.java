@@ -5,6 +5,7 @@ import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
+import fiap.com.br.zelafix.chamado.dto.RecusaIaResponse;
 import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.util.ImageMimeTypeDetector;
 import io.swagger.v3.oas.annotations.Operation;
@@ -144,5 +145,11 @@ public class ChamadoController {
     @Operation(summary = "Obter estatísticas consolidadas para os cards do dashboard")
     public EstatisticasResponse getStatistics() {
         return chamadoService.getStatistics();
+    }
+
+    @GetMapping("/recusa-recente")
+    @Operation(summary = "Consultar e limpar o último motivo de recusa da triagem IA para o usuário autenticado")
+    public RecusaIaResponse consumirRecusaRecente(@AuthenticationPrincipal Jwt jwt) {
+        return chamadoService.consumirRecusaRecente(jwt.getSubject());
     }
 }

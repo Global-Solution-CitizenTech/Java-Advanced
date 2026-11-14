@@ -23,26 +23,28 @@ public class ChamadoAiConsumer {
     public void processarTriagem(ChamadoTriagemMessage message) {
         log.info("Processando triagem assíncrona com Spring AI para usuário ID: {}", message.usuarioId());
 
-        try {
-            TriagemIaResult resultado = aiService.analisarChamado(message.bairro(), message.foto());
-            if (!resultado.ocorrenciaValida()) {
-                log.warn("Criação de chamado RECUSADA pela IA para usuário ID {} (bairro: {}): {} - {}",
-                        message.usuarioId(), message.bairro(), resultado.titulo(), resultado.descricao());
-                return;
-            }
-            enviarFeedback(TriagemFeedbackMessage.sucesso(message, resultado));
-        } catch (Exception e) {
-            log.error("Falha na IA durante triagem para usuário ID {}. Aplicando contingência PENDENTE: {}", message.usuarioId(), e.getMessage());
-            enviarFeedback(TriagemFeedbackMessage.contingencia(message));
-        }
-    }
+        TriagemFeedbackMessage feedback = gerarFeedback(message);
 
-    private void enviarFeedback(TriagemFeedbackMessage feedback) {
         rabbitTemplate.convertAndSend(
                 RabbitWorkerConfig.EXCHANGE_NAME,
                 RabbitWorkerConfig.ROUTING_KEY_CHAMADO_TRIAGEM_CONCLUIDA,
                 feedback
         );
-        log.info("Triagem concluída (status={}) e publicada para usuário ID: {}", feedback.statusNome(), feedback.usuarioId());
+
+        log.info("Triagem concluída (recusado={}, status={}) e publicada para usuário ID: {}", feedback.recusado(), feedback.statusNome(), message.usuarioId());
+    }
+
+    private TriagemFeedbackMessage gerarFeedback(ChamadoTriagemMessage message) {
+        try {
+            TriagemIaResult resultado = aiService.analisarChamado(message.bairro(), message.foto());
+            if (!resultado.ocorrenciaValida()) {
+                log.warn("Criação de chamado RECUSADA pela IA para usuário ID {} (bairro: {}): {}", message.usuarioId(), message.bairro(), resultado.descricao());
+                return TriagemFeedbackMessage.recusa(message, resultado);
+            }
+            return TriagemFeedbackMessage.sucesso(message, resultado);
+        } catch (Exception e) {
+            log.error("Falha na IA durante triagem para usuário ID {}. Aplicando contingência PENDENTE: {}", message.usuarioId(), e.getMessage());
+            return TriagemFeedbackMessage.contingencia(message);
+        }
     }
 }

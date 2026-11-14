@@ -18,9 +18,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -61,6 +62,7 @@ class ChamadoAiConsumerTest {
                 eq(RabbitWorkerConfig.ROUTING_KEY_CHAMADO_TRIAGEM_CONCLUIDA),
                 captor.capture()
         );
+        assertFalse(captor.getValue().recusado());
         assertEquals("EM_ANALISE", captor.getValue().statusNome());
         assertEquals("VIAS_E_PAVIMENTACAO", captor.getValue().categoriaNome());
         assertEquals("ALTA", captor.getValue().prioridadeNome());
@@ -68,7 +70,7 @@ class ChamadoAiConsumerTest {
     }
 
     @Test
-    @DisplayName("Deve recusar e descartar chamado sem publicar na fila quando a imagem for inválida")
+    @DisplayName("Deve publicar feedback de recusa na fila de retorno quando a imagem for inválida")
     void deveRecusarChamadoQuandoImagemInvalida() {
         byte[] fotoBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
         ChamadoTriagemMessage message = new ChamadoTriagemMessage(1L, 10L, "Pinheiros", fotoBytes);
@@ -86,8 +88,15 @@ class ChamadoAiConsumerTest {
 
         consumer.processarTriagem(message);
 
-        verify(aiService).analisarChamado("Pinheiros", fotoBytes);
-        verifyNoInteractions(rabbitTemplate);
+        ArgumentCaptor<TriagemFeedbackMessage> captor = ArgumentCaptor.forClass(TriagemFeedbackMessage.class);
+        verify(rabbitTemplate).convertAndSend(
+                eq(RabbitWorkerConfig.EXCHANGE_NAME),
+                eq(RabbitWorkerConfig.ROUTING_KEY_CHAMADO_TRIAGEM_CONCLUIDA),
+                captor.capture()
+        );
+        assertTrue(captor.getValue().recusado());
+        assertEquals(1L, captor.getValue().usuarioId());
+        assertEquals("A imagem enviada é uma captura de tela de jogo e não retrata um problema urbano.", captor.getValue().descricao());
     }
 
     @Test
