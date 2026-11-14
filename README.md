@@ -118,8 +118,8 @@ O ecossistema **ZelaFix** é operado por **dois microsserviços especializados**
 │  - Versionamento de banco automático com Flyway Migrations (V1 DDL, V2 Domínios + Admin, V3 Seed)      │
 │  - Cache declarativo de catálogo com @Cacheable/@CacheEvict (Categoria, Status, Prioridade, Órgão)     │
 │  - Cliente declarativo HTTP com timeouts e resiliência (ViaCepService)                                 │
-│  - Produtor RabbitMQ + DeferredResult: publica endereço + foto no zelafix.direct e aguarda triagem   │
-│  - Consumidor RabbitMQ (Feedback): recusa imagens inválidas sem persistir ou grava chamado aprovado   │
+│  - Produtor RabbitMQ + DeferredResult: publica endereço + foto no zelafix.direct e aguarda triagem     │
+│  - Consumidor RabbitMQ (Feedback): recusa imagens inválidas sem persistir ou grava chamado aprovado    │
 └───────────────────────┬────────────────────────────────────────────────────▲───────────────────────────┘
                         │                                                    │
                         │ chamado.triagem.key                                │ chamado.triagem-concluida.key

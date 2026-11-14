@@ -254,6 +254,13 @@ public class GlobalExceptionHandler {
                 "Serviço de fila de triagem temporariamente indisponível. Tente novamente em instantes.", request);
     }
 
+    @ExceptionHandler(TriagemIndisponivelException.class)
+    public ResponseEntity<ApiErrorResponse> handleTriagemIndisponivel(
+            TriagemIndisponivelException exception, HttpServletRequest request) {
+        log.error("Falha na triagem assíncrona reportada pelo worker: {}", exception.getMessage());
+        return error(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage(), request);
+    }
+
     @ExceptionHandler(RestClientException.class)
     public ResponseEntity<ApiErrorResponse> handleRestClientException(
             RestClientException exception, HttpServletRequest request) {

@@ -45,6 +45,10 @@ public class TriagemPendenteStore {
         resolver(correlationId, pending -> pending.setErrorResult(new IllegalArgumentException(motivo)));
     }
 
+    public void falhar(String correlationId, Throwable erro) {
+        resolver(correlationId, pending -> pending.setErrorResult(erro));
+    }
+
     private void resolver(String correlationId, Consumer<DeferredResult<ChamadoResponse>> acao) {
         Optional.ofNullable(pendentes.remove(correlationId)).ifPresent(acao);
     }

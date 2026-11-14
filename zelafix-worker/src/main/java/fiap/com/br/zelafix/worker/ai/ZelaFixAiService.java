@@ -6,8 +6,12 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.resilience.annotation.Retryable;
+import org.springframework.resilience.retry.MethodRetryPredicate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MimeType;
+import org.springframework.web.client.HttpClientErrorException;
+
+import java.lang.reflect.Method;
 
 /**
  * Serviço de Inteligência Artificial Generativa e Multimodal com Spring AI.
@@ -60,17 +64,30 @@ public class ZelaFixAiService {
                 .build();
     }
 
-    @Retryable(maxRetries = 2, delay = 500, jitter = 150, multiplier = 2, maxDelay = 2_000)
+    @Retryable(maxRetries = 2, delay = 500, jitter = 150, multiplier = 2, maxDelay = 2_000, predicate = AbortOnClientErrorPredicate.class)
     public TriagemIaResult analisarChamado(String bairro, byte[] fotoBytes) {
+        byte[] imagemParaIa = ImageMimeTypeDetector.redimensionarParaIa(fotoBytes);
         return chatClient.prompt()
                 .user(u -> {
                     u.text("Analise a foto desta ocorrência urbana registrada no bairro {bairro} e gere os dados completos do chamado.");
                     u.param("bairro", bairro);
-                    MimeType mimeType = ImageMimeTypeDetector.detectar(fotoBytes);
-                    u.media(mimeType, new ByteArrayResource(fotoBytes));
+                    MimeType mimeType = ImageMimeTypeDetector.detectar(imagemParaIa);
+                    u.media(mimeType, new ByteArrayResource(imagemParaIa));
                 })
                 .call()
                 .entity(TriagemIaResult.class, ChatClient.EntityParamSpec::validateSchema)
                 .comLimitesOracle();
+    }
+
+    static class AbortOnClientErrorPredicate implements MethodRetryPredicate {
+        @Override
+        public boolean shouldRetry(Method method, Throwable throwable) {
+            for (Throwable t = throwable; t != null; t = t.getCause()) {
+                if ("NonTransientAiException".equals(t.getClass().getSimpleName()) || t instanceof HttpClientErrorException) {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 }

@@ -24,8 +24,25 @@ public record TriagemFeedbackMessage(
         String prioridadeNome,
         String orgaoNome,
         String statusNome,
-        boolean recusado
+        boolean recusado,
+        String erro
 ) {
+    public TriagemFeedbackMessage(
+            String correlationId,
+            Long usuarioId,
+            Long enderecoId,
+            byte[] foto,
+            String titulo,
+            String descricao,
+            String categoriaNome,
+            String prioridadeNome,
+            String orgaoNome,
+            String statusNome,
+            boolean recusado
+    ) {
+        this(correlationId, usuarioId, enderecoId, foto, titulo, descricao,
+                categoriaNome, prioridadeNome, orgaoNome, statusNome, recusado, null);
+    }
     public Chamado toEntity(
             Usuario usuario,
             Endereco endereco,

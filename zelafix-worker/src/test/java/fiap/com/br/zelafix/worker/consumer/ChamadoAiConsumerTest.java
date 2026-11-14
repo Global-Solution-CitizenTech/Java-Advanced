@@ -123,4 +123,25 @@ class ChamadoAiConsumerTest {
         assertEquals("MEDIA", captor.getValue().prioridadeNome());
         assertEquals("SUBPREFEITURA", captor.getValue().orgaoNome());
     }
+
+    @Test
+    @DisplayName("Deve aplicar contingência PENDENTE imediatamente quando Azure AI retornar erro 429")
+    void deveAplicarContingenciaQuandoQuotaExcedida() {
+        byte[] fotoBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
+        ChamadoTriagemMessage message = new ChamadoTriagemMessage("corr-429", 2L, 10L, "Mooca", fotoBytes);
+
+        when(aiService.analisarChamado("Mooca", fotoBytes))
+                .thenThrow(new RuntimeException("429 - exceeded token rate limit"));
+
+        consumer.processarTriagem(message);
+
+        ArgumentCaptor<TriagemFeedbackMessage> captor = ArgumentCaptor.forClass(TriagemFeedbackMessage.class);
+        verify(rabbitTemplate).convertAndSend(
+                eq(RabbitWorkerConfig.EXCHANGE_NAME),
+                eq(RabbitWorkerConfig.ROUTING_KEY_CHAMADO_TRIAGEM_CONCLUIDA),
+                captor.capture()
+        );
+        assertEquals("corr-429", captor.getValue().correlationId());
+        assertEquals("PENDENTE", captor.getValue().statusNome());
+    }
 }
