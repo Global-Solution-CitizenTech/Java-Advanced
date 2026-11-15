@@ -28,7 +28,7 @@ jobs:
             if git push azure HEAD:main 2>&1 | tee push_output.log; then
               echo ">>> Sincronização direta da 'main' concluída com sucesso."
             else
-              if grep -q "TF402455" push_output.log; then
+              if grep -qE "TF402455|rejected|fetch first" push_output.log; then
                 echo ">>> [INFO] O Azure Repos protege a branch 'main' exigindo Pull Request obrigatório (TF402455)."
                 echo ">>> A esteira de produção é promovida via Pull Request no Azure DevOps."
                 exit 0
