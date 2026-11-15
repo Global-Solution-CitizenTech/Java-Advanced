@@ -2,6 +2,7 @@ package fiap.com.br.zelafix.worker.ai;
 
 import fiap.com.br.zelafix.worker.ai.dto.TriagemIaResult;
 import fiap.com.br.zelafix.worker.ai.util.ImageMimeTypeDetector;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
 import org.springframework.core.io.ByteArrayResource;
@@ -23,6 +24,7 @@ import java.lang.reflect.Method;
  * - Structured Output validado com {@code EntityParamSpec::validateSchema} e limite UTF-8 Oracle.
  * - Resiliência com {@link Retryable} (backoff exponencial + jitter).
  */
+@Slf4j
 @Service
 public class ZelaFixAiService {
 
@@ -66,8 +68,10 @@ public class ZelaFixAiService {
 
     @Retryable(maxRetries = 2, delay = 500, jitter = 150, multiplier = 2, maxDelay = 2_000, predicate = AbortOnClientErrorPredicate.class)
     public TriagemIaResult analisarChamado(String bairro, byte[] fotoBytes) {
+        log.info("Invocando endpoint de IA para bairro: '{}' (tamanho da foto: {} bytes)", bairro, fotoBytes.length);
+        long start = System.currentTimeMillis();
         byte[] imagemParaIa = ImageMimeTypeDetector.redimensionarParaIa(fotoBytes);
-        return chatClient.prompt()
+        TriagemIaResult resultado = chatClient.prompt()
                 .user(u -> {
                     u.text("Analise a foto desta ocorrência urbana registrada no bairro {bairro} e gere os dados completos do chamado.");
                     u.param("bairro", bairro);
@@ -77,6 +81,8 @@ public class ZelaFixAiService {
                 .call()
                 .entity(TriagemIaResult.class, ChatClient.EntityParamSpec::validateSchema)
                 .comLimitesOracle();
+        log.info("Retorno da IA recebido com sucesso em {}ms: [válida={}] {} (prioridade={}, órgão={})", System.currentTimeMillis() - start, resultado.ocorrenciaValida(), resultado.titulo(), resultado.prioridade(), resultado.orgaoResponsavel());
+        return resultado;
     }
 
     static class AbortOnClientErrorPredicate implements MethodRetryPredicate {
