@@ -102,6 +102,22 @@ Java-Advanced/
 
 ---
 
+## 🗄️ Modelagem de Dados Relacional & Lógica (Oracle Database)
+
+A persistência relacional do **ZelaFix** foi concebida rigorosamente em **Terceira Forma Normal (3FN)**, estruturada para alta integridade transacional, rastreabilidade histórica via auditoria e suporte a grandes volumes binários (imagens urbanas armazenadas em coluna `BLOB`):
+
+### Modelo Lógico de Dados (Entidades e Relacionamentos)
+<p align="center">
+  <img src="./docs/logical.png" alt="Modelo Lógico - ZelaFix Oracle Database" width="90%" />
+</p>
+
+### Modelo Relacional de Dados (Tabelas, Chaves Primárias, Estrangeiras e Constraints)
+<p align="center">
+  <img src="./docs/relational.png" alt="Modelo Relacional - ZelaFix Oracle Database" width="90%" />
+</p>
+
+---
+
 ## 🏛️ 3. Arquitetura Distribuída Orientada a Eventos e Divisão de Responsabilidades
 
 O ecossistema **ZelaFix** é operado por **dois microsserviços especializados** interligados por mensageria com **RabbitMQ**:
