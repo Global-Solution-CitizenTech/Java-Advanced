@@ -1,7 +1,7 @@
 # 🏙️ ZelaFix Backend — Microsserviços e Mensageria Assíncrona com RabbitMQ & Spring AI
 > **FIAP — Global Solution 2026/2 | CitizenTech & Cidades Sustentáveis (ODS 11)**  
 > **Disciplina:** Java Advanced  
-> **Opção Distribuída Escolhida:** **Opção A — Mensageria Assíncrona com RabbitMQ** (Padrão de Arquitetura Distribuída Reativa)  
+> **Opção Distribuída Escolhida:** **Opção A — Mensageria Assíncrona com RabbitMQ** (Padrão de Arquitetura Distribuída Orientada a Eventos)  
 > **Deploy em Nuvem:** Azure Web Apps (Linux) via Esteira Automatizada CI/CD Azure DevOps
 
 | Link Rápido | URL |
@@ -78,7 +78,7 @@ Java-Advanced/
 │       │       └── db/migration/     # Flyway V1 (DDL 13 tabelas), V2 (Domínios Base + Admin), V3 (Dados Iniciais)
 │       └── test/                     # Testes unitários e de controller; suíte E2E Python em tests/
 │
-└── zelafix-worker/                   # MICROSSERVIÇO 2: Worker Reativo Stateless
+└── zelafix-worker/                   # MICROSSERVIÇO 2: Worker Stateless de Processamento Assíncrono
     ├── Dockerfile                    # Multi-stage build leve (sem JDBC/JPA, non-root)
     ├── build.gradle                  # Dependências Spring AMQP e Spring AI (LLM Multimodal + Tool Calling)
     └── src/
@@ -235,7 +235,7 @@ A API do ZelaFix segue rigorosamente o padrão RESTful, retornando DTOs canônic
 
 Em cumprimento às diretrizes éticas e acadêmicas da Global Solution FIAP:
 
-- **Modelos Utilizados no Desenvolvimento:** **Claude 3.7 Sonnet**, **Gemini 2.5 Pro / Flash** e **Antigravity AI Agent**.
+- **Modelos Utilizados no Desenvolvimento:** **Gemini 3.8 Flash**, **Gemini 4 Hydrogen** e **Claude Sonnet 5.5** (Anthropic).
 - **Finalidade e Escopo de Uso:** Os modelos atuaram estritamente como ferramentas de assistência (*AI Pair Programming*) nas seguintes frentes:
   1. *Prototipação e Refatoração de Código:* Sugestão de padrões idiomáticos modernos do Java 21 LTS (records, virtual threads, pattern matching) e DTOs enxutos sem *boilerplate*.
   2. *Suíte de Testes Automatizados:* Geração de esqueletos e cenários de borda para testes unitários com JUnit 5 e Mockito.

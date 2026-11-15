@@ -12,6 +12,7 @@ RUN chmod +x gradlew
 # Código-fonte e recursos do Worker
 COPY zelafix-worker/build.gradle zelafix-worker/build.gradle
 COPY zelafix-worker/src/ zelafix-worker/src/
+RUN mkdir -p zelafix-api
 
 RUN ./gradlew :zelafix-worker:bootJar --no-daemon -x test
 

@@ -12,6 +12,7 @@ RUN chmod +x gradlew
 # Código-fonte e recursos da API
 COPY zelafix-api/build.gradle zelafix-api/build.gradle
 COPY zelafix-api/src/ zelafix-api/src/
+RUN mkdir -p zelafix-worker
 
 # Geração das chaves RSA para JWT (produção)
 RUN apk add --no-cache openssl && \
