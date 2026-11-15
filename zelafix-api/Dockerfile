@@ -7,7 +7,7 @@ WORKDIR /app
 # Wrapper e configurações do Gradle Multi-Project
 COPY gradlew build.gradle settings.gradle ./
 COPY gradle/ gradle/
-RUN chmod +x gradlew
+RUN sed -i 's/\r$//' gradlew && chmod +x gradlew
 
 # Código-fonte e recursos da API
 COPY zelafix-api/build.gradle zelafix-api/build.gradle

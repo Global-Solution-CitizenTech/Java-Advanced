@@ -1,7 +1,8 @@
+import os
 from pathlib import Path
 import requests
 
-BASE_URL = "https://app-zelafix.azurewebsites.net"
+BASE_URL = os.getenv("BASE_URL", "http://localhost:8080")
 IMG_PATH = Path(__file__).resolve().parents[1] / "docs" / "rua-esburacada.png"
 
 # 1. Login
@@ -20,7 +21,7 @@ r_chamado = requests.post(
     f"{BASE_URL}/chamados",
     headers=headers,
     data={
-        "cep": "01311000",
+        "cep": "01311-000",
         "rua": "Avenida Paulista",
         "numero": "1500",
         "referencia": "MASP",
