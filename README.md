@@ -9,12 +9,12 @@
 | **Repositório GitHub (Java)** | https://github.com/Global-Solution-CitizenTech/Java-Advanced |
 | **Repositório GitHub (DevOps)** | https://github.com/Global-Solution-CitizenTech/DevOps-Tools-Cloud-Computing |
 | **Projeto no Azure DevOps** | https://dev.azure.com/ZelaFixGS/ZelaFix |
-| **API em Produção (Azure Web App)** | https://app-zelafix-561432.azurewebsites.net |
-| **Worker IA em Produção (Azure Web App)** | https://app-zelafix-worker-561432.azurewebsites.net |
-| **Swagger UI Interativo (Produção)** | https://app-zelafix-561432.azurewebsites.net/swagger-ui.html |
-| **OpenAPI Docs JSON (Produção)** | https://app-zelafix-561432.azurewebsites.net/v3/api-docs |
-| **Actuator Health API (Produção)** | https://app-zelafix-561432.azurewebsites.net/actuator/health |
-| **Actuator Health Worker (Produção)** | https://app-zelafix-worker-561432.azurewebsites.net/actuator/health |
+| **API em Produção (Azure Web App)** | https://app-zelafix.azurewebsites.net |
+| **Worker IA em Produção (Azure Web App)** | https://app-zelafix-worker.azurewebsites.net |
+| **Swagger UI Interativo (Produção)** | https://app-zelafix.azurewebsites.net/swagger-ui.html |
+| **OpenAPI Docs JSON (Produção)** | https://app-zelafix.azurewebsites.net/v3/api-docs |
+| **Actuator Health API (Produção)** | https://app-zelafix.azurewebsites.net/actuator/health |
+| **Actuator Health Worker (Produção)** | https://app-zelafix-worker.azurewebsites.net/actuator/health |
 | **Swagger UI (Local)** | http://localhost:8080/swagger-ui.html |
 | **Coleção Oficial de Automação (Postman QA)** | https://github.com/Global-Solution-CitizenTech/Compliance-Quality-Assurance-Tests |
 
