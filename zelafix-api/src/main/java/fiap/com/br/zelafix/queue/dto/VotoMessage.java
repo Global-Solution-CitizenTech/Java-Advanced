@@ -5,8 +5,6 @@ import fiap.com.br.zelafix.chamado.Chamado;
 import fiap.com.br.zelafix.usuario.Usuario;
 import fiap.com.br.zelafix.voto.VotoChamado;
 
-import java.time.LocalDateTime;
-
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record VotoMessage(
         Long idChamado,
@@ -17,7 +15,6 @@ public record VotoMessage(
         return VotoChamado.builder()
                 .chamado(chamado)
                 .usuario(usuario)
-                .dtVoto(LocalDateTime.now())
                 .build();
     }
 }

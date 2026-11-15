@@ -18,6 +18,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
@@ -34,8 +35,10 @@ public class HistChamado {
     @Column(name = "id_hist")
     private Long idHist;
 
-    @Column(name = "dt_mudanca", nullable = false)
-    private LocalDateTime dtMudanca;
+    @CreationTimestamp
+    @Column(name = "dt_mudanca", nullable = false, updatable = false)
+    @Builder.Default
+    private LocalDateTime dtMudanca = LocalDateTime.now();
 
     @Column(name = "observacoes", length = 255, nullable = false)
     private String observacoes;

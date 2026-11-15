@@ -15,7 +15,9 @@ import fiap.com.br.zelafix.historico.status.StatusChamadoEnum;
 import fiap.com.br.zelafix.usuario.Usuario;
 import lombok.Builder;
 
-import java.time.LocalDateTime;
+import java.util.List;
+import java.util.function.Function;
+
 
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -45,7 +47,6 @@ public record TriagemFeedbackMessage(
                 .titulo(titulo)
                 .descricao(descricao)
                 .foto(foto)
-                .dtAbertura(LocalDateTime.now())
                 .usuario(usuario)
                 .endereco(endereco)
                 .categoria(categoria)
@@ -59,8 +60,19 @@ public record TriagemFeedbackMessage(
                 .chamado(chamado)
                 .usuario(chamado.getUsuario())
                 .status(status)
-                .dtMudanca(LocalDateTime.now())
                 .observacoes(observacoes)
                 .build();
+    }
+
+    public List<HistChamado> toHistoricos(Chamado chamado, Function<StatusChamadoEnum, Status> statusLookup) {
+        HistChamado inicial = HistChamado.builder()
+                .chamado(chamado)
+                .usuario(chamado.getUsuario())
+                .status(statusLookup.apply(StatusChamadoEnum.PENDENTE))
+                .observacoes("Chamado registrado pelo cidadão " + chamado.getUsuario().getNmUsuario() + " via ZelaFix Mobile.")
+                .build();
+        return status == StatusChamadoEnum.PENDENTE
+                ? List.of(inicial)
+                : List.of(inicial, toEntity(chamado, statusLookup.apply(status)));
     }
 }

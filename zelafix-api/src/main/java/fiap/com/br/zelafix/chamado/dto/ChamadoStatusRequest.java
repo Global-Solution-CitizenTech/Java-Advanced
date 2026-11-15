@@ -9,8 +9,6 @@ import fiap.com.br.zelafix.validation.EnumValidation;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-import java.time.LocalDateTime;
-
 public record ChamadoStatusRequest(
         @NotBlank(message = "O status é obrigatório.")
         @EnumValidation(enumClass = StatusChamadoEnum.class, message = "Status inválido. Valores aceitos: PENDENTE, EM_ANALISE, EM_EXECUCAO, CONCLUIDO, REJEITADO")
@@ -25,7 +23,6 @@ public record ChamadoStatusRequest(
                 .chamado(chamado)
                 .usuario(operador)
                 .status(novoStatus)
-                .dtMudanca(LocalDateTime.now())
                 .observacoes(observacao)
                 .build();
     }

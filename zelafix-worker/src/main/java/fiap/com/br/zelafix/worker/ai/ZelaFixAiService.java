@@ -6,13 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.resilience.annotation.Retryable;
-import org.springframework.resilience.retry.MethodRetryPredicate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MimeType;
-import org.springframework.web.client.RestClientResponseException;
-
-import java.lang.reflect.Method;
 
 /**
  * Serviço de Inteligência Artificial Generativa e Multimodal com Spring AI.
@@ -22,7 +17,7 @@ import java.lang.reflect.Method;
  * - Tool Calling declarativo ({@link TriagemNormativaTools}) para normas municipais e SLA.
  * - Visão multimodal com detecção de MIME type e prompt parametrizado.
  * - Structured Output validado com {@code EntityParamSpec::validateSchema} e limite UTF-8 Oracle.
- * - Resiliência com {@link Retryable} (backoff exponencial + jitter).
+ * - Estratégia Fail-Fast imediata delegando contingência graciosa ao {@code ChamadoAiConsumer}.
  */
 @Slf4j
 @Service
@@ -66,7 +61,6 @@ public class ZelaFixAiService {
                 .build();
     }
 
-    @Retryable(maxRetries = 2, delay = 500, jitter = 150, multiplier = 2, maxDelay = 2_000, predicate = AbortOnClientErrorPredicate.class)
     public TriagemIaResult analisarChamado(String bairro, byte[] fotoBytes) {
         log.info("Invocando endpoint de IA para bairro: '{}' (tamanho da foto: {} bytes)", bairro, fotoBytes.length);
         long start = System.currentTimeMillis();
@@ -83,19 +77,5 @@ public class ZelaFixAiService {
                 .comLimitesOracle();
         log.info("Retorno da IA recebido com sucesso em {}ms: [válida={}] {} (prioridade={}, órgão={})", System.currentTimeMillis() - start, resultado.ocorrenciaValida(), resultado.titulo(), resultado.prioridade(), resultado.orgaoResponsavel());
         return resultado;
-    }
-
-    static class AbortOnClientErrorPredicate implements MethodRetryPredicate {
-        @Override
-        public boolean shouldRetry(Method method, Throwable throwable) {
-            for (Throwable t = throwable; t != null; t = t.getCause()) {
-                String className = t.getClass().getSimpleName();
-                String msg = t.getMessage();
-                if ("NonTransientAiException".equals(className) || t instanceof RestClientResponseException || (msg != null && (msg.contains("429") || msg.toLowerCase().contains("quota")))) {
-                    return false;
-                }
-            }
-            return true;
-        }
     }
 }

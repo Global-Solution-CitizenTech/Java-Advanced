@@ -162,11 +162,8 @@ public class ChamadoService {
                 orgaoGovernoService.findByNome(feedback.orgao())
         ));
         votoChamadoRepository.save(new VotoMessage(salvo.getIdChamado(), autor.getIdUsuario(), "VOTAR").toEntity(salvo, autor));
-        HistChamado historico = histChamadoRepository.save(feedback.toEntity(
-                salvo,
-                statusService.findByNome(feedback.status())
-        ));
-        return ChamadoResponse.fromEntity(salvo, feedback.status().name(), 1L, true, List.of(historico));
+        List<HistChamado> hist = histChamadoRepository.saveAll(feedback.toHistoricos(salvo, statusService::findByNome));
+        return ChamadoResponse.fromEntity(salvo, feedback.status().name(), 1L, true, hist.reversed());
     }
 
     // =========================================================================

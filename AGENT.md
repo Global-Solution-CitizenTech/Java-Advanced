@@ -20,15 +20,17 @@ O backend do ecossistema **ZelaFix** é estruturado em **dois microsserviços au
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │  zelafix-api (Porta 8080) — Gateway RESTful de Domínio & Persistência ACID                             │
 │  - Gateway RESTful consumido pelo app React Native Expo e painéis administrativos                      │
-│  - Spring Security 6 com JWT RSA (Nimbus) & RBAC (ROLE_CIDADAO, ROLE_GESTOR, ROLE_ADMIN)               │
-│  - Persistência exclusiva no Banco Relacional Oracle FIAP via Spring Data JPA                          │
-│  - Versionamento automático de banco com Flyway (V1 DDL, V2 Carga Inicial, V3 Admin)                   │
+│  - Spring Security com JWT RSA (Nimbus) & RBAC (ROLE_CIDADAO, ROLE_GESTOR, ROLE_ADMIN)                 │
+│  - Persistência exclusiva no Banco Relacional Oracle FIAP via Spring Data JPA / Hibernate 7.4          │
+│  - Java 21 Project Loom: Virtual Threads ativas (spring.threads.virtual.enabled=true) para I/O leve    │
+│  - Versionamento automático de banco com Flyway (V1 DDL 13 tabelas, V2 Domínios + Admin, V3 Seed)      │
 │  - Validação estrita na borda (Jakarta Bean Validation nos Request DTOs + @DddValidation)              │
 │  - Tratamento global de erros padronizado RFC 7807 (GlobalExceptionHandler)                            │
-│  - Caching declarativo de catálogo com @Cacheable/@CacheEvict (Categoria e Status)                     │
-│  - Timeouts HTTP e resiliência no cliente declarativo ViaCepService                                    │
-│  - Produtor RabbitMQ: publica ocorrências com foto obrigatória e votos no zelafix.direct               │
-│  - Consumidor RabbitMQ (Feedback): consome retornos de triagem IA e persiste no Oracle via JPA         │
+│  - Caching declarativo de catálogo com @Cacheable/@CacheEvict (Categoria, Status, Prioridade, Órgão)   │
+│  - Cliente HTTP declarativo com @HttpExchange / @GetExchange e @ImportHttpServices (ViaCepService)     │
+│  - Produtor RabbitMQ + DeferredResult: publica endereço + foto no zelafix.direct e aguarda triagem     │
+│  - Consumidor RabbitMQ (Feedback): recusa imagens sem persistir ou grava chamado com histórico duplo   │
+│    conectado via saveAll (PENDENTE inicial de abertura pelo munícipe + EM_ANALISE triado pela IA)      │
 └───────────────────────┬────────────────────────────────────────────────────▲───────────────────────────┘
                         │                                                    │
                         │ chamado.triagem.key                                │ chamado.triagem-concluida.key
@@ -45,10 +47,10 @@ O backend do ecossistema **ZelaFix** é estruturado em **dois microsserviços au
                         ▼
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │  zelafix-worker (Porta 8081) — Stateless Heavy Worker                                                  │
-│  - Consumidor assíncrono de alta vazão (RabbitMQ @RabbitListener)                                      │
-│  - Inteligência Artificial Generativa e Multimodal com Spring AI (Azure AI Foundry / Phi-4 Multimodal)  │
-│  - Triagem técnica multimodal obrigatória: ChamadoAiConsumer -> ZelaFixAiService -> TriagemIaResult    │
-│  - Detecção dinâmica de MIME type via magic bytes (ImageMimeTypeDetector)                              │
+│  - Consumidor assíncrono de alta vazão (RabbitMQ @RabbitListener com Virtual Threads Loom)             │
+│  - Inteligência Artificial Generativa e Multimodal com Spring AI (LLM Multimodal + Tool Calling)       │
+│  - Arquitetura Fail-Fast imediata com fallback gracioso PENDENTE via ChamadoAiConsumer                 │
+│  - Detecção dinâmica de MIME type via magic bytes e redimensionamento JPEG (ImageMimeTypeDetector)     │
 │  - Agregador de votos em buffer volátil thread-safe (ConcurrentHashMap com flush periódico a cada 3s)  │
 │  - ZERO CONEXÃO COM BANCO DE DADOS: 100% Stateless, sem JDBC, sem JPA, sem Oracle, sem locks           │
 │  - Produtor de feedback: devolve parecer técnico estruturado para chamado.triagem-concluida.queue      │
@@ -107,20 +109,30 @@ Toda a comunicação assíncrona entre os dois serviços é orquestrada por uma 
 No ZelaFix, todo chamado registrado na plataforma requer foto da ocorrência (`BLOB NOT NULL` no banco de dados):
 
 - **Injeção Idiomática do `ChatClient`:**
-  - Injeção direta de `ChatClient.Builder` no construtor.
-  - Configuração do `SYSTEM_PROMPT` padrão e `SimpleLoggerAdvisor` para observabilidade de prompts no console.
-- **Fluxo Multimodal Estrito:**
-  - A imagem da ocorrência (`byte[] foto`) é transportada no payload de `ChamadoTriagemMessage` diretamente para o `zelafix-worker`.
-  - `ChamadoAiConsumer` delega a análise de forma direta sem ramificações sem foto.
-- **Detecção Automática de MimeType (`ImageMimeTypeDetector`):**
-  - Analisa os *magic numbers* dos primeiros bytes da imagem (`image/jpeg`, `image/png`, `image/webp`, `image/gif`) para anexar dinamicamente como `ByteArrayResource` no `ChatClient.prompt().user(u -> u.media(...))`.
-- **Structured Output Tipado:**
-  - Retorno mapeado automaticamente para o record `TriagemIaResult`:
+  - Injeção direta de `ChatClient.Builder` no construtor com `SYSTEM_PROMPT` normativo, `defaultTools(triagemTools)` e `SimpleLoggerAdvisor`.
+  - Configuração desacoplada de modelo via `AI_BASE_URL`, `AI_API_KEY` e `AI_MODEL` (padrão OpenAI API compatível, ex.: OpenRouter `particle-ai/particle-1:free`).
+- **Validação de Escopo e Diretrizes Normativas:**
+  - `ocorrenciaValida`: `true` apenas se for foto real de espaço público urbano com problema visível de manutenção; `false` se for print de celular, meme, selfie, objeto ou ambiente interno.
+  - Quando recusado, o chamado não é persistido no Oracle e a API responde HTTP `400 Bad Request` com o motivo gerado pela IA.
+- **Tool Calling Declarativo (`TriagemNormativaTools`):**
+  - `@Tool consultarNormaMunicipal`: Consulta decretos municipais PMSP e órgão padrão da categoria.
+  - `@Tool calcularPrazoSla`: Calcula prazo em horas e data limite conforme a prioridade.
+- **Detecção Automática e Otimização de MimeType (`ImageMimeTypeDetector`):**
+  - Detecção por magic bytes (`image/jpeg`, `image/png`, `image/webp`, `image/gif`).
+  - Redimensionamento automático (`redimensionarParaIa` com max dimension de 768px em JPEG qualidade 0.85) para reduzir tokens e acelerar a inferência.
+- **Arquitetura Fail-Fast & Contingência Graciosa:**
+  - Sem `@Retryable` no LLM para evitar multiplicação de tempo e manter tempo de resposta rápido (3s a 5s).
+  - Em caso de falha de conexão ou esgotamento de quota, o `ChamadoAiConsumer` captura a exceção imediatamente e emite `TriagemFeedbackMessage.contingencia(message)` com status `PENDENTE` e encaminhamento para análise humana.
+- **Structured Output Tipado e Proteção UTF-8 Oracle:**
+  - Retorno mapeado e validado via `ChatClient.EntityParamSpec::validateSchema` com truncamento UTF-8 por code-points (`comLimitesOracle()`):
     ```java
     public record TriagemIaResult(
+        boolean ocorrenciaValida,
+        String titulo,                        // Máx. 70 caracteres (VARCHAR2 100 BYTE)
+        String descricao,                     // Máx. 500 caracteres (VARCHAR2 1000 BYTE)
+        CategoriaSugerida categoriaSugerida,  // Enums oficiais da plataforma
         PrioridadeChamado prioridade,         // BAIXA, MEDIA, ALTA, URGENTE
-        DepartamentoGoverno orgaoResponsavel, // SECRETARIA_OBRAS, DEFESA_CIVIL, CET_TRANSITO, etc.
-        String parecerIa                      // Parecer técnico objetivo (até 150 caracteres)
+        DepartamentoGoverno orgaoResponsavel  // SECRETARIA_OBRAS, CET_TRANSITO, etc.
     ) {}
     ```
 
