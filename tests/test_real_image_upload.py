@@ -4,7 +4,7 @@ import os
 IMAGE_PATH = r"C:/Users/Enzo/.gemini/antigravity/brain/3aab86b8-9b1b-4673-8582-343bbf1b3954/.user_uploaded/media_1794161179444_205e2c40.png"
 
 # 1. Login
-login_resp = requests.post("http://localhost:8080/auth/login", json={
+login_resp = requests.post("http://localhost:8080/login", json={
     "email": "cidadao@zelafix.com.br",
     "senha": "Senha@123"
 })
