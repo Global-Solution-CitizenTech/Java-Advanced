@@ -8,6 +8,7 @@ import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
 import fiap.com.br.zelafix.chamado.orgao.OrgaoGovernoService;
+import fiap.com.br.zelafix.chamado.prioridade.PrioridadeEnum;
 import fiap.com.br.zelafix.chamado.prioridade.PrioridadeService;
 import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.EnderecoService;
@@ -19,6 +20,7 @@ import fiap.com.br.zelafix.historico.status.Status;
 import fiap.com.br.zelafix.historico.status.StatusChamadoEnum;
 import fiap.com.br.zelafix.historico.status.StatusService;
 import fiap.com.br.zelafix.queue.dto.ChamadoTriagemMessage;
+import fiap.com.br.zelafix.queue.dto.PrioridadeEscaladaMessage;
 import fiap.com.br.zelafix.queue.dto.TriagemFeedbackMessage;
 import fiap.com.br.zelafix.queue.dto.VotoMessage;
 import fiap.com.br.zelafix.usuario.CargoUsuario;
@@ -27,6 +29,7 @@ import fiap.com.br.zelafix.usuario.UsuarioService;
 import fiap.com.br.zelafix.util.ImageMimeTypeDetector;
 import fiap.com.br.zelafix.voto.VotoChamadoRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -40,6 +43,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChamadoService {
@@ -161,7 +165,7 @@ public class ChamadoService {
                 prioridadeService.findByNome(feedback.prioridade()),
                 orgaoGovernoService.findByNome(feedback.orgao())
         ));
-        votoChamadoRepository.save(new VotoMessage(salvo.getIdChamado(), autor.getIdUsuario(), "VOTAR").toEntity(salvo, autor));
+        votoChamadoRepository.save(new VotoMessage(salvo.getIdChamado(), autor.getIdUsuario(), "VOTAR", 1).toEntity(salvo, autor));
         List<HistChamado> hist = histChamadoRepository.saveAll(feedback.toHistoricos(salvo, statusService::findByNome));
         return ChamadoResponse.fromEntity(salvo, feedback.status().name(), 1L, true, hist.reversed());
     }
@@ -225,14 +229,36 @@ public class ChamadoService {
                 .ifPresentOrElse(
                         votoExistente -> {
                             votoChamadoRepository.delete(votoExistente);
-                            eventPublisher.publishEvent(new VotoMessage(chamadoId, usuarioId, "REMOVER"));
+                            int total = (int) votoChamadoRepository.countByChamadoIdChamado(chamadoId);
+                            eventPublisher.publishEvent(new VotoMessage(chamadoId, usuarioId, "REMOVER", total));
                         },
                         () -> {
-                            VotoMessage voto = new VotoMessage(chamadoId, usuarioId, "VOTAR");
+                            int total = (int) votoChamadoRepository.countByChamadoIdChamado(chamadoId) + 1;
+                            VotoMessage voto = new VotoMessage(chamadoId, usuarioId, "VOTAR", total);
                             votoChamadoRepository.save(voto.toEntity(chamado, usuario));
                             eventPublisher.publishEvent(voto);
                         }
                 );
+    }
+
+    @Transactional
+    public void escalarPrioridadePorApoio(PrioridadeEscaladaMessage message) {
+        chamadoRepository.findById(message.idChamado()).ifPresent(chamado -> {
+            Status statusAtual = histChamadoRepository.findFirstByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(chamado.getIdChamado())
+                    .map(HistChamado::getStatus)
+                    .orElseGet(() -> statusService.findByNome(StatusChamadoEnum.PENDENTE));
+
+            if (statusAtual.getNmStatus() == StatusChamadoEnum.CONCLUIDO || statusAtual.getNmStatus() == StatusChamadoEnum.REJEITADO) {
+                return;
+            }
+
+            PrioridadeEnum prioridadeAtual = chamado.getPrioridade().getNmPrioridade();
+            if (message.novaPrioridade().compareTo(prioridadeAtual) > 0) {
+                chamado.setPrioridade(prioridadeService.findByNome(message.novaPrioridade()));
+                chamadoRepository.save(chamado);
+                histChamadoRepository.save(message.toHistorico(chamado, statusAtual, prioridadeAtual));
+            }
+        });
     }
 
     private Page<ChamadoResponse> enriquecerPagina(Page<Chamado> chamados, Long currentUserId) {

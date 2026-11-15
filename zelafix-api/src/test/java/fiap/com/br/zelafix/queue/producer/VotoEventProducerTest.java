@@ -28,7 +28,7 @@ class VotoEventProducerTest {
     @Test
     @DisplayName("Deve publicar mensagem de voto com exchange e routing key corretas")
     void devePublicarVoto() {
-        VotoMessage msg = new VotoMessage(10L, 1L, "ADICIONAR");
+        VotoMessage msg = new VotoMessage(10L, 1L, "ADICIONAR", 1);
 
         producer.publicarVoto(msg);
 
@@ -42,7 +42,7 @@ class VotoEventProducerTest {
     @Test
     @DisplayName("Deve capturar exceção do RabbitMQ sem lançar erro ao chamador")
     void deveCapturarFalhaDoRabbitMQComResiliencia() {
-        VotoMessage msg = new VotoMessage(10L, 1L, "REMOVER");
+        VotoMessage msg = new VotoMessage(10L, 1L, "REMOVER", 0);
 
         doThrow(new AmqpException("Broker down"))
                 .when(rabbitTemplate)

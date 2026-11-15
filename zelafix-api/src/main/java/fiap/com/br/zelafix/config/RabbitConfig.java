@@ -32,6 +32,9 @@ public class RabbitConfig {
     public static final String QUEUE_CHAMADO_VOTO = "chamado.voto.queue"; // Fila de agregação de votos
     public static final String ROUTING_KEY_CHAMADO_VOTO = "chamado.voto.key"; // Routing Key para votos
 
+    public static final String QUEUE_CHAMADO_PRIORIDADE_ESCALADA = "chamado.prioridade-escalada.queue"; // Fila de retorno de escalonamento comunitário
+    public static final String ROUTING_KEY_CHAMADO_PRIORIDADE_ESCALADA = "chamado.prioridade-escalada.key"; // Routing Key para escalonamento
+
     @Bean
     public MessageConverter jsonMessageConverter() {
         JacksonJsonMessageConverter converter = new JacksonJsonMessageConverter("*");
@@ -88,6 +91,21 @@ public class RabbitConfig {
                 .bind(triagemConcluidaQueue())
                 .to(zelafixExchange())
                 .with(ROUTING_KEY_CHAMADO_TRIAGEM_CONCLUIDA);
+    }
+
+    // Fila durável de retorno para escalonamento automático de prioridade (Worker -> API)
+    @Bean
+    public Queue prioridadeEscaladaQueue() {
+        return new Queue(QUEUE_CHAMADO_PRIORIDADE_ESCALADA, true);
+    }
+
+    // Liga a Fila de Escalonamento de Prioridade à Exchange
+    @Bean
+    public Binding prioridadeEscaladaBinding() {
+        return BindingBuilder
+                .bind(prioridadeEscaladaQueue())
+                .to(zelafixExchange())
+                .with(ROUTING_KEY_CHAMADO_PRIORIDADE_ESCALADA);
     }
 
     /*
