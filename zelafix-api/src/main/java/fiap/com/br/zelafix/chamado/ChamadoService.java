@@ -7,9 +7,7 @@ import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
-import fiap.com.br.zelafix.chamado.orgao.OrgaoGovernoEnum;
 import fiap.com.br.zelafix.chamado.orgao.OrgaoGovernoService;
-import fiap.com.br.zelafix.chamado.prioridade.PrioridadeEnum;
 import fiap.com.br.zelafix.chamado.prioridade.PrioridadeService;
 import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.endereco.EnderecoService;
@@ -117,7 +115,7 @@ public class ChamadoService {
     public ChamadoResponse update(Long id, ChamadoRequest request, String email) {
         Chamado chamado = findChamadoById(id);
         Usuario usuario = usuarioService.findByEmail(email);
-        validarPermissaoEdicao(chamado, usuario);
+        validarPermissao(chamado, usuario, "Você não tem permissão para editar este chamado.");
 
         chamadoRepository.save(request.toEntity(
                 chamado,
@@ -131,7 +129,7 @@ public class ChamadoService {
     public void delete(Long id, String email) {
         Chamado chamado = findChamadoById(id);
         Usuario usuario = usuarioService.findByEmail(email);
-        validarPermissaoExclusao(chamado, usuario);
+        validarPermissao(chamado, usuario, "Apenas o autor do chamado, gestor ou administrador pode excluí-lo.");
         votoChamadoRepository.deleteByChamadoIdChamado(id);
         histChamadoRepository.deleteByChamadoIdChamado(id);
         chamadoRepository.delete(chamado);
@@ -159,16 +157,16 @@ public class ChamadoService {
         Chamado salvo = chamadoRepository.save(feedback.toEntity(
                 autor,
                 enderecoService.findById(feedback.enderecoId()),
-                categoriaService.findByNome(CategoriaEnum.valueOf(feedback.categoriaNome())),
-                prioridadeService.findByNome(PrioridadeEnum.valueOf(feedback.prioridadeNome())),
-                orgaoGovernoService.findByNome(OrgaoGovernoEnum.valueOf(feedback.orgaoNome()))
+                categoriaService.findByNome(feedback.categoria()),
+                prioridadeService.findByNome(feedback.prioridade()),
+                orgaoGovernoService.findByNome(feedback.orgao())
         ));
         votoChamadoRepository.save(new VotoMessage(salvo.getIdChamado(), autor.getIdUsuario(), "VOTAR").toEntity(salvo, autor));
         HistChamado historico = histChamadoRepository.save(feedback.toEntity(
                 salvo,
-                statusService.findByNome(StatusChamadoEnum.valueOf(feedback.statusNome()))
+                statusService.findByNome(feedback.status())
         ));
-        return ChamadoResponse.fromEntity(salvo, feedback.statusNome(), 1L, true, List.of(historico));
+        return ChamadoResponse.fromEntity(salvo, feedback.status().name(), 1L, true, List.of(historico));
     }
 
     // =========================================================================
@@ -210,17 +208,9 @@ public class ChamadoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Chamado com id " + id + " não encontrado."));
     }
 
-    private void validarPermissaoEdicao(Chamado chamado, Usuario usuario) {
-        if (!chamado.getUsuario().getIdUsuario().equals(usuario.getIdUsuario())
-                && usuario.getCargo() != CargoUsuario.GESTOR
-                && usuario.getCargo() != CargoUsuario.ADMIN) {
-            throw new AccessDeniedException("Você não tem permissão para editar este chamado.");
-        }
-    }
-
-    private void validarPermissaoExclusao(Chamado chamado, Usuario usuario) {
-        if (!chamado.getUsuario().getIdUsuario().equals(usuario.getIdUsuario()) && usuario.getCargo() != CargoUsuario.ADMIN) {
-            throw new AccessDeniedException("Apenas o autor do chamado ou um administrador pode excluí-lo.");
+    private void validarPermissao(Chamado chamado, Usuario usuario, String mensagemErro) {
+        if (!chamado.getUsuario().getIdUsuario().equals(usuario.getIdUsuario()) && usuario.getCargo() != CargoUsuario.GESTOR && usuario.getCargo() != CargoUsuario.ADMIN) {
+            throw new AccessDeniedException(mensagemErro);
         }
     }
 

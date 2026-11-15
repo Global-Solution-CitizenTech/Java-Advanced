@@ -32,7 +32,7 @@ public class ChamadoTriagemFeedbackConsumer {
             return;
         }
         try {
-            log.info("Recebida triagem da IA para usuário ID {}: [{}] {} - {}", feedback.usuarioId(), feedback.prioridadeNome(), feedback.orgaoNome(), feedback.categoriaNome());
+            log.info("Recebida triagem da IA para usuário ID {}: [{}] {} - {}", feedback.usuarioId(), feedback.prioridade(), feedback.orgao(), feedback.categoria());
             ChamadoResponse criado = chamadoService.aplicarTriagemIa(feedback);
             triagemPendenteStore.concluir(feedback.correlationId(), criado);
         } catch (RuntimeException e) {

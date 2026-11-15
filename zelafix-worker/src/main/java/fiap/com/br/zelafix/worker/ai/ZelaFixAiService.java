@@ -9,7 +9,7 @@ import org.springframework.resilience.annotation.Retryable;
 import org.springframework.resilience.retry.MethodRetryPredicate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MimeType;
-import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.lang.reflect.Method;
 
@@ -83,7 +83,9 @@ public class ZelaFixAiService {
         @Override
         public boolean shouldRetry(Method method, Throwable throwable) {
             for (Throwable t = throwable; t != null; t = t.getCause()) {
-                if ("NonTransientAiException".equals(t.getClass().getSimpleName()) || t instanceof HttpClientErrorException) {
+                String className = t.getClass().getSimpleName();
+                String msg = t.getMessage();
+                if ("NonTransientAiException".equals(className) || t instanceof RestClientResponseException || (msg != null && (msg.contains("429") || msg.toLowerCase().contains("quota")))) {
                     return false;
                 }
             }
