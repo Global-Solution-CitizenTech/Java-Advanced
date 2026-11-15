@@ -1,10 +1,14 @@
 import base64
+from pathlib import Path
 import requests
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import collections
 
 BASE_URL = "http://localhost:8080"
+IMG_PATH = Path(__file__).resolve().parents[1] / "docs" / "rua-esburacada.png"
+DUMMY_PNG_BYTES = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
+FOTO_TESTE_BYTES = IMG_PATH.read_bytes() if IMG_PATH.exists() else DUMMY_PNG_BYTES
 
 def break_the_app():
     print("=" * 60)
@@ -59,8 +63,8 @@ def break_the_app():
                 f"{BASE_URL}/chamados",
                 headers=headers,
                 data={"cep": "01310-100", "numero": str(2000 + idx), "referencia": f"Stress {idx}", "rua": "Paulista"},
-                files={"foto": ("stress.png", DUMMY_PNG_BYTES, "image/png")},
-                timeout=35
+                files={"foto": ("stress.png", FOTO_TESTE_BYTES, "image/png")},
+                timeout=60
             )
             return r.status_code, time.time() - start, r.text if r.status_code != 201 else None
         except Exception as e:

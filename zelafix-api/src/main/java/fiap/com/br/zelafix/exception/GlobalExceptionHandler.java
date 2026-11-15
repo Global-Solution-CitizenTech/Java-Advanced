@@ -17,6 +17,7 @@ import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
@@ -229,6 +230,15 @@ public class GlobalExceptionHandler {
                 "Ocorreu um erro interno inesperado no servidor.",
                 request
         );
+    }
+
+    @ExceptionHandler(CannotCreateTransactionException.class)
+    public ResponseEntity<ApiErrorResponse> handleCannotCreateTransaction(
+            CannotCreateTransactionException exception, HttpServletRequest request) {
+        log.warn("Pool de conexões com o banco ocupado ou indisponível em {}: {}",
+                request.getRequestURI(), exception.getMessage());
+        return error(HttpStatus.SERVICE_UNAVAILABLE,
+                "Serviço temporariamente indisponível devido a alta demanda no banco de dados. Tente novamente em instantes.", request);
     }
 
     @ExceptionHandler({ConcurrencyFailureException.class, ObjectOptimisticLockingFailureException.class})

@@ -1,11 +1,13 @@
 import base64
+from pathlib import Path
 import requests
 
 BASE_URL = "http://localhost:8080"
 
-# Imagem 1x1 PNG válida em Base64
+# Imagem real de zeladoria para teste de triagem (com fallback)
+IMG_PATH = Path(__file__).resolve().parents[1] / "docs" / "rua-esburacada.png"
 DUMMY_PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-DUMMY_PNG_BYTES = base64.b64decode(DUMMY_PNG_B64)
+FOTO_TESTE_BYTES = IMG_PATH.read_bytes() if IMG_PATH.exists() else base64.b64decode(DUMMY_PNG_B64)
 
 def test_chamados_crud_lifecycle():
     print("=" * 60)
@@ -32,8 +34,8 @@ def test_chamados_crud_lifecycle():
             "referencia": "Em frente à farmácia",
             "rua": "Avenida Paulista"
         },
-        files={"foto": ("bueiro1.png", DUMMY_PNG_BYTES, "image/png")},
-        timeout=40
+        files={"foto": ("bueiro1.png", FOTO_TESTE_BYTES, "image/png")},
+        timeout=60
     )
     assert res.status_code == 201, f"Falha ao criar chamado 1: {res.status_code} - {res.text}"
     chamado_json_id = res.json()["idChamado"]
@@ -50,8 +52,8 @@ def test_chamados_crud_lifecycle():
             "referencia": "Esquina com Alameda Campinas",
             "rua": "Avenida Paulista"
         },
-        files={"foto": ("bueiro.png", DUMMY_PNG_BYTES, "image/png")},
-        timeout=40
+        files={"foto": ("bueiro.png", FOTO_TESTE_BYTES, "image/png")},
+        timeout=60
     )
     assert res.status_code == 201, f"Falha ao criar chamado 2: {res.status_code} - {res.text}"
     chamado_multipart_id = res.json()["idChamado"]
@@ -62,7 +64,7 @@ def test_chamados_crud_lifecycle():
     res = requests.get(f"{BASE_URL}/chamados/{chamado_multipart_id}/foto")
     assert res.status_code == 200, f"Falha ao obter foto: {res.status_code}"
     assert "image/png" in res.headers.get("Content-Type", ""), f"Content-Type incorreto: {res.headers.get('Content-Type')}"
-    assert len(res.content) == len(DUMMY_PNG_BYTES), f"Tamanho da foto divergente: {len(res.content)} bytes"
+    assert len(res.content) == len(FOTO_TESTE_BYTES), f"Tamanho da foto divergente: {len(res.content)} bytes"
     print(f" -> Sucesso! Foto recuperada com Content-Type '{res.headers.get('Content-Type')}' e {len(res.content)} bytes.")
 
     # 3.4 Validações de Entrada (Foto e Endereço obrigatórios)
@@ -83,7 +85,7 @@ def test_chamados_crud_lifecycle():
     res = requests.post(
         f"{BASE_URL}/chamados",
         headers=cidadao_headers,
-        files={"foto": ("bueiro.png", DUMMY_PNG_BYTES, "image/png")}
+        files={"foto": ("bueiro.png", FOTO_TESTE_BYTES, "image/png")}
     )
     assert res.status_code == 400, f"Deveria falhar sem endereço: {res.status_code}"
 

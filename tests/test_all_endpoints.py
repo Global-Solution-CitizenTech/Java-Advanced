@@ -3,6 +3,7 @@ import json
 import os
 import time
 import urllib.request
+import requests
 from pathlib import Path
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8080")
@@ -67,7 +68,7 @@ novo_municipe = {
     "ddd": "11",
     "numeroTelefone": "988776655",
     "endereco": {
-        "cep": "01311000",
+        "cep": "01311-000",
         "rua": "Avenida Paulista",
         "numero": "1500",
         "referencia": "Em frente ao Trianon"
@@ -97,7 +98,7 @@ me_update = {
     "ddd": "11",
     "numeroTelefone": "911223344",
     "endereco": {
-        "cep": "01311000",
+        "cep": "01311-000",
         "rua": "Avenida Paulista",
         "numero": "1550",
         "referencia": "Próximo ao MASP"
@@ -108,17 +109,19 @@ print(f"PUT /usuarios/me: {status} -> Novo Nome: {me_up_res.get('nome')}")
 
 # Listagem de usuários (Admin)
 status, users = request("GET", "/usuarios", token=admin_token)
-print(f"GET /usuarios (Admin): {status} -> Total: {users.get('totalElements') if isinstance(users, dict) else len(users)}")
+total_users = users.get('page', {}).get('totalElements') if isinstance(users, dict) and 'page' in users else (users.get('totalElements') if isinstance(users, dict) else len(users))
+print(f"GET /usuarios (Admin): {status} -> Total: {total_users}")
 
 print("\n" + "=" * 70)
-print("5. TESTANDO CATEGORIAS E ENDEREÇOS")
+print("5. TESTANDO HISTÓRICOS E ENDEREÇOS")
 print("=" * 70)
-status, categorias = request("GET", "/categorias", token=municipe_token)
-print(f"GET /categorias: {status} -> Total: {len(categorias) if isinstance(categorias, list) else 'N/A'}")
-categoria_id = categorias[0]["id"] if isinstance(categorias, list) and categorias else 1
+status, historicos = request("GET", "/historicos", token=admin_token)
+total_hist = historicos.get('page', {}).get('totalElements') if isinstance(historicos, dict) and 'page' in historicos else (historicos.get('totalElements') if isinstance(historicos, dict) else len(historicos))
+print(f"GET /historicos (Admin): {status} -> Total: {total_hist}")
 
 status, enderecos = request("GET", "/enderecos", token=admin_token)
-print(f"GET /enderecos (Admin): {status} -> Total: {enderecos.get('totalElements') if isinstance(enderecos, dict) else 'N/A'}")
+total_enderecos = enderecos.get('page', {}).get('totalElements') if isinstance(enderecos, dict) and 'page' in enderecos else (enderecos.get('totalElements') if isinstance(enderecos, dict) else 'N/A')
+print(f"GET /enderecos (Admin): {status} -> Total: {total_enderecos}")
 
 print("\n" + "=" * 70)
 print("6. TESTANDO ESTATÍSTICAS E LISTAGEM DE CHAMADOS")
@@ -127,28 +130,30 @@ status, stats = request("GET", "/chamados/estatisticas", token=municipe_token)
 print(f"GET /chamados/estatisticas: {status} -> {stats}")
 
 status, chamados = request("GET", "/chamados", token=municipe_token)
-print(f"GET /chamados: {status} -> Total chamados: {chamados.get('totalElements') if isinstance(chamados, dict) else 'N/A'}")
+total_chamados = chamados.get('page', {}).get('totalElements') if isinstance(chamados, dict) and 'page' in chamados else (chamados.get('totalElements') if isinstance(chamados, dict) else 'N/A')
+print(f"GET /chamados: {status} -> Total chamados: {total_chamados}")
 
 print("\n" + "=" * 70)
 print("7. CRIANDO NOVO CHAMADO (RABBITMQ + LLM MULTIMODAL ASSÍNCRONO)")
 print("=" * 70)
-foto_b64 = base64.b64encode(IMG_PATH.read_bytes()).decode("utf-8")
-novo_chamado = {
-    "endereco": {
-        "cep": "01311000",
+res_chamado = requests.post(
+    f"{BASE_URL}/chamados",
+    headers={"Authorization": f"Bearer {municipe_token}"},
+    data={
+        "cep": "01311-000",
         "rua": "Avenida Paulista",
         "numero": "1000",
         "referencia": "Próximo à estação Brigadeiro"
     },
-    "fotoBase64": foto_b64
-}
-status, chamado_criado = request("POST", "/chamados", novo_chamado, token=municipe_token)
+    files={"foto": ("rua.png", IMG_PATH.read_bytes(), "image/png")},
+    timeout=60
+)
+status = res_chamado.status_code
+chamado_criado = res_chamado.json() if status == 201 else res_chamado.text
 chamado_id = chamado_criado.get("idChamado") if isinstance(chamado_criado, dict) else None
 print(f"POST /chamados: {status} -> ID Gerado: {chamado_id}, Prioridade Inicial: {chamado_criado.get('prioridadeNome') if isinstance(chamado_criado, dict) else chamado_criado}")
 
 if chamado_id:
-    print("\nAguardando 15 segundos para o zelafix-worker consumir do RabbitMQ e acionar o LLM Multimodal...")
-    time.sleep(15)
     status, chamado_detalhe = request("GET", f"/chamados/{chamado_id}", token=municipe_token)
     print(f"GET /chamados/{chamado_id}: {status}")
     print(f" -> Título IA: {chamado_detalhe.get('titulo')} | Categoria: {chamado_detalhe.get('categoriaNome')} | Prioridade: {chamado_detalhe.get('prioridadeNome')} | Órgão: {chamado_detalhe.get('orgaoNome')}")

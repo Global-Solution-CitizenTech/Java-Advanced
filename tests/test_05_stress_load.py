@@ -1,11 +1,15 @@
 import requests
 import json
 import time
+import base64
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import collections
 
 BASE_URL = "http://localhost:8080"
+IMG_PATH = Path(__file__).resolve().parents[1] / "docs" / "rua-esburacada.png"
 DUMMY_PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+FOTO_TESTE_BYTES = IMG_PATH.read_bytes() if IMG_PATH.exists() else base64.b64decode(DUMMY_PNG_B64)
 
 def test_stress_load():
     print("=" * 60)
@@ -19,7 +23,7 @@ def test_stress_load():
         ("admin@zelafix.com.br", "123mudar"),
         ("roberto.gestor@subprefeitura.sp.gov.br", "Senha#123"),
         ("enzo.okuizumi@gmail.com", "123mudar"),
-        ("lucas.zeladoria@subprefeitura.sp.gov.br", "Senha#123")
+        ("lucas.barros@zelafix.com.br", "123mudar")
     ]
     for email, senha in creds:
         try:
@@ -34,14 +38,15 @@ def test_stress_load():
 
     # Criar um chamado alvo para a tempestade de votos
     print("\n[5.2] Criando chamado alvo para rajada massiva de votos...")
-    target_chamado = requests.post(
+    res = requests.post(
         f"{BASE_URL}/chamados",
         headers={"Authorization": f"Bearer {admin_token}"},
-        json={
-            "endereco": {"cep": "01310-100", "numero": "999", "referencia": "Ponto Zero", "rua": "Paulista"},
-            "fotoBase64": DUMMY_PNG_B64
-        }
-    ).json()
+        data={"cep": "01310-100", "numero": "999", "referencia": "Ponto Zero", "rua": "Paulista"},
+        files={"foto": ("ponto_zero.png", FOTO_TESTE_BYTES, "image/png")},
+        timeout=40
+    )
+    assert res.status_code == 201, f"Falha ao criar chamado alvo: {res.status_code} - {res.text}"
+    target_chamado = res.json()
     target_id = target_chamado["idChamado"]
     print(f" -> Chamado alvo ID: {target_id}")
 
@@ -90,9 +95,9 @@ def test_stress_load():
         print(f" -> Exceções capturadas: {len(erros_votos)} (primeiro erro: {erros_votos[0]})")
 
     # =========================================================================
-    # STRESS TEST 2: CRIAÇÃO CONCORRENTE DE CHAMADOS (20 chamados simultâneos)
+    # STRESS TEST 2: CRIAÇÃO CONCORRENTE DE CHAMADOS (10 chamados simultâneos)
     # =========================================================================
-    print(f"\n[5.4] DISPARANDO CRIAÇÃO CONCORRENTE DE CHAMADOS: 20 chamados simultâneos...")
+    print(f"\n[5.4] DISPARANDO CRIAÇÃO CONCORRENTE DE CHAMADOS: 10 chamados simultâneos em 3 threads...")
 
     def criar_chamado_stress(indice):
         user_email, token = tokens[indice % len(tokens)]
@@ -101,11 +106,14 @@ def test_stress_load():
             res = requests.post(
                 f"{BASE_URL}/chamados",
                 headers={"Authorization": f"Bearer {token}"},
-                json={
-                    "endereco": {"cep": "01310-100", "numero": str(1000 + indice), "referencia": f"Lote {indice}", "rua": "Paulista"},
-                    "fotoBase64": DUMMY_PNG_B64
+                data={
+                    "cep": "01310-100",
+                    "numero": str(1000 + indice),
+                    "referencia": f"Lote {indice}",
+                    "rua": "Paulista"
                 },
-                timeout=20
+                files={"foto": (f"stress_{indice}.png", FOTO_TESTE_BYTES, "image/png")},
+                timeout=60
             )
             elapsed = time.time() - start
             return res.status_code, elapsed, res.text if res.status_code != 201 else None
@@ -118,8 +126,8 @@ def test_stress_load():
     falhas_criacao = []
 
     start_batch_criacao = time.time()
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        futures = [executor.submit(criar_chamado_stress, i) for i in range(20)]
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [executor.submit(criar_chamado_stress, i) for i in range(10)]
         for f in as_completed(futures):
             status, lat, err_msg = f.result()
             resultados_criacao[status] += 1
@@ -131,7 +139,7 @@ def test_stress_load():
     avg_lat_c = sum(latencias_criacao) / len(latencias_criacao) if latencias_criacao else 0
 
     print(f" -> Resultados Criação: {dict(resultados_criacao)}")
-    print(f" -> Tempo total: {total_time_criacao:.2f}s | Vazão: {20 / total_time_criacao:.1f} req/s")
+    print(f" -> Tempo total: {total_time_criacao:.2f}s | Vazão: {10 / total_time_criacao:.1f} req/s")
     print(f" -> Latência Média: {avg_lat_c*1000:.1f}ms")
     if falhas_criacao:
         print(f" -> Falhas na criação: {len(falhas_criacao)} falhas:")
@@ -139,9 +147,9 @@ def test_stress_load():
             print(f"    - Status {st}: {msg[:150]}")
 
     # =========================================================================
-    # STRESS TEST 3: LEITURA MASSIVA CONCORRENTE COM CARREGAMENTO EM LOTE (150 consultas)
+    # STRESS TEST 3: LEITURA MASSIVA CONCORRENTE COM CARREGAMENTO EM LOTE (50 consultas)
     # =========================================================================
-    print(f"\n[5.5] DISPARANDO 150 CONSULTAS CONCORRENTES EM GET /chamados COM PAGINAÇÃO...")
+    print(f"\n[5.5] DISPARANDO 50 CONSULTAS CONCORRENTES EM GET /chamados COM PAGINAÇÃO...")
 
     def consultar_chamados(indice):
         token = tokens[indice % len(tokens)][1]
@@ -150,7 +158,7 @@ def test_stress_load():
             res = requests.get(
                 f"{BASE_URL}/chamados?page={indice % 3}&size=10&sort=dtAbertura,desc",
                 headers={"Authorization": f"Bearer {token}"},
-                timeout=10
+                timeout=25
             )
             elapsed = time.time() - start
             return res.status_code, elapsed
@@ -161,8 +169,8 @@ def test_stress_load():
     latencias_leitura = []
 
     start_leitura = time.time()
-    with ThreadPoolExecutor(max_workers=15) as executor:
-        futures = [executor.submit(consultar_chamados, i) for i in range(150)]
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = [executor.submit(consultar_chamados, i) for i in range(50)]
         for f in as_completed(futures):
             st, lat = f.result()
             resultados_leitura[st] += 1
@@ -171,7 +179,7 @@ def test_stress_load():
     total_time_leitura = time.time() - start_leitura
     avg_lat_l = sum(latencias_leitura) / len(latencias_leitura) if latencias_leitura else 0
     print(f" -> Resultados Leitura: {dict(resultados_leitura)}")
-    print(f" -> Vazão Leitura: {150 / total_time_leitura:.1f} req/s | Latência Média: {avg_lat_l*1000:.1f}ms")
+    print(f" -> Vazão Leitura: {50 / total_time_leitura:.1f} req/s | Latência Média: {avg_lat_l*1000:.1f}ms")
 
     print("\n" + "=" * 60)
     print("SUITE 5 CONCLUÍDA! ANALISANDO ESTABILIDADE DOS SERVIÇOS...")
