@@ -130,7 +130,7 @@ status, chamados = request("GET", "/chamados", token=municipe_token)
 print(f"GET /chamados: {status} -> Total chamados: {chamados.get('totalElements') if isinstance(chamados, dict) else 'N/A'}")
 
 print("\n" + "=" * 70)
-print("7. CRIANDO NOVO CHAMADO (RABBITMQ + AZURE AI ASSÍNCRONO)")
+print("7. CRIANDO NOVO CHAMADO (RABBITMQ + LLM MULTIMODAL ASSÍNCRONO)")
 print("=" * 70)
 foto_b64 = base64.b64encode(IMG_PATH.read_bytes()).decode("utf-8")
 novo_chamado = {
@@ -147,7 +147,7 @@ chamado_id = chamado_criado.get("idChamado") if isinstance(chamado_criado, dict)
 print(f"POST /chamados: {status} -> ID Gerado: {chamado_id}, Prioridade Inicial: {chamado_criado.get('prioridadeNome') if isinstance(chamado_criado, dict) else chamado_criado}")
 
 if chamado_id:
-    print("\nAguardando 15 segundos para o zelafix-worker consumir do RabbitMQ e acionar o Azure Phi-4 Multimodal...")
+    print("\nAguardando 15 segundos para o zelafix-worker consumir do RabbitMQ e acionar o LLM Multimodal...")
     time.sleep(15)
     status, chamado_detalhe = request("GET", f"/chamados/{chamado_id}", token=municipe_token)
     print(f"GET /chamados/{chamado_id}: {status}")

@@ -21,6 +21,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
@@ -47,8 +48,10 @@ public class Chamado {
     @Column(name = "foto", nullable = false)
     private byte[] foto;
 
-    @Column(name = "dt_abertura", nullable = false)
-    private LocalDateTime dtAbertura;
+    @CreationTimestamp
+    @Column(name = "dt_abertura", nullable = false, updatable = false)
+    @Builder.Default
+    private LocalDateTime dtAbertura = LocalDateTime.now();
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "usuario_id_usuario", nullable = false)

@@ -52,7 +52,7 @@ Java-Advanced/
 ├── build.gradle                      # Gradle root: controle centralizado de plugins
 ├── settings.gradle                   # Declaração dos submódulos: zelafix-api e zelafix-worker
 ├── gradle.properties                 # Configurações de JVM e encoding UTF-8
-├── gradlew / gradlew.bat             # Gradle Wrapper corporativo (Gradle 8.10)
+├── gradlew / gradlew.bat             # Gradle Wrapper corporativo (Gradle 9.8.2)
 ├── AGENT.md                          # Guia operacional da arquitetura e convenções
 │
 ├── zelafix-api/                      # MICROSSERVIÇO 1: Gateway REST & Persistência
@@ -65,11 +65,12 @@ Java-Advanced/
 │       │   │   ├── usuario/          # Gestão de munícipes e perfis (Cidadão, Gestor, Admin)
 │       │   │   ├── chamado/          # Ocorrências urbanas (Chamado, TriagemPendenteStore, dto/, prioridade/, orgao/)
 │       │   │   ├── categoria/        # Catálogo com cache declarativo (@Cacheable)
-│       │   │   ├── status/           # Máquina de estados de resolução das ocorrências
-│       │   │   ├── endereco/         # Normalização geográfica e integração ViaCEP
-│       │   │   ├── historico/        # Auditoria de transições dos chamados (HistChamado)
+│       │   │   ├── endereco/         # Normalização geográfica e integração ViaCEP (@HttpExchange)
+│       │   │   ├── historico/        # Auditoria de transições (HistChamado) e máquina de estados (status/)
 │       │   │   ├── voto/             # Controle de apoio comunitário (VotoChamado)
 │       │   │   ├── queue/            # Produtores RabbitMQ e Feedback Consumer da IA
+│       │   │   ├── validation/       # Anotações e validadores customizados (@DddValidation)
+│       │   │   ├── util/             # Utilitários (ImageMimeTypeDetector)
 │       │   │   ├── config/           # SecurityConfig, RabbitConfig, SwaggerConfig
 │       │   │   └── exception/        # GlobalExceptionHandler
 │       │   └── resources/
@@ -79,11 +80,11 @@ Java-Advanced/
 │
 └── zelafix-worker/                   # MICROSSERVIÇO 2: Worker Reativo Stateless
     ├── Dockerfile                    # Multi-stage build leve (sem JDBC/JPA, non-root)
-    ├── build.gradle                  # Dependências Spring AMQP e Spring AI (Azure AI Foundry)
+    ├── build.gradle                  # Dependências Spring AMQP e Spring AI (LLM Multimodal + Tool Calling)
     └── src/
         ├── main/
         │   ├── java/fiap/com/br/zelafix/worker/
-        │   │   ├── ai/               # ZelaFixAiService (@Retryable), TriagemNormativaTools (@Tool), dto/, enums/ e util/
+        │   │   ├── ai/               # ZelaFixAiService (Fail-Fast), TriagemNormativaTools (@Tool), dto/, enums/ e util/
         │   │   ├── consumer/         # ChamadoAiConsumer & VotoConsumer (@RabbitListener)
         │   │   ├── queue/            # DTOs de mensageria (ChamadoTriagemMessage, TriagemFeedbackMessage)
         │   │   └── config/           # RabbitWorkerConfig
@@ -113,13 +114,15 @@ O ecossistema **ZelaFix** é operado por **dois microsserviços especializados**
                                                      ▼
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │  zelafix-api (Porta 8080) — Gateway RESTful de Domínio & Persistência ACID                             │
-│  - Spring Security 6 com JWT RSA (Nimbus) & RBAC (ROLE_CIDADAO, ROLE_GESTOR, ROLE_ADMIN)               │
-│  - Persistência exclusiva no Banco Relacional Oracle FIAP via Spring Data JPA                          │
+│  - Spring Security com JWT RSA (Nimbus) & RBAC (ROLE_CIDADAO, ROLE_GESTOR, ROLE_ADMIN)                 │
+│  - Persistência no Oracle FIAP via Spring Data JPA / Hibernate 7.4 com @CreationTimestamp declarativo  │
+│  - Java 21 Project Loom: Virtual Threads ativas (spring.threads.virtual.enabled=true) para I/O leve    │
 │  - Versionamento de banco automático com Flyway Migrations (V1 DDL, V2 Domínios + Admin, V3 Seed)      │
 │  - Cache declarativo de catálogo com @Cacheable/@CacheEvict (Categoria, Status, Prioridade, Órgão)     │
-│  - Cliente declarativo HTTP com timeouts e resiliência (ViaCepService)                                 │
+│  - Cliente HTTP declarativo com @HttpExchange / @GetExchange e @ImportHttpServices (ViaCepService)     │
 │  - Produtor RabbitMQ + DeferredResult: publica endereço + foto no zelafix.direct e aguarda triagem     │
-│  - Consumidor RabbitMQ (Feedback): recusa imagens inválidas sem persistir ou grava chamado aprovado    │
+│  - Consumidor RabbitMQ (Feedback): recusa imagens sem persistir ou grava chamado com histórico duplo   │
+│    conectado via saveAll (PENDENTE inicial de abertura pelo munícipe + EM_ANALISE triado pela IA)      │
 └───────────────────────┬────────────────────────────────────────────────────▲───────────────────────────┘
                         │                                                    │
                         │ chamado.triagem.key                                │ chamado.triagem-concluida.key
@@ -136,9 +139,10 @@ O ecossistema **ZelaFix** é operado por **dois microsserviços especializados**
                         ▼
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
 │  zelafix-worker (Porta 8081) — Stateless Heavy Worker                                                  │
-│  - Consumidor assíncrono de alta vazão (RabbitMQ @RabbitListener)                                      │
-│  - Inteligência Artificial Generativa e Multimodal com Spring AI (Azure AI Foundry / Phi-4 Multimodal) │
-│  - Detecção dinâmica de MIME type via magic bytes (ImageMimeTypeDetector)                              │
+│  - Consumidor assíncrono de alta vazão (RabbitMQ @RabbitListener com Virtual Threads Loom)             │
+│  - Inteligência Artificial Generativa e Multimodal com Spring AI (LLM Multimodal + Tool Calling)       │
+│  - Arquitetura Fail-Fast imediata com fallback gracioso PENDENTE via ChamadoAiConsumer                 │
+│  - Detecção dinâmica de MIME type via magic bytes e redimensionamento JPEG (ImageMimeTypeDetector)     │
 │  - Agregador de votos em buffer volátil thread-safe (ConcurrentHashMap com flush periódico a cada 3s)  │
 │  - 100% Stateless: ZERO CONEXÃO COM BANCO DE DADOS (sem JDBC, sem JPA, sem Oracle, sem locks)          │
 │  - Produtor de retorno: publica parecer técnico estruturado em chamado.triagem-concluida.queue         │
@@ -153,7 +157,7 @@ A ausência total de dependências JPA/JDBC e conexões de banco de dados no `ze
 
 1. **Isolamento de Falhas e Resiliência:** O worker atua como um *pure inference worker*. Lentidões ou indisponibilidades temporárias do banco de dados não afetam o consumo da IA nem saturam o pool de conexões (HikariCP).
 2. **Escalabilidade Horizontal Instantânea:** Instâncias do worker sobem em ~2 segundos e podem ser multiplicadas elasticamente sem disputar o limite de conexões simultâneas do Oracle corporativo.
-3. **Triagem Assíncrona com `DeferredResult` e Validação de Escopo:** Na criação do chamado (`POST /chamados` `multipart/form-data` com `cep`, `numero`, `referencia`, `rua` e `foto`), o cidadão envia apenas endereço e evidência fotográfica. A API registra um `correlationId` em `TriagemPendenteStore` (timeout de `60s`) e publica os bytes na fila. O worker analisa a imagem e devolve `TriagemFeedbackMessage` para `chamado.triagem-concluida.queue`. Se a imagem for aprovada (`ocorrenciaValida = true`), a `zelafix-api` persiste o chamado em transação ACID e conclui a requisição com `201 Created`; se recusada (`recusado = true`), rejeita a requisição com `400 Bad Request` sem gravar lixo no Oracle.
+3. **Triagem Assíncrona com `DeferredResult` e Histórico Duplo Conectado:** Na criação do chamado (`POST /chamados` `multipart/form-data` com `cep`, `numero`, `referencia`, `rua` e `foto`), o cidadão envia apenas endereço e evidência fotográfica. A API registra um `correlationId` em `TriagemPendenteStore` (timeout de `60s`) e publica os bytes na fila. O worker analisa a imagem e devolve `TriagemFeedbackMessage` para `chamado.triagem-concluida.queue`. Se a imagem for aprovada (`ocorrenciaValida = true`), a `zelafix-api` persiste o chamado em transação ACID salvando o histórico duplo conectado via `saveAll` (`PENDENTE` inicial pelo munícipe + `EM_ANALISE` triado pela IA) e conclui a requisição com `201 Created`; se recusada (`recusado = true`), rejeita a requisição com `400 Bad Request` sem gravar lixo no Oracle.
 4. **Absorção de Rajadas de Votos (Padrão Paredão):** O `VotoConsumer` acumula apoios em memória com `ConcurrentHashMap<Long, Integer>`. O flush periódico a cada 3 segundos (`@Scheduled`) consolida os lotes em log e libera a memória, sem estressar o banco relacional.
 
 ---
@@ -176,7 +180,7 @@ Toda a comunicação assíncrona entre os dois serviços é orquestrada pela `Di
 
 Toda ocorrência registrada na plataforma exige foto comprobatória (`BLOB NOT NULL` no banco de dados):
 
-- **Injeção Idiomática & Resiliência:** `ChatClient` configurado com `SYSTEM_PROMPT`, `SimpleLoggerAdvisor`, `defaultTools(TriagemNormativaTools)` e `@EnableResilientMethods` + `@Retryable` (`maxRetries = 2`, backoff exponencial com jitter).
+- **Injeção Idiomática & Fail-Fast:** `ChatClient` configurado com `SYSTEM_PROMPT`, `SimpleLoggerAdvisor`, `defaultTools(TriagemNormativaTools)` e estratégia **Fail-Fast** imediata (sem retries em chamadas síncronas de usuário para garantir tempo de resposta de 3s a 5s no app mobile e acionar contingência graciosa `PENDENTE` instantaneamente em caso de falha).
 - **Tool Calling Stateless (`TriagemNormativaTools`):** Expõe `@Tool consultarNormaMunicipal` (decretos PMSP e órgão padrão) e `@Tool calcularPrazoSla` (`America/Sao_Paulo`, `12h`/`24h`/`48h`/`72h`), acionadas apenas quando `ocorrenciaValida = true`.
 - **Detecção de MIME Type por Magic Bytes (`ImageMimeTypeDetector`):** Analisa a assinatura binária dos primeiros bytes (`image/jpeg`, `image/png`, `image/webp`, `image/gif`) para anexar dinamicamente como `ByteArrayResource` no prompt multimodal parametrizado (`{bairro}`).
 - **Structured Output Validado + Proteção UTF-8 (`EntityParamSpec::validateSchema` + `comLimitesOracle()`):** O retorno do LLM é validado contra o JSON Schema e truncado por code-points UTF-8 (`<= 100` bytes no título e `<= 1000` bytes na descrição) para evitar estouro de coluna `VARCHAR2(... BYTE)` no Oracle:
@@ -190,6 +194,7 @@ Toda ocorrência registrada na plataforma exige foto comprobatória (`BLOB NOT N
       DepartamentoGoverno orgaoResponsavel  // SECRETARIA_OBRAS, CET_TRANSITO, ILUMINACAO_PUBLICA, DEFESA_CIVIL, SUBPREFEITURA, SANEAMENTO_BASICO
   ) {}
   ```
+- **Triagem em Contingência via RabbitMQ:** Caso o provedor de IA esteja indisponível ou com cota excedida (HTTP 429), o worker aciona imediatamente a contingência assíncrona sem retries desnecessários, devolvendo o chamado com status `PENDENTE`, prioridade `MEDIA` e órgão `SUBPREFEITURA` para triagem manual da equipe técnica municipal.
 
 ---
 
@@ -233,7 +238,7 @@ O banco de dados Oracle é inicializado automaticamente com usuários de teste v
 
 ### Pré-requisitos
 - **Java 21 LTS** (Amazon Corretto ou Eclipse Temurin 21).
-- Arquivo `.env` configurado na raiz de `Java-Advanced` (baseado em `.env.example`), apontando para o Oracle FIAP, **RabbitMQ (CloudAMQP)** (`SPRING_RABBITMQ_ADDRESSES`) e **Azure AI Foundry** (`AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`).
+- Arquivo `.env` configurado na raiz de `Java-Advanced` (baseado em `.env.example`), apontando para o Oracle FIAP, **RabbitMQ (CloudAMQP)** (`SPRING_RABBITMQ_ADDRESSES`) e **Provedor de LLM Multimodal via Spring AI** (`AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL` — compatível com qualquer provedor padrão OpenAI API).
 
 ### Executando localmente via Gradle
 ```bash

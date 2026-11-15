@@ -45,6 +45,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -405,13 +406,19 @@ class ChamadoServiceTest {
         when(categoriaService.findByNome(CategoriaEnum.VIAS_E_PAVIMENTACAO)).thenReturn(catIa);
         when(prioridadeService.findByNome(PrioridadeEnum.ALTA)).thenReturn(prioAlta);
         when(orgaoGovernoService.findByNome(OrgaoGovernoEnum.SECRETARIA_OBRAS)).thenReturn(orgao);
+        when(statusService.findByNome(StatusChamadoEnum.PENDENTE)).thenReturn(statusPendente);
         when(statusService.findByNome(StatusChamadoEnum.EM_ANALISE)).thenReturn(statusEmAnalise);
         when(chamadoRepository.save(any(Chamado.class))).thenAnswer(inv -> {
             Chamado c = inv.getArgument(0);
             c.setIdChamado(100L);
             return c;
         });
-        when(histChamadoRepository.save(any(HistChamado.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(histChamadoRepository.saveAll(any())).thenAnswer(inv -> {
+            Iterable<HistChamado> list = inv.getArgument(0);
+            List<HistChamado> result = new ArrayList<>();
+            list.forEach(result::add);
+            return result;
+        });
 
         var feedback = TriagemFeedbackMessage.builder()
                 .correlationId("corr-10")
@@ -442,13 +449,11 @@ class ChamadoServiceTest {
 
         verify(votoChamadoRepository).save(any(VotoChamado.class));
 
-        ArgumentCaptor<HistChamado> histCaptor = ArgumentCaptor.forClass(HistChamado.class);
-        verify(histChamadoRepository).save(histCaptor.capture());
-        HistChamado historico = histCaptor.getValue();
-        assertEquals(criado, historico.getChamado());
-        assertEquals(usuario, historico.getUsuario());
-        assertEquals(statusEmAnalise, historico.getStatus());
-        assertTrue(historico.getObservacoes().getBytes(StandardCharsets.UTF_8).length <= 255);
+        verify(histChamadoRepository).saveAll(any());
+        assertEquals(2, response.historico().size());
+        assertEquals("EM_ANALISE", response.historico().get(0).status());
+        assertEquals("PENDENTE", response.historico().get(1).status());
+        assertTrue(response.historico().get(0).observacao().getBytes(StandardCharsets.UTF_8).length <= 255);
     }
 
     @Test

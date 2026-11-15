@@ -14,16 +14,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.client.HttpClientErrorException;
 
 import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -144,13 +141,16 @@ class ZelaFixAiServiceTest {
     }
 
     @Test
-    @DisplayName("Não deve tentar retry para erros 4xx/429 nem permitir repetição em cadeia")
-    void naoDeveFazerRetryParaErroClienteOuQuota() {
-        var predicate = new ZelaFixAiService.AbortOnClientErrorPredicate();
-        var tooManyRequests = HttpClientErrorException.create(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", HttpHeaders.EMPTY, new byte[0], null);
-        assertFalse(predicate.shouldRetry(null, tooManyRequests));
-        assertFalse(predicate.shouldRetry(null, new RuntimeException(tooManyRequests)));
-        assertTrue(predicate.shouldRetry(null, new RuntimeException("Timeout transitório")));
+    @DisplayName("Deve falhar rápido (Fail-Fast) propagando exceção para acionar contingência no consumer")
+    void devePropagarExcecaoSemRetry() {
+        when(chatClient.prompt()
+                .user(ArgumentMatchers.<Consumer<ChatClient.PromptUserSpec>>any())
+                .call())
+                .thenThrow(new RuntimeException("OpenRouter timeout ou indisponibilidade"));
+
+        assertThrows(RuntimeException.class, () ->
+                aiService.analisarChamado("Centro", new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0})
+        );
     }
 
     private void stubRespostaIa(TriagemIaResult resposta) {

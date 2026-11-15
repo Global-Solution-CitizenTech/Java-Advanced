@@ -18,6 +18,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
@@ -37,8 +38,10 @@ public class VotoChamado {
     @Column(name = "id_voto")
     private Long idVoto;
 
-    @Column(name = "dt_voto", nullable = false)
-    private LocalDateTime dtVoto;
+    @CreationTimestamp
+    @Column(name = "dt_voto", nullable = false, updatable = false)
+    @Builder.Default
+    private LocalDateTime dtVoto = LocalDateTime.now();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "chamado_id_chamado", nullable = false)

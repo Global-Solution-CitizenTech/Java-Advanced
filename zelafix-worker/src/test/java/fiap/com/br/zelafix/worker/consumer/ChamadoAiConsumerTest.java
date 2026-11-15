@@ -126,7 +126,7 @@ class ChamadoAiConsumerTest {
     }
 
     @Test
-    @DisplayName("Deve aplicar contingência PENDENTE imediatamente quando Azure AI retornar erro 429")
+    @DisplayName("Deve aplicar contingência PENDENTE imediatamente quando API de IA retornar erro 429")
     void deveAplicarContingenciaQuandoQuotaExcedida() {
         byte[] fotoBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
         ChamadoTriagemMessage message = new ChamadoTriagemMessage("corr-429", 2L, 10L, "Mooca", fotoBytes);
