@@ -102,7 +102,7 @@ Java-Advanced/
 
 ---
 
-## 🏛️ 3. Arquitetura Distribuída Reativa e Divisão de Responsabilidades
+## 🏛️ 3. Arquitetura Distribuída Orientada a Eventos e Divisão de Responsabilidades
 
 O ecossistema **ZelaFix** é operado por **dois microsserviços especializados** interligados por mensageria com **RabbitMQ**:
 
@@ -158,7 +158,7 @@ O ecossistema **ZelaFix** é operado por **dois microsserviços especializados**
 A ausência total de dependências JPA/JDBC e conexões de banco de dados no `zelafix-worker` é um diferencial arquitetural sênior:
 
 1. **Isolamento de Falhas e Resiliência:** O worker atua como um *pure inference worker*. Lentidões ou indisponibilidades temporárias do banco de dados não afetam o consumo da IA nem saturam o pool de conexões (HikariCP).
-2. **Escalabilidade Horizontal Instantânea:** Instâncias do worker sobem em ~2 segundos e podem ser multiplicadas elasticamente sem disputar o limite de conexões simultâneas do Oracle corporativo.
+2. **Escalabilidade Horizontal Instantânea:** Instâncias do worker inicializam rapidamente de forma desacoplada e podem ser multiplicadas elasticamente sem disputar o limite de conexões simultâneas do Oracle corporativo.
 3. **Triagem Assíncrona com `DeferredResult` e Histórico Duplo Conectado:** Na criação do chamado (`POST /chamados` `multipart/form-data` com `cep`, `numero`, `referencia`, `rua` e `foto`), o cidadão envia apenas endereço e evidência fotográfica. A API registra um `correlationId` em `TriagemPendenteStore` (timeout de `60s`) e publica os bytes na fila. O worker analisa a imagem e devolve `TriagemFeedbackMessage` para `chamado.triagem-concluida.queue`. Se a imagem for aprovada (`ocorrenciaValida = true`), a `zelafix-api` persiste o chamado em transação ACID salvando o histórico duplo conectado via `saveAll` (`PENDENTE` inicial pelo munícipe + `EM_ANALISE` triado pela IA) e conclui a requisição com `201 Created`; se recusada (`recusado = true`), rejeita a requisição com `400 Bad Request` sem gravar lixo no Oracle.
 4. **Buffer de Rajada e Escalonamento Comunitário Orientado a Eventos:** O apoio individual do munícipe (`POST /chamados/{id}/apoiar`) é registrado de forma síncrona e atômica na API para garantir consistência ACID e resposta instantânea ao usuário mobile (`apoiadoPorMim: true`). Imediatamente após a gravação, a API publica um evento em `chamado.voto.queue`. O `VotoConsumer` no worker absorve essas rajadas em um buffer thread-safe em memória (`ConcurrentHashMap`), evitando que o banco sofra com rotinas contínuas de polling e recálculo de prioridades. A cada 3 segundos (`@Scheduled`), o worker avalia se o chamado atingiu os limiares comunitários ($\ge 3$ votos $\rightarrow$ `ALTA`, $\ge 5$ votos $\rightarrow$ `URGENTE`). Ao atingir, publica `PrioridadeEscaladaMessage` para a API, que executa o escalonamento estritamente ascendente no Oracle (nunca rebaixando prioridades urgentes) com registro histórico em `HistChamado`.
 
@@ -215,14 +215,15 @@ A API do ZelaFix segue rigorosamente o padrão RESTful, retornando DTOs canônic
 
 | Método | Endpoint | Permissão | Descrição |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/auth/login` | Público | Autentica munícipe/gestor e retorna par de tokens JWT assinados com RSA Nimbus (2048-bit). |
-| `POST` | `/auth/register` | Público | Cadastro de novo cidadão na plataforma com validações Jakarta e hash BCrypt. |
-| `GET` | `/auth/me` | Autenticado | Retorna dados cadastrais e permissões do usuário logado. |
-| `POST` | `/chamados` | `CIDADAO` / `ADMIN` | Abertura de ocorrência (`multipart/form-data`: dados + foto). Dispara triagem via `DeferredResult`. |
+| `POST` | `/login` | Público | Autentica munícipe/gestor e retorna par de tokens JWT assinados com RSA Nimbus (2048-bit). |
+| `POST` | `/usuarios` | Público | Cadastro de novo cidadão na plataforma com validações Jakarta e hash BCrypt. |
+| `GET` | `/usuarios/me` | Autenticado | Retorna dados cadastrais e permissões do usuário logado. |
 | `GET` | `/chamados` | Autenticado | Listagem paginada (`Pageable`) de chamados com filtros e enriquecimento em lote. |
 | `GET` | `/chamados/{id}` | Autenticado | Detalhamento do chamado com histórico completo de auditoria e cálculo de apoios. |
+| `GET` | `/chamados/{id}/foto` | Público | Retorna o binário da evidência fotográfica da ocorrência (`image/jpeg`, `image/png`). |
+| `POST` | `/chamados` | Autenticado | Abertura de ocorrência (`multipart/form-data`: endereço + foto). Dispara triagem via `DeferredResult`. |
 | `PUT` | `/chamados/{id}` | Autor / `ADMIN` | Edição dos dados da ocorrência via método idiomático `aplicarEm`. |
-| `DELETE` | `/chamados/{id}` | Autor / `ADMIN` | Exclusão lógica/física com remoção limpa de históricos e votos associados. |
+| `DELETE` | `/chamados/{id}` | Autor / `ADMIN` | Exclusão física com remoção limpa de históricos e votos associados. |
 | `PATCH` | `/chamados/{id}/status` | `GESTOR` / `ADMIN` | Atualização de status operacional (`EM_EXECUCAO`, `CONCLUIDO`, etc.) com parecer técnico. |
 | `POST` | `/chamados/{id}/apoiar` | Autenticado | Alterna apoio comunitário (toggle), persistindo voto no Oracle e publicando evento AMQP. |
 | `GET` | `/chamados/estatisticas` | Autenticado | Retorna métricas consolidadas da plataforma (chamados por status, totais e apoios). |
@@ -234,19 +235,19 @@ A API do ZelaFix segue rigorosamente o padrão RESTful, retornando DTOs canônic
 
 Em cumprimento às diretrizes éticas e acadêmicas da Global Solution FIAP:
 
-- **Modelos Utilizados no Desenvolvimento:** **Gemini 3.8 Flash** e **Gemini 4 Hydrogen**.
+- **Modelos Utilizados no Desenvolvimento:** **Claude 3.7 Sonnet**, **Gemini 2.5 Pro / Flash** e **Antigravity AI Agent**.
 - **Finalidade e Escopo de Uso:** Os modelos atuaram estritamente como ferramentas de assistência (*AI Pair Programming*) nas seguintes frentes:
   1. *Prototipação e Refatoração de Código:* Sugestão de padrões idiomáticos modernos do Java 21 LTS (records, virtual threads, pattern matching) e DTOs enxutos sem *boilerplate*.
   2. *Suíte de Testes Automatizados:* Geração de esqueletos e cenários de borda para testes unitários com JUnit 5 e Mockito.
   3. *Revisão de Conformidade Técnica:* Apoio na revisão cruzada entre os requisitos arquiteturais e os artefatos de documentação.
-- **Responsabilidade Humana:** Toda a concepção arquitetural, modelagem relacional em 3FN no Oracle Database, implementação do par de chaves RSA Nimbus para JWT, topologia de mensageria com RabbitMQ, prompts e *tool calling* com Spring AI foram revisados, ajustados e integralmente validados pelos integrantes humanos do grupo. Nenhuma decisão de design ou código foi aplicada sem curadoria técnica.
+- **Responsabilidade Humana:** Toda a concepção arquitetural, modelagem relacional em 3FN no Oracle Database, implementação do par de chaves RSA Nimbus para JWT, topologia de mensageria com RabbitMQ, prompts e *tool calling* com Spring AI foram concebidos, revisados, ajustados e integralmente homologados pelos integrantes humanos do grupo. Nenhuma decisão de design ou código foi aplicada sem curadoria técnica.
 
 ---
 
 ## 🐳 9. Containerização com Docker (Multi-Stage Build)
 
 Ambos os microsserviços utilizam **Dockerfiles multi-stage build** otimizados para produção:
-- **Build Stage:** `gradle:8.10-jdk21-alpine` (compilação sem daemon e geração de chaves RSA para JWT via OpenSSL).
+- **Build Stage:** `eclipse-temurin:21-jdk-alpine` executando o Gradle Wrapper oficial do projeto (`./gradlew`) para garantir paridade total de compilação sem divergências de versão.
 - **Runtime Stage:** `eclipse-temurin:21-jre-alpine` (imagem base ultraleve de produção).
 - **Segurança:** Execução obrigatória com usuário não-root (`appuser:appgroup`).
 - **Timezone:** Configurado para `America/Sao_Paulo` (garante integridade de auditoria com o Oracle).
@@ -275,7 +276,7 @@ O banco de dados Oracle é inicializado automaticamente com usuários de teste v
 | **Cidadão** | Enzo Okuizumi | `enzo.okuizumi@gmail.com` | `123mudar` | Criar ocorrências com foto + endereço, apoiar com votos, editar próprios dados e consultar histórico. |
 | **Gestor Público** | Eng. Roberto Santos | `roberto.gestor@subprefeitura.sp.gov.br` | `Senha#123` | Agente público: atualizar status dos chamados (`PENDENTE`, `EM_ANALISE`, `EM_EXECUCAO`, `CONCLUIDO`, `REJEITADO`). |
 | **Gestor Público** | Coordenador Lucas Mendes | `lucas.zeladoria@subprefeitura.sp.gov.br` | `Senha#123` | Agente público: acompanhar triagens, atualizar status e registrar observações técnicas. |
-| **Administrador Geral** | Administrador Geral | `admin@zelafix.com.br` | `123mudar` | Acesso irrestrito: CRUD de usuários, chamados, categorias, status, endereços e alteração de perfis. |
+| **Administrador Geral** | Administrador Geral | `admin@zelafix.com.br` | `123mudar` | Acesso irrestrito: CRUD de usuários, chamados e endereços, e alteração de perfis de acesso. |
 
 ---
 
@@ -317,7 +318,7 @@ Abra dois terminais na pasta `Java-Advanced`:
 # Terminal 1 — Iniciar a API REST (Porta 8080)
 .\gradlew.bat :zelafix-api:bootRun
 
-# Terminal 2 — Iniciar o Worker Reativo (Porta 8081)
+# Terminal 2 — Iniciar o Worker de Processamento Assíncrono (Porta 8081)
 .\gradlew.bat :zelafix-worker:bootRun
 ```
 

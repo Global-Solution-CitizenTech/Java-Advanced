@@ -1,19 +1,19 @@
 # =============================================================================
 # Stage 1 — BUILD
 # =============================================================================
-FROM gradle:8.10-jdk21-alpine AS build
+FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app
 
-# Cache de dependências
-COPY build.gradle settings.gradle ./
+# Wrapper e configurações do Gradle Multi-Project
+COPY gradlew build.gradle settings.gradle ./
 COPY gradle/ gradle/
-RUN gradle :zelafix-worker:dependencies --no-daemon || true
+RUN chmod +x gradlew
 
-# Código-fonte e recursos
+# Código-fonte e recursos do Worker
 COPY zelafix-worker/build.gradle zelafix-worker/build.gradle
 COPY zelafix-worker/src/ zelafix-worker/src/
 
-RUN gradle :zelafix-worker:bootJar --no-daemon -x test
+RUN ./gradlew :zelafix-worker:bootJar --no-daemon -x test
 
 # =============================================================================
 # Stage 2 — RUNTIME

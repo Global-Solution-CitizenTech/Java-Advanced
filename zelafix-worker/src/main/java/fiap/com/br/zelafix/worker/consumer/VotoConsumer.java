@@ -42,7 +42,7 @@ public class VotoConsumer {
     @Scheduled(fixedDelay = 3_000)
     public void flush() {
         votos.forEach((idChamado, total) -> {
-            votos.remove(idChamado);
+            if (!votos.remove(idChamado, total)) return;
             if (total >= LIMIAR_ALTA) {
                 PrioridadeChamado nova = total >= LIMIAR_URGENTE ? PrioridadeChamado.URGENTE : PrioridadeChamado.ALTA;
                 rabbitTemplate.convertAndSend(

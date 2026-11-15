@@ -1,15 +1,15 @@
 # =============================================================================
 # Stage 1 — BUILD
 # =============================================================================
-FROM gradle:8.10-jdk21-alpine AS build
+FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app
 
-# Cache de dependências
-COPY build.gradle settings.gradle ./
+# Wrapper e configurações do Gradle Multi-Project
+COPY gradlew build.gradle settings.gradle ./
 COPY gradle/ gradle/
-RUN gradle :zelafix-api:dependencies --no-daemon || true
+RUN chmod +x gradlew
 
-# Código-fonte e recursos
+# Código-fonte e recursos da API
 COPY zelafix-api/build.gradle zelafix-api/build.gradle
 COPY zelafix-api/src/ zelafix-api/src/
 
@@ -19,7 +19,7 @@ RUN apk add --no-cache openssl && \
     openssl genpkey -algorithm RSA -out zelafix-api/src/main/resources/keys/private_key.pem -pkeyopt rsa_keygen_bits:2048 && \
     openssl rsa -pubout -in zelafix-api/src/main/resources/keys/private_key.pem -out zelafix-api/src/main/resources/keys/public_key.pem
 
-RUN gradle :zelafix-api:bootJar --no-daemon -x test
+RUN ./gradlew :zelafix-api:bootJar --no-daemon -x test
 
 # =============================================================================
 # Stage 2 — RUNTIME
