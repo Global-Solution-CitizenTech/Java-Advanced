@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -18,6 +19,9 @@ public class ChamadoAiConsumer {
 
     private final ZelaFixAiService aiService;
     private final RabbitTemplate rabbitTemplate;
+
+    @Value("${AI_API_KEY:}")
+    private String apiKey;
 
     @RabbitListener(queues = RabbitWorkerConfig.QUEUE_CHAMADO_TRIAGEM)
     public void processarTriagem(ChamadoTriagemMessage message) {
@@ -35,6 +39,7 @@ public class ChamadoAiConsumer {
     }
 
     private TriagemFeedbackMessage gerarFeedback(ChamadoTriagemMessage message) {
+        if (apiKey.isBlank()) return TriagemFeedbackMessage.contingencia(message);
         try {
             log.info("Iniciando análise multimodal de IA para bairro: {} (correlationId={})", message.bairro(), message.correlationId());
             TriagemIaResult resultado = aiService.analisarChamado(message.bairro(), message.foto());
