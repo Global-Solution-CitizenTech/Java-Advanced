@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public record VotoMessage(
         Long idChamado,
         Long idUsuario,
-        String operacao
+        String operacao,
+        int totalVotos
 ) {
 }

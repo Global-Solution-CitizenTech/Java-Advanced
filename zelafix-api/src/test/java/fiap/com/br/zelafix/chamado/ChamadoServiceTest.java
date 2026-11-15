@@ -26,6 +26,7 @@ import fiap.com.br.zelafix.chamado.prioridade.Prioridade;
 import fiap.com.br.zelafix.chamado.prioridade.PrioridadeEnum;
 import fiap.com.br.zelafix.chamado.prioridade.PrioridadeService;
 import fiap.com.br.zelafix.queue.dto.ChamadoTriagemMessage;
+import fiap.com.br.zelafix.queue.dto.PrioridadeEscaladaMessage;
 import fiap.com.br.zelafix.queue.dto.TriagemFeedbackMessage;
 import fiap.com.br.zelafix.queue.dto.VotoMessage;
 import fiap.com.br.zelafix.usuario.CargoUsuario;
@@ -580,5 +581,69 @@ class ChamadoServiceTest {
         assertThrows(AmqpException.class, () ->
                 chamadoService.create(enderecoRequest, fotoBytes, usuario.getEmail())
         );
+    }
+
+    @Test
+    @DisplayName("Deve escalar prioridade quando nova prioridade for maior que a atual")
+    void deveEscalarPrioridadeQuandoNovaPrioridadeForMaior() {
+        Prioridade prioridadeMedia = new Prioridade(2L, PrioridadeEnum.MEDIA);
+        Prioridade prioridadeAlta = new Prioridade(3L, PrioridadeEnum.ALTA);
+        Chamado chamado = Chamado.builder()
+                .idChamado(50L)
+                .prioridade(prioridadeMedia)
+                .usuario(usuario)
+                .build();
+        Status statusEmAnalise = new Status(2L, StatusChamadoEnum.EM_ANALISE);
+        HistChamado hist = HistChamado.builder().status(statusEmAnalise).build();
+
+        when(chamadoRepository.findById(50L)).thenReturn(Optional.of(chamado));
+        when(histChamadoRepository.findFirstByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(50L)).thenReturn(Optional.of(hist));
+        when(prioridadeService.findByNome(PrioridadeEnum.ALTA)).thenReturn(prioridadeAlta);
+
+        chamadoService.escalarPrioridadePorApoio(new PrioridadeEscaladaMessage(50L, PrioridadeEnum.ALTA, 3, "Atingiu 3 apoios"));
+
+        verify(chamadoRepository).save(chamado);
+        verify(histChamadoRepository).save(any(HistChamado.class));
+        assertEquals(PrioridadeEnum.ALTA, chamado.getPrioridade().getNmPrioridade());
+    }
+
+    @Test
+    @DisplayName("Não deve escalar prioridade quando chamado já estiver concluído")
+    void naoDeveEscalarPrioridadeQuandoChamadoEstiverConcluido() {
+        Chamado chamado = Chamado.builder()
+                .idChamado(51L)
+                .prioridade(new Prioridade(2L, PrioridadeEnum.MEDIA))
+                .usuario(usuario)
+                .build();
+        Status statusConcluido = new Status(4L, StatusChamadoEnum.CONCLUIDO);
+        HistChamado hist = HistChamado.builder().status(statusConcluido).build();
+
+        when(chamadoRepository.findById(51L)).thenReturn(Optional.of(chamado));
+        when(histChamadoRepository.findFirstByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(51L)).thenReturn(Optional.of(hist));
+
+        chamadoService.escalarPrioridadePorApoio(new PrioridadeEscaladaMessage(51L, PrioridadeEnum.ALTA, 3, "Atingiu 3 apoios"));
+
+        verify(chamadoRepository, never()).save(any());
+        verify(histChamadoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Não deve escalar quando prioridade atual já for maior ou igual")
+    void naoDeveEscalarQuandoPrioridadeAtualJaForMaiorOuIgual() {
+        Chamado chamado = Chamado.builder()
+                .idChamado(52L)
+                .prioridade(new Prioridade(4L, PrioridadeEnum.URGENTE))
+                .usuario(usuario)
+                .build();
+        Status statusPendente = new Status(1L, StatusChamadoEnum.PENDENTE);
+        HistChamado hist = HistChamado.builder().status(statusPendente).build();
+
+        when(chamadoRepository.findById(52L)).thenReturn(Optional.of(chamado));
+        when(histChamadoRepository.findFirstByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(52L)).thenReturn(Optional.of(hist));
+
+        chamadoService.escalarPrioridadePorApoio(new PrioridadeEscaladaMessage(52L, PrioridadeEnum.ALTA, 3, "Atingiu 3 apoios"));
+
+        verify(chamadoRepository, never()).save(any());
+        verify(histChamadoRepository, never()).save(any());
     }
 }

@@ -144,7 +144,7 @@ class RabbitWorkerConfigTest {
     void deveSerializarEDesserializarVotoMessage() {
         JacksonJsonMessageConverter converter = (JacksonJsonMessageConverter) rabbitConfig.jsonMessageConverter();
 
-        VotoMessage original = new VotoMessage(500L, 123L, "ADICIONAR");
+        VotoMessage original = new VotoMessage(500L, 123L, "ADICIONAR", 5);
 
         Message message = converter.toMessage(original, new MessageProperties());
         assertNotNull(message);

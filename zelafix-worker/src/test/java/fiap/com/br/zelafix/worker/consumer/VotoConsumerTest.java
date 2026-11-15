@@ -1,93 +1,79 @@
 package fiap.com.br.zelafix.worker.consumer;
 
+import fiap.com.br.zelafix.worker.ai.enums.PrioridadeChamado;
+import fiap.com.br.zelafix.worker.config.RabbitWorkerConfig;
+import fiap.com.br.zelafix.worker.queue.dto.PrioridadeEscaladaMessage;
 import fiap.com.br.zelafix.worker.queue.dto.VotoMessage;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
+@ExtendWith(MockitoExtension.class)
 class VotoConsumerTest {
 
+    @Mock
+    private RabbitTemplate rabbitTemplate;
+
+    @InjectMocks
     private VotoConsumer votoConsumer;
 
-    @BeforeEach
-    void setUp() {
-        votoConsumer = new VotoConsumer();
-    }
-
     @Test
-    @DisplayName("Deve acumular votos no buffer em memória e realizar flush")
-    void deveAcumularVotosERealizarFlush() {
-        VotoMessage msg1 = new VotoMessage(10L, 1L, "VOTAR");
-        VotoMessage msg2 = new VotoMessage(10L, 2L, "VOTAR");
-
-        votoConsumer.consumeVoto(msg1);
-        votoConsumer.consumeVoto(msg2);
-
-        assertEquals(2, votoConsumer.getVotesBuffer().get(10L));
+    @DisplayName("Deve publicar escalonamento para ALTA quando atingir limiar de 3 votos")
+    void deveEscalarParaAltaQuandoAtingirTresVotos() {
+        votoConsumer.consumeVoto(new VotoMessage(10L, 1L, "ADICIONAR", 1));
+        votoConsumer.consumeVoto(new VotoMessage(10L, 2L, "ADICIONAR", 2));
+        votoConsumer.consumeVoto(new VotoMessage(10L, 3L, "ADICIONAR", 3));
 
         votoConsumer.flush();
 
+        ArgumentCaptor<PrioridadeEscaladaMessage> captor = ArgumentCaptor.forClass(PrioridadeEscaladaMessage.class);
+        verify(rabbitTemplate).convertAndSend(
+                eq(RabbitWorkerConfig.EXCHANGE_NAME),
+                eq(RabbitWorkerConfig.ROUTING_KEY_CHAMADO_PRIORIDADE_ESCALADA),
+                captor.capture()
+        );
+        assertEquals(10L, captor.getValue().idChamado());
+        assertEquals(PrioridadeChamado.ALTA, captor.getValue().novaPrioridade());
+        assertEquals(3, captor.getValue().totalVotos());
         assertTrue(votoConsumer.getVotesBuffer().isEmpty());
     }
 
     @Test
-    @DisplayName("Deve decrementar votos no buffer quando operacao for REMOVER")
-    void deveDecrementarVotoQuandoOperacaoForRemover() {
-        VotoMessage msgRemover = new VotoMessage(20L, 1L, "REMOVER");
-
-        votoConsumer.consumeVoto(msgRemover);
-
-        assertEquals(-1, votoConsumer.getVotesBuffer().get(20L));
+    @DisplayName("Deve publicar escalonamento para URGENTE quando atingir limiar de 5 votos")
+    void deveEscalarParaUrgenteQuandoAtingirCincoVotos() {
+        votoConsumer.consumeVoto(new VotoMessage(15L, 5L, "ADICIONAR", 5));
 
         votoConsumer.flush();
 
-        assertTrue(votoConsumer.getVotesBuffer().isEmpty());
+        ArgumentCaptor<PrioridadeEscaladaMessage> captor = ArgumentCaptor.forClass(PrioridadeEscaladaMessage.class);
+        verify(rabbitTemplate).convertAndSend(
+                eq(RabbitWorkerConfig.EXCHANGE_NAME),
+                eq(RabbitWorkerConfig.ROUTING_KEY_CHAMADO_PRIORIDADE_ESCALADA),
+                captor.capture()
+        );
+        assertEquals(PrioridadeChamado.URGENTE, captor.getValue().novaPrioridade());
     }
 
     @Test
-    @DisplayName("Deve executar flush sem erros quando o buffer estiver vazio")
-    void deveExecutarFlushEmBufferVazio() {
-        assertDoesNotThrow(() -> votoConsumer.flush());
-        assertTrue(votoConsumer.getVotesBuffer().isEmpty());
-    }
-
-    @Test
-    @DisplayName("Teste de concorrência: 100 threads simultâneas acumulando votos com consistência")
-    void testePesadoConcorrenciaVotos() throws InterruptedException {
-        int numThreads = 100;
-        ExecutorService executor = Executors.newFixedThreadPool(16);
-        CountDownLatch latch = new CountDownLatch(numThreads);
-
-        for (int i = 0; i < numThreads; i++) {
-            final long userId = i;
-            executor.submit(() -> {
-                try {
-                    votoConsumer.consumeVoto(new VotoMessage(50L, userId, "ADICIONAR"));
-                    votoConsumer.consumeVoto(new VotoMessage(50L, userId, "ADICIONAR"));
-                    votoConsumer.consumeVoto(new VotoMessage(60L, userId, "ADICIONAR"));
-                } finally {
-                    latch.countDown();
-                }
-            });
-        }
-
-        boolean finished = latch.await(10, TimeUnit.SECONDS);
-        assertTrue(finished, "As threads deveriam finalizar dentro do timeout");
-        executor.shutdown();
-
-        assertEquals(200, votoConsumer.getVotesBuffer().get(50L));
-        assertEquals(100, votoConsumer.getVotesBuffer().get(60L));
+    @DisplayName("Não deve publicar escalonamento quando saldo da janela for negativo (REMOVER)")
+    void naoDeveEscalarQuandoOperacaoForRemover() {
+        votoConsumer.consumeVoto(new VotoMessage(20L, 1L, "REMOVER", 2));
 
         votoConsumer.flush();
+
+        verify(rabbitTemplate, never()).convertAndSend(any(), any(), any(Object.class));
         assertTrue(votoConsumer.getVotesBuffer().isEmpty());
     }
 }

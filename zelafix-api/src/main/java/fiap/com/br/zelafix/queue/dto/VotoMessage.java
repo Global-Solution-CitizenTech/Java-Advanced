@@ -9,7 +9,8 @@ import fiap.com.br.zelafix.voto.VotoChamado;
 public record VotoMessage(
         Long idChamado,
         Long idUsuario,
-        String operacao
+        String operacao,
+        int totalVotos
 ) {
     public VotoChamado toEntity(Chamado chamado, Usuario usuario) {
         return VotoChamado.builder()

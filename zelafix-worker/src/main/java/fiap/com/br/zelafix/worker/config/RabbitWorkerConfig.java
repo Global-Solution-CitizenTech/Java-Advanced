@@ -30,6 +30,9 @@ public class RabbitWorkerConfig {
     public static final String QUEUE_CHAMADO_VOTO = "chamado.voto.queue";
     public static final String ROUTING_KEY_CHAMADO_VOTO = "chamado.voto.key";
 
+    public static final String QUEUE_CHAMADO_PRIORIDADE_ESCALADA = "chamado.prioridade-escalada.queue";
+    public static final String ROUTING_KEY_CHAMADO_PRIORIDADE_ESCALADA = "chamado.prioridade-escalada.key";
+
     @Bean
     public MessageConverter jsonMessageConverter() {
         JacksonJsonMessageConverter converter = new JacksonJsonMessageConverter("*");
@@ -53,6 +56,12 @@ public class RabbitWorkerConfig {
     @Bean
     public Queue votoQueue() {
         return new Queue(QUEUE_CHAMADO_VOTO, true);
+    }
+
+    // Fila durável de retorno para escalonamento automático de prioridade (Worker -> API)
+    @Bean
+    public Queue prioridadeEscaladaQueue() {
+        return new Queue(QUEUE_CHAMADO_PRIORIDADE_ESCALADA, true);
     }
 
     // Exchange Direct (Central de Triagem)
@@ -86,6 +95,15 @@ public class RabbitWorkerConfig {
                 .bind(votoQueue())
                 .to(zelafixExchange())
                 .with(ROUTING_KEY_CHAMADO_VOTO);
+    }
+
+    // Estabelece a ligação entre a fila de escalonamento de prioridade e a Exchange
+    @Bean
+    public Binding prioridadeEscaladaBinding() {
+        return BindingBuilder
+                .bind(prioridadeEscaladaQueue())
+                .to(zelafixExchange())
+                .with(ROUTING_KEY_CHAMADO_PRIORIDADE_ESCALADA);
     }
 
 }

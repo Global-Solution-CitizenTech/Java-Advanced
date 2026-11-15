@@ -31,16 +31,18 @@ O backend do ecossistema **ZelaFix** é estruturado em **dois microsserviços au
 │  - Produtor RabbitMQ + DeferredResult: publica endereço + foto no zelafix.direct e aguarda triagem     │
 │  - Consumidor RabbitMQ (Feedback): recusa imagens sem persistir ou grava chamado com histórico duplo   │
 │    conectado via saveAll (PENDENTE inicial de abertura pelo munícipe + EM_ANALISE triado pela IA)      │
+│  - Consumidor RabbitMQ (Prioridade): escala prioridade no Oracle sob mobilização popular comunitária │
 └───────────────────────┬────────────────────────────────────────────────────▲───────────────────────────┘
                         │                                                    │
                         │ chamado.triagem.key                                │ chamado.triagem-concluida.key
-                        │ chamado.voto.key                                   │
+                        │ chamado.voto.key                                   │ chamado.prioridade-escalada.key
                         ▼                                                    │
 ┌────────────────────────────────────────────────────────────────────────────┴───────────────────────────┐
 │  RabbitMQ Broker (Porta 5672) — Exchange: zelafix.direct (DirectExchange)                              │
 │  - Fila: chamado.triagem.queue (Durable)                                                               │
 │  - Fila: chamado.triagem-concluida.queue (Durable)                                                     │
 │  - Fila: chamado.voto.queue (Durable)                                                                  │
+│  - Fila: chamado.prioridade-escalada.queue (Durable)                                                   │
 └───────────────────────┬────────────────────────────────────────────────────────────────────────────────┘
                         │
                         │ Consumo Assíncrono
@@ -51,9 +53,9 @@ O backend do ecossistema **ZelaFix** é estruturado em **dois microsserviços au
 │  - Inteligência Artificial Generativa e Multimodal com Spring AI (LLM Multimodal + Tool Calling)       │
 │  - Arquitetura Fail-Fast imediata com fallback gracioso PENDENTE via ChamadoAiConsumer                 │
 │  - Detecção dinâmica de MIME type via magic bytes e redimensionamento JPEG (ImageMimeTypeDetector)     │
-│  - Agregador de votos em buffer volátil thread-safe (ConcurrentHashMap com flush periódico a cada 3s)  │
+│  - Agregador de votos em buffer volátil com detecção de limiares (>=3 ALTA, >=5 URGENTE)               │
 │  - ZERO CONEXÃO COM BANCO DE DADOS: 100% Stateless, sem JDBC, sem JPA, sem Oracle, sem locks           │
-│  - Produtor de feedback: devolve parecer técnico estruturado para chamado.triagem-concluida.queue      │
+│  - Produtor de feedback e escalonamento comunitário para chamado.prioridade-escalada.queue             │
 └────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -83,8 +85,8 @@ Uma das decisões arquiteturais mais críticas do projeto é a **completa ausên
 3. **Fluxo Bidirecional via Mensageria (Feedback Pattern):**
    - O worker **não escreve diretamente nas tabelas**. Quando conclui a inferência técnica via LLM, o worker empacota o resultado em um payload JSON (`TriagemFeedbackMessage`) e o publica de volta na fila `chamado.triagem-concluida.queue`.
    - A `zelafix-api`, detentora legal e proprietária exclusiva do schema relacional, consome o feedback via `ChamadoTriagemFeedbackConsumer` e realiza a transação ACID no Oracle com auditoria histórica (`HistChamado`).
-4. **Agregação Volátil de Votos (Padrão Reativo de Alta Vazão):**
-   - O `VotoConsumer` armazena deltas de apoios em memória utilizando `ConcurrentHashMap<Long, Integer>`. O flush periódico a cada 3 segundos (`@Scheduled`) consolida os lotes em log e libera a memória, permitindo absorção de rajadas sem bater no banco.
+4. **Agregação Volátil de Votos e Escalonamento Comunitário:**
+   - O `VotoConsumer` armazena deltas de apoios em memória utilizando `ConcurrentHashMap<Long, Integer>`. O flush periódico a cada 3 segundos (`@Scheduled`) avalia se o chamado atingiu limiares comunitários ($\ge 3$ apoios $\rightarrow$ `ALTA`, $\ge 5$ apoios $\rightarrow$ `URGENTE`). Ao atingir, publica `PrioridadeEscaladaMessage` em `chamado.prioridade-escalada.queue`. A API consome o evento e eleva a prioridade no Oracle com histórico em `HistChamado`.
 
 ---
 
@@ -97,6 +99,7 @@ Toda a comunicação assíncrona entre os dois serviços é orquestrada por uma 
 | `chamado.triagem.queue` | `chamado.triagem.key` | `zelafix-api` | `zelafix-worker` | `ChamadoTriagemMessage` | Dispara a triagem técnica multimodal com Spring AI levando a foto da ocorrência em bytes. |
 | `chamado.triagem-concluida.queue` | `chamado.triagem-concluida.key` | `zelafix-worker` | `zelafix-api` | `TriagemFeedbackMessage` | Devolve o parecer da IA (prioridade, órgão competente e parecer técnico) para que a API atualize o banco. |
 | `chamado.voto.queue` | `chamado.voto.key` | `zelafix-api` | `zelafix-worker` | `VotoMessage` | Notifica apoios/votos em ocorrências para agregação em lote em alta vazão. |
+| `chamado.prioridade-escalada.queue` | `chamado.prioridade-escalada.key` | `zelafix-worker` | `zelafix-api` | `PrioridadeEscaladaMessage` | Notifica a API para elevar a prioridade do chamado no Oracle quando o volume de apoios atinge os limiares comunitários. |
 
 ### Serialização e Ausência de `Serializable`
 - Todas as mensagens utilizam **Jackson JSON Converter** (`JacksonJsonMessageConverter("*")`) com `converter.setAlwaysConvertToInferredType(true)`.

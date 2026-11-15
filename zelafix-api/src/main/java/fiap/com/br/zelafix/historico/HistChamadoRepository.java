@@ -17,6 +17,8 @@ public interface HistChamadoRepository extends JpaRepository<HistChamado, Long> 
     @EntityGraph(attributePaths = {"usuario", "status"})
     List<HistChamado> findByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(Long idChamado);
 
+    Optional<HistChamado> findFirstByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(Long idChamado);
+
     Optional<HistChamado> findFirstByChamadoIdChamadoOrderByDtMudancaAscIdHistAsc(Long idChamado);
 
     boolean existsByUsuarioIdUsuario(Long idUsuario);
