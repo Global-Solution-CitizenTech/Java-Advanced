@@ -23,7 +23,7 @@ def test_stress_load():
         ("admin@zelafix.com.br", "123mudar"),
         ("roberto.gestor@subprefeitura.sp.gov.br", "Senha#123"),
         ("enzo.okuizumi@gmail.com", "123mudar"),
-        ("lucas.barros@zelafix.com.br", "123mudar")
+        ("lucas.zeladoria@subprefeitura.sp.gov.br", "Senha#123")
     ]
     for email, senha in creds:
         try:

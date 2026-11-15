@@ -30,7 +30,7 @@ public class VotoConsumer {
     private final RabbitTemplate rabbitTemplate;
     private final ConcurrentHashMap<Long, Integer> votos = new ConcurrentHashMap<>();
 
-    @RabbitListener(queues = RabbitWorkerConfig.QUEUE_CHAMADO_VOTO)
+    @RabbitListener(queues = RabbitWorkerConfig.QUEUE_CHAMADO_VOTO, concurrency = "1")
     public void consumeVoto(VotoMessage message) {
         if ("REMOVER".equalsIgnoreCase(message.operacao())) {
             votos.remove(message.idChamado());
