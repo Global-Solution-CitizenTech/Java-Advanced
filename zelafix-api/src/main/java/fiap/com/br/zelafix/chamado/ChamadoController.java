@@ -118,7 +118,7 @@ public class ChamadoController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "[AUTOR / ADMIN] Excluir um chamado")
+    @Operation(summary = "[AUTOR / GESTOR / ADMIN] Excluir um chamado")
     public void delete(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
         chamadoService.delete(id, jwt.getSubject());
     }

@@ -346,12 +346,12 @@ class ChamadoServiceTest {
     }
 
     @Test
-    @DisplayName("Deve bloquear GESTOR ou outro cidadão ao tentar deletar chamado alheio")
+    @DisplayName("Deve bloquear outro cidadão ao tentar deletar chamado alheio")
     void deveBloquearExclusaoPorNaoAutorSemCargoAdmin() {
-        Usuario gestor = Usuario.builder()
+        Usuario outroCidadao = Usuario.builder()
                 .idUsuario(2L)
-                .email("gestor@zelafix.com.br")
-                .cargo(CargoUsuario.GESTOR)
+                .email("outro@zelafix.com.br")
+                .cargo(CargoUsuario.CIDADAO)
                 .build();
 
         Chamado chamado = Chamado.builder()
@@ -361,9 +361,9 @@ class ChamadoServiceTest {
                 .build();
 
         when(chamadoRepository.findById(701L)).thenReturn(Optional.of(chamado));
-        when(usuarioService.findByEmail(gestor.getEmail())).thenReturn(gestor);
+        when(usuarioService.findByEmail(outroCidadao.getEmail())).thenReturn(outroCidadao);
 
-        assertThrows(AccessDeniedException.class, () -> chamadoService.delete(701L, gestor.getEmail()));
+        assertThrows(AccessDeniedException.class, () -> chamadoService.delete(701L, outroCidadao.getEmail()));
     }
 
     @Test
@@ -413,19 +413,19 @@ class ChamadoServiceTest {
         });
         when(histChamadoRepository.save(any(HistChamado.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        var feedback = new TriagemFeedbackMessage(
-                "corr-10",
-                1L,
-                1L,
-                fotoBytes,
-                "Cratera aberta no asfalto",
-                "Reparo emergencial recomendado devido ao risco viário.",
-                "VIAS_E_PAVIMENTACAO",
-                "ALTA",
-                "SECRETARIA_OBRAS",
-                "EM_ANALISE",
-                false
-        );
+        var feedback = TriagemFeedbackMessage.builder()
+                .correlationId("corr-10")
+                .usuarioId(1L)
+                .enderecoId(1L)
+                .foto(fotoBytes)
+                .titulo("Cratera aberta no asfalto")
+                .descricao("Reparo emergencial recomendado devido ao risco viário.")
+                .categoria(CategoriaEnum.VIAS_E_PAVIMENTACAO)
+                .prioridade(PrioridadeEnum.ALTA)
+                .orgao(OrgaoGovernoEnum.SECRETARIA_OBRAS)
+                .status(StatusChamadoEnum.EM_ANALISE)
+                .observacoes("Triagem automática por IA concluída. Prioridade: ALTA. Categoria: VIAS_E_PAVIMENTACAO. Órgão: SECRETARIA_OBRAS.")
+                .build();
         ChamadoResponse response = chamadoService.aplicarTriagemIa(feedback);
         assertEquals(100L, response.idChamado());
         assertEquals("EM_ANALISE", response.status());
@@ -488,6 +488,7 @@ class ChamadoServiceTest {
         HistChamado histMock = HistChamado.builder()
                 .idHist(1L)
                 .dtMudanca(LocalDateTime.now())
+                .chamado(chamado)
                 .usuario(usuario)
                 .status(statusPendente)
                 .observacoes("Histórico inicial")
