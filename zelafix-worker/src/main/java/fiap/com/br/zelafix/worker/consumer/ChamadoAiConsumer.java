@@ -45,7 +45,7 @@ public class ChamadoAiConsumer {
             log.info("Triagem por IA concluída com sucesso para usuário ID {}: [{}] {}", message.usuarioId(), resultado.prioridade(), resultado.titulo());
             return TriagemFeedbackMessage.sucesso(message, resultado);
         } catch (Exception e) {
-            log.warn("Falha na IA ({}) para usuário ID {}: {}. Ativando triagem manual.", e.getClass().getSimpleName(), message.usuarioId(), e.getMessage());
+            log.error("Falha detalhada na IA ({}) para usuário ID {} [correlationId={}]: {}. Ativando triagem manual.", e.getClass().getSimpleName(), message.usuarioId(), message.correlationId(), e.getMessage());
             return TriagemFeedbackMessage.contingencia(message);
         }
     }
