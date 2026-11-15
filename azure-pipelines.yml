@@ -46,6 +46,8 @@ stages:
         ORACLE_USER: $(ORACLE_USER)
         ORACLE_PASSWORD: $(ORACLE_PASSWORD)
         SPRING_RABBITMQ_ADDRESSES: $(RABBITMQ_URI)
+        AI_BASE_URL: $(AI_BASE_URL)
+        AI_API_KEY: $(AI_API_KEY)
         AI_MODEL: $(AI_MODEL)
 
     # 2. Publicar resultados dos Testes JUnit no painel interativo do Azure DevOps
