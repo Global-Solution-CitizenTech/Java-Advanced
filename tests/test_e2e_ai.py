@@ -1,7 +1,7 @@
 from pathlib import Path
 import requests
 
-BASE_URL = "https://app-zelafix-561432.azurewebsites.net"
+BASE_URL = "https://app-zelafix.azurewebsites.net"
 IMG_PATH = Path(__file__).resolve().parents[1] / "docs" / "rua-esburacada.png"
 
 # 1. Login

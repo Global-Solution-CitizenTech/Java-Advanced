@@ -238,8 +238,8 @@ O repositório possui dois remotes configurados:
      - Mínimo de 1 revisor com voto de aprovação.
      - Vínculo obrigatório com Work Item no Azure Boards (ex: `#169`).
    - Após a conclusão do PR no Azure Repos, a pipeline `ZelaFix-CI-CD` executa o deploy oficial nos Azure App Services:
-     - `app-zelafix-561432` (API na porta 8080)
-     - `app-zelafix-worker-561432` (Worker na porta 8081)
+     - `app-zelafix` (API na porta 8080)
+     - `app-zelafix-worker` (Worker na porta 8081)
 
 ---
 

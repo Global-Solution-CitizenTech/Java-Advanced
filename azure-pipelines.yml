@@ -17,8 +17,8 @@ variables:
   azureSubscription: 'ZelaFix-Connection'
   
   # Nomes dos Azure Web Apps criados via script-provisionamento.sh
-  webAppName: 'app-zelafix-561432'
-  webAppWorkerName: 'app-zelafix-worker-561432'
+  webAppName: 'app-zelafix'
+  webAppWorkerName: 'app-zelafix-worker'
   
   # Pool de agentes: utilize 'Default' para Self-Hosted Agent local (sem limite de minutos)
   # Ou altere para 'Azure Pipelines' com vmImage: 'windows-latest' ou 'ubuntu-latest'

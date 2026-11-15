@@ -20,8 +20,8 @@ import concurrent.futures
 from datetime import datetime
 
 # Configurações de Endpoints em Produção
-BASE_URL = os.getenv("BASE_URL", "https://app-zelafix-561432.azurewebsites.net")
-WORKER_URL = os.getenv("WORKER_URL", "https://app-zelafix-worker-561432.azurewebsites.net")
+BASE_URL = os.getenv("BASE_URL", "https://app-zelafix.azurewebsites.net")
+WORKER_URL = os.getenv("WORKER_URL", "https://app-zelafix-worker.azurewebsites.net")
 
 # Imagem PNG mínima 1x1 transparente válida em base64 (68 bytes)
 MINIMAL_PNG_B64 = (
