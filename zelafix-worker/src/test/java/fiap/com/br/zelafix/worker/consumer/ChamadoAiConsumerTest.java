@@ -5,6 +5,7 @@ import fiap.com.br.zelafix.worker.ai.dto.TriagemIaResult;
 import fiap.com.br.zelafix.worker.ai.enums.CategoriaSugerida;
 import fiap.com.br.zelafix.worker.ai.enums.DepartamentoGoverno;
 import fiap.com.br.zelafix.worker.ai.enums.PrioridadeChamado;
+import fiap.com.br.zelafix.worker.ai.enums.StatusChamado;
 import fiap.com.br.zelafix.worker.config.RabbitWorkerConfig;
 import fiap.com.br.zelafix.worker.queue.dto.ChamadoTriagemMessage;
 import fiap.com.br.zelafix.worker.queue.dto.TriagemFeedbackMessage;
@@ -64,10 +65,10 @@ class ChamadoAiConsumerTest {
         );
         assertEquals("corr-1", captor.getValue().correlationId());
         assertFalse(captor.getValue().recusado());
-        assertEquals("EM_ANALISE", captor.getValue().statusNome());
-        assertEquals("VIAS_E_PAVIMENTACAO", captor.getValue().categoriaNome());
-        assertEquals("ALTA", captor.getValue().prioridadeNome());
-        assertEquals("SECRETARIA_OBRAS", captor.getValue().orgaoNome());
+        assertEquals(StatusChamado.EM_ANALISE, captor.getValue().status());
+        assertEquals(CategoriaSugerida.VIAS_E_PAVIMENTACAO, captor.getValue().categoria());
+        assertEquals(PrioridadeChamado.ALTA, captor.getValue().prioridade());
+        assertEquals(DepartamentoGoverno.SECRETARIA_OBRAS, captor.getValue().orgao());
     }
 
     @Test
@@ -118,10 +119,10 @@ class ChamadoAiConsumerTest {
                 captor.capture()
         );
         assertEquals("corr-3", captor.getValue().correlationId());
-        assertEquals("PENDENTE", captor.getValue().statusNome());
-        assertEquals("VIAS_E_PAVIMENTACAO", captor.getValue().categoriaNome());
-        assertEquals("MEDIA", captor.getValue().prioridadeNome());
-        assertEquals("SUBPREFEITURA", captor.getValue().orgaoNome());
+        assertEquals(StatusChamado.PENDENTE, captor.getValue().status());
+        assertEquals(CategoriaSugerida.VIAS_E_PAVIMENTACAO, captor.getValue().categoria());
+        assertEquals(PrioridadeChamado.MEDIA, captor.getValue().prioridade());
+        assertEquals(DepartamentoGoverno.SUBPREFEITURA, captor.getValue().orgao());
     }
 
     @Test
@@ -142,6 +143,6 @@ class ChamadoAiConsumerTest {
                 captor.capture()
         );
         assertEquals("corr-429", captor.getValue().correlationId());
-        assertEquals("PENDENTE", captor.getValue().statusNome());
+        assertEquals(StatusChamado.PENDENTE, captor.getValue().status());
     }
 }

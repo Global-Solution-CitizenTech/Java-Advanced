@@ -21,7 +21,7 @@ public class ChamadoAiConsumer {
 
     @RabbitListener(queues = RabbitWorkerConfig.QUEUE_CHAMADO_TRIAGEM)
     public void processarTriagem(ChamadoTriagemMessage message) {
-        log.info("Processando triagem assíncrona com Spring AI para usuário ID: {}", message.usuarioId());
+        log.info("Recebida mensagem de triagem [correlationId={}] para usuário ID: {} (bairro: {})", message.correlationId(), message.usuarioId(), message.bairro());
 
         TriagemFeedbackMessage feedback = gerarFeedback(message);
 
@@ -31,23 +31,21 @@ public class ChamadoAiConsumer {
                 feedback
         );
 
-        log.info("Triagem concluída (recusado={}, status={}) e publicada para usuário ID: {}", feedback.recusado(), feedback.statusNome(), message.usuarioId());
+        log.info("Triagem concluída e publicada [correlationId={}, status={}, recusado={}] para usuário ID: {}", feedback.correlationId(), feedback.status(), feedback.recusado(), message.usuarioId());
     }
 
     private TriagemFeedbackMessage gerarFeedback(ChamadoTriagemMessage message) {
         try {
+            log.info("Iniciando análise multimodal de IA para bairro: {} (correlationId={})", message.bairro(), message.correlationId());
             TriagemIaResult resultado = aiService.analisarChamado(message.bairro(), message.foto());
             if (!resultado.ocorrenciaValida()) {
                 log.warn("Criação de chamado RECUSADA pela IA para usuário ID {} (bairro: {}): {}", message.usuarioId(), message.bairro(), resultado.descricao());
                 return TriagemFeedbackMessage.recusa(message, resultado);
             }
+            log.info("Triagem por IA concluída com sucesso para usuário ID {}: [{}] {}", message.usuarioId(), resultado.prioridade(), resultado.titulo());
             return TriagemFeedbackMessage.sucesso(message, resultado);
         } catch (Exception e) {
-            if ("NonTransientAiException".equals(e.getClass().getSimpleName()) || (e.getMessage() != null && e.getMessage().contains("429"))) {
-                log.error("Cota/limite de taxa (4xx/429) no Azure AI Foundry para usuário ID {}. Aplicando contingência PENDENTE: {}", message.usuarioId(), e.getMessage());
-            } else {
-                log.error("Falha na IA durante triagem para usuário ID {}. Aplicando contingência PENDENTE: {}", message.usuarioId(), e.getMessage());
-            }
+            log.warn("Falha na IA ({}) para usuário ID {}: {}. Ativando triagem manual.", e.getClass().getSimpleName(), message.usuarioId(), e.getMessage());
             return TriagemFeedbackMessage.contingencia(message);
         }
     }

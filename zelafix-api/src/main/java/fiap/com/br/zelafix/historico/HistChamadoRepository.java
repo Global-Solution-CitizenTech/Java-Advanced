@@ -1,5 +1,7 @@
 package fiap.com.br.zelafix.historico;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -15,11 +17,14 @@ public interface HistChamadoRepository extends JpaRepository<HistChamado, Long> 
     @EntityGraph(attributePaths = {"usuario", "status"})
     List<HistChamado> findByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(Long idChamado);
 
-    Optional<HistChamado> findFirstByChamadoIdChamadoOrderByDtMudancaDescIdHistDesc(Long idChamado);
+    Optional<HistChamado> findFirstByChamadoIdChamadoOrderByDtMudancaAscIdHistAsc(Long idChamado);
 
     boolean existsByUsuarioIdUsuario(Long idUsuario);
 
     void deleteByChamadoIdChamado(Long idChamado);
+
+    @EntityGraph(attributePaths = {"usuario", "status", "chamado"})
+    Page<HistChamado> findAll(Pageable pageable);
 
     @EntityGraph(attributePaths = {"status"})
     @Query("""

@@ -4,6 +4,7 @@ import fiap.com.br.zelafix.historico.HistChamado;
 
 public record HistoricoResponse(
         Long id,
+        Long chamadoId,
         String data,
         String status,
         String observacao,
@@ -12,6 +13,7 @@ public record HistoricoResponse(
     public static HistoricoResponse fromEntity(HistChamado h) {
         return new HistoricoResponse(
                 h.getIdHist(),
+                h.getChamado().getIdChamado(),
                 h.getDtMudanca().toString(),
                 h.getStatus().getNmStatus().name(),
                 h.getObservacoes(),

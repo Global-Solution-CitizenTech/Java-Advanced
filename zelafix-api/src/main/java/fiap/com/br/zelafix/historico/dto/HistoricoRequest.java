@@ -1,0 +1,36 @@
+package fiap.com.br.zelafix.historico.dto;
+
+import fiap.com.br.zelafix.chamado.Chamado;
+import fiap.com.br.zelafix.historico.HistChamado;
+import fiap.com.br.zelafix.historico.status.Status;
+import fiap.com.br.zelafix.historico.status.StatusChamadoEnum;
+import fiap.com.br.zelafix.usuario.Usuario;
+import fiap.com.br.zelafix.validation.EnumValidation;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+import java.time.LocalDateTime;
+
+public record HistoricoRequest(
+        @NotNull(message = "O ID do chamado é obrigatório.")
+        Long chamadoId,
+
+        @NotBlank(message = "O status é obrigatório.")
+        @EnumValidation(enumClass = StatusChamadoEnum.class, message = "Status inválido. Valores aceitos: PENDENTE, EM_ANALISE, EM_EXECUCAO, CONCLUIDO, REJEITADO")
+        String status,
+
+        @NotBlank(message = "A observação é obrigatória.")
+        @Size(max = 255, message = "A observação deve ter no máximo 255 caracteres.")
+        String observacao
+) {
+    public HistChamado toEntity(Chamado chamado, Usuario usuario, Status status) {
+        return HistChamado.builder()
+                .chamado(chamado)
+                .usuario(usuario)
+                .status(status)
+                .dtMudanca(LocalDateTime.now())
+                .observacoes(observacao)
+                .build();
+    }
+}
