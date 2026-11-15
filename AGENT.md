@@ -2,7 +2,7 @@
 > **Padrão:** Clean Architecture & Ponytail Standard  
 > **Projeto:** FIAP — Global Solution 2026/2 | CitizenTech & Cidades Sustentáveis (ODS 11)  
 > **Disciplina:** Java Advanced  
-> **Opção de Distribuição:** Opção A — Mensageria Assíncrona com RabbitMQ (Padrão de Arquitetura Distribuída Reativa)  
+> **Opção de Distribuição:** Opção A — Mensageria Assíncrona com RabbitMQ (Padrão de Arquitetura Distribuída Orientada a Eventos)  
 > **Esteira CI/CD:** Azure DevOps (`ZelaFix-CI-CD`) & GitHub Actions (`mirror-to-azure.yml`)
 
 ---
@@ -31,7 +31,7 @@ O backend do ecossistema **ZelaFix** é estruturado em **dois microsserviços au
 │  - Produtor RabbitMQ + DeferredResult: publica endereço + foto no zelafix.direct e aguarda triagem     │
 │  - Consumidor RabbitMQ (Feedback): recusa imagens sem persistir ou grava chamado com histórico duplo   │
 │    conectado via saveAll (PENDENTE inicial de abertura pelo munícipe + EM_ANALISE triado pela IA)      │
-│  - Consumidor RabbitMQ (Prioridade): escala prioridade no Oracle sob mobilização popular comunitária │
+│  - Consumidor RabbitMQ (Prioridade): escala prioridade no Oracle sob mobilização popular comunitária   │
 └───────────────────────┬────────────────────────────────────────────────────▲───────────────────────────┘
                         │                                                    │
                         │ chamado.triagem.key                                │ chamado.triagem-concluida.key
