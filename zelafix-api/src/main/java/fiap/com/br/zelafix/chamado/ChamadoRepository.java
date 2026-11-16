@@ -22,6 +22,9 @@ public interface ChamadoRepository extends JpaRepository<Chamado, Long>, JpaSpec
 
     boolean existsByUsuarioIdUsuario(Long idUsuario);
 
+    @Query("SELECT c.foto FROM Chamado c WHERE c.idChamado = :id")
+    Optional<byte[]> findFotoById(@Param("id") Long id);
+
     @EntityGraph(attributePaths = {"categoria", "prioridade", "orgaoGoverno", "usuario", "endereco.bairro.cidade.estado"})
     @Query("""
         SELECT c FROM Chamado c

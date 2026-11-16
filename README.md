@@ -236,7 +236,7 @@ A API do ZelaFix segue rigorosamente o padrão RESTful, retornando DTOs canônic
 | `GET` | `/usuarios/me` | Autenticado | Retorna dados cadastrais e permissões do usuário logado. |
 | `GET` | `/chamados` | Autenticado | Listagem paginada (`Pageable`) de chamados com filtros e enriquecimento em lote. |
 | `GET` | `/chamados/{id}` | Autenticado | Detalhamento do chamado com histórico completo de auditoria e cálculo de apoios. |
-| `GET` | `/chamados/{id}/foto` | Público | Retorna o binário da evidência fotográfica da ocorrência (`image/jpeg`, `image/png`). |
+| `GET` | `/chamados/{id}/foto` | Público | Retorna o binário da foto (otimizada em JPEG até 1080px quando > 200 KB) com `Cache-Control: public, max-age=86400`. |
 | `POST` | `/chamados` | Autenticado | Abertura de ocorrência (`multipart/form-data`: endereço + foto). Dispara triagem via `DeferredResult`. |
 | `PUT` | `/chamados/{id}` | Autor / `ADMIN` | Edição dos dados da ocorrência via método idiomático `aplicarEm`. |
 | `DELETE` | `/chamados/{id}` | Autor / `ADMIN` | Exclusão física com remoção limpa de históricos e votos associados. |

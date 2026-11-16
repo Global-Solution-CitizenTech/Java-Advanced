@@ -16,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -24,6 +25,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.util.MimeType;
+import java.time.Duration;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -75,6 +77,7 @@ public class ChamadoController {
         MimeType mimeType = ImageMimeTypeDetector.detectar(foto);
         return ResponseEntity.ok()
                 .contentType(MediaType.asMediaType(mimeType))
+                .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePublic())
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
                 .body(foto);
     }
