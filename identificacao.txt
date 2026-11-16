@@ -22,7 +22,7 @@ VÍDEO PITCH:
 
 DEPLOY EM NUVEM:
 API em Produção (Azure Web App): https://app-zelafix.azurewebsites.net/
-Worker IA em Produção (Azure Web App): //app-zelafix-worker.azurewebsites.net
+Worker IA em Produção (Azure Web App): https://app-zelafix-worker.azurewebsites.net
 
 Swagger UI: https://app-zelafix.azurewebsites.net/swagger-ui.html
 ================================================================================
