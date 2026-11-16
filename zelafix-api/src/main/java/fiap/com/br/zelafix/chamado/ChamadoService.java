@@ -92,11 +92,9 @@ public class ChamadoService {
 
     @Transactional(readOnly = true)
     public byte[] getPhoto(Long id) {
-        byte[] foto = findChamadoById(id).getFoto();
-        if (foto == null || foto.length == 0) {
-            throw new ResourceNotFoundException("Foto do chamado com id " + id + " não encontrada.");
-        }
-        return foto;
+        return chamadoRepository.findFotoById(id)
+                .filter(foto -> foto.length > 0)
+                .orElseThrow(() -> new ResourceNotFoundException("Foto do chamado com id " + id + " não encontrada."));
     }
 
     // =========================================================================
@@ -107,11 +105,12 @@ public class ChamadoService {
         if (!ImageMimeTypeDetector.isImagemSuportada(fotoBytes)) {
             throw new IllegalArgumentException("Arquivo enviado não é uma imagem válida. Formatos suportados: JPEG, PNG, WEBP e GIF.");
         }
+        byte[] fotoOtimizada = ImageMimeTypeDetector.otimizarParaArmazenamento(fotoBytes);
         Usuario autor = usuarioService.findByEmail(email);
         Endereco endereco = enderecoService.findOrCreateByCepAndNumero(enderecoRequest);
 
         return triagemPendenteStore.registrar(correlationId ->
-                eventPublisher.publishEvent(ChamadoTriagemMessage.from(correlationId, autor, endereco, fotoBytes))
+                eventPublisher.publishEvent(ChamadoTriagemMessage.from(correlationId, autor, endereco, fotoOtimizada))
         );
     }
 

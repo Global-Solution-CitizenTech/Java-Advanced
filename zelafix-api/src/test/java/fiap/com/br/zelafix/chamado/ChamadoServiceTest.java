@@ -558,12 +558,7 @@ class ChamadoServiceTest {
     @Test
     @DisplayName("Deve lançar ResourceNotFoundException quando foto do chamado estiver ausente ou vazia")
     void deveLancarResourceNotFoundQuandoFotoEstiverVazia() {
-        Chamado chamadoSemFoto = Chamado.builder()
-                .idChamado(10L)
-                .foto(new byte[0])
-                .build();
-
-        when(chamadoRepository.findById(10L)).thenReturn(Optional.of(chamadoSemFoto));
+        when(chamadoRepository.findFotoById(10L)).thenReturn(Optional.of(new byte[0]));
 
         assertThrows(ResourceNotFoundException.class, () -> chamadoService.getPhoto(10L));
     }

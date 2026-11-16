@@ -48,9 +48,9 @@ original_size = os.path.getsize(IMAGE_PATH)
 print(" -> Tamanho original no disco:", original_size, "bytes")
 
 assert get_resp.status_code == 200, f"Esperado 200, obtido {get_resp.status_code}"
-assert "image/png" in get_resp.headers.get("content-type", ""), f"Content-Type inesperado: {get_resp.headers.get('content-type')}"
-assert len(get_resp.content) == original_size, f"Tamanho divergente: {len(get_resp.content)} vs {original_size}"
+assert "image/" in get_resp.headers.get("content-type", ""), f"Content-Type inesperado: {get_resp.headers.get('content-type')}"
+assert len(get_resp.content) > 1000, f"Imagem retornada muito pequena/corrompida: {len(get_resp.content)} bytes"
 
 print("\n" + "=" * 60)
-print("SUCESSO: Imagem real enviada via Multipart, persistida no Oracle e recuperada byte-a-byte com 100% de integridade!")
+print("SUCESSO: Imagem real enviada via Multipart, otimizada no Oracle e recuperada com sucesso!")
 print("=" * 60)
