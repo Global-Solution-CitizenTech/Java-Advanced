@@ -5,6 +5,7 @@ import fiap.com.br.zelafix.endereco.Endereco;
 import fiap.com.br.zelafix.chamado.orgao.OrgaoGoverno;
 import fiap.com.br.zelafix.chamado.prioridade.Prioridade;
 import fiap.com.br.zelafix.usuario.Usuario;
+import jakarta.persistence.Basic;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -45,6 +46,7 @@ public class Chamado {
     private String descricao;
 
     @Lob
+    @Basic(fetch = FetchType.LAZY)
     @Column(name = "foto", nullable = false)
     private byte[] foto;
 
