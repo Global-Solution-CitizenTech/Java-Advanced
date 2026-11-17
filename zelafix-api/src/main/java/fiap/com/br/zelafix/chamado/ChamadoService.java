@@ -118,7 +118,7 @@ public class ChamadoService {
     public ChamadoResponse update(Long id, ChamadoRequest request, String email) {
         Chamado chamado = findChamadoById(id);
         Usuario usuario = usuarioService.findByEmail(email);
-        validarPermissao(chamado, usuario, "Você não tem permissão para editar este chamado.");
+        validarPermissaoGestao(usuario);
 
         chamadoRepository.save(request.toEntity(
                 chamado,
@@ -132,7 +132,7 @@ public class ChamadoService {
     public void delete(Long id, String email) {
         Chamado chamado = findChamadoById(id);
         Usuario usuario = usuarioService.findByEmail(email);
-        validarPermissao(chamado, usuario, "Apenas o autor do chamado, gestor ou administrador pode excluí-lo.");
+        validarPermissaoGestao(usuario);
         votoChamadoRepository.deleteByChamadoIdChamado(id);
         histChamadoRepository.deleteByChamadoIdChamado(id);
         chamadoRepository.delete(chamado);
@@ -208,15 +208,9 @@ public class ChamadoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Chamado com id " + id + " não encontrado."));
     }
 
-    private void validarPermissao(Chamado chamado, Usuario usuario, String mensagemErro) {
-        if (!chamado.getUsuario().getIdUsuario().equals(usuario.getIdUsuario()) && usuario.getCargo() != CargoUsuario.GESTOR && usuario.getCargo() != CargoUsuario.ADMIN) {
-            throw new AccessDeniedException(mensagemErro);
-        }
-    }
-
     private void validarPermissaoGestao(Usuario operador) {
         if (operador.getCargo() != CargoUsuario.GESTOR && operador.getCargo() != CargoUsuario.ADMIN) {
-            throw new AccessDeniedException("Apenas funcionários da prefeitura ou administradores têm permissão para atualizar o status do chamado.");
+            throw new AccessDeniedException("Apenas gestores ou administradores têm permissão para executar esta operação.");
         }
     }
 
