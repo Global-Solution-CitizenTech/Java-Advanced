@@ -227,7 +227,7 @@ public record TriagemIaResult(
 
 ## 📡 7. Catálogo dos Principais Endpoints da API REST
 
-A API retorna DTOs padronizados e formata erros seguindo a **RFC 7807 (Problem Details)**:
+A API retorna DTOs padronizados e centraliza o tratamento de erros em `@RestControllerAdvice` (`GlobalExceptionHandler`) com payload JSON estruturado (`timestamp`, `status`, `error`, `message`, `path` e lista de `erros` de validação):
 
 | Método | Endpoint | Permissão | Descrição |
 | --- | --- | --- | --- |
@@ -238,8 +238,8 @@ A API retorna DTOs padronizados e formata erros seguindo a **RFC 7807 (Problem D
 | `GET` | `/chamados/{id}` | Autenticado | Detalhes do chamado, histórico de status e contagem de apoios. |
 | `GET` | `/chamados/{id}/foto` | Público | Retorna os bytes da foto (redimensionada em JPEG até 1080px se > 200 KB) com `Cache-Control: public, max-age=86400`. |
 | `POST` | `/chamados` | Autenticado | Abertura de ocorrência (`multipart/form-data`: endereço + foto) com triagem via `DeferredResult`. |
-| `PUT` | `/chamados/{id}` | Autor / `ADMIN` | Edição dos dados da ocorrência via método `aplicarEm`. |
-| `DELETE` | `/chamados/{id}` | Autor / `ADMIN` | Exclusão do chamado junto com seus históricos e votos. |
+| `PUT` | `/chamados/{id}` | Autor / `GESTOR` / `ADMIN` | Edição dos dados da ocorrência via método `aplicarEm`. |
+| `DELETE` | `/chamados/{id}` | Autor / `GESTOR` / `ADMIN` | Exclusão do chamado junto com seus históricos e votos. |
 | `PATCH` | `/chamados/{id}/status` | `GESTOR` / `ADMIN` | Atualização de status operacional (`EM_EXECUCAO`, `CONCLUIDO`, etc.) com parecer técnico. |
 | `POST` | `/chamados/{id}/apoiar` | Autenticado | Adiciona ou remove apoio comunitário (toggle), grava no Oracle e publica evento na fila. |
 | `GET` | `/chamados/estatisticas` | Autenticado | Retorna totais de chamados agrupados por status e apoios. |
@@ -297,7 +297,7 @@ O banco de dados Oracle é populado com contas de demonstração via migrations 
 | **Cidadão** | Enzo Okuizumi | `enzo.okuizumi@gmail.com` | `123mudar` | Criar ocorrências com foto + endereço, apoiar chamados, editar próprios dados e consultar histórico. |
 | **Gestor Público** | Eng. Roberto Santos | `roberto.gestor@subprefeitura.sp.gov.br` | `Senha#123` | Atualizar status dos chamados (`PENDENTE`, `EM_ANALISE`, `EM_EXECUCAO`, `CONCLUIDO`, `REJEITADO`). |
 | **Gestor Público** | Coordenador Lucas Mendes | `lucas.zeladoria@subprefeitura.sp.gov.br` | `Senha#123` | Acompanhar triagens, atualizar status e registrar observações técnicas. |
-| **Administrador Geral** | Administrador Geral | `admin@zelafix.com.br` | `********` | Gerenciar usuários, chamados, endereços e perfis de acesso. |
+| **Administrador Geral** | Administrador Geral | `admin@zelafix.com.br` | `123mudar` | Gerenciar usuários, chamados, endereços e perfis de acesso. |
 
 ---
 
@@ -319,7 +319,7 @@ Copy-Item .env.example .env
 
 ```
 
-Abra o `.env` e preencha as credenciais do **Oracle Database** (FIAP ou container local), **RabbitMQ** (`SPRING_RABBITMQ_ADDRESSES`) e do **Provedor de LLM Multimodal via Spring AI** (`AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`).
+Abra o `.env` e preencha as credenciais do **Oracle Database** (FIAP ou container local), **RabbitMQ** (`SPRING_RABBITMQ_ADDRESSES`, ex.: `amqp://guest:guest@localhost:5672` para o container local do passo 3) e do **Provedor de LLM Multimodal via Spring AI** (`AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`).
 
 ### 3. Iniciar o RabbitMQ (caso use broker local via Docker)
 
@@ -345,11 +345,13 @@ Execute o build do Gradle para rodar os testes e empacotar os dois serviços:
 ### 5. Iniciar os Serviços
 Abra dois terminais na pasta `Java-Advanced`:
 ```bash
-# Terminal 1 — Iniciar a API REST (Porta 8080)
+# Windows PowerShell — Terminal 1 (API REST - Porta 8080) e Terminal 2 (Worker - Porta 8081)
 .\gradlew.bat :zelafix-api:bootRun
-
-# Terminal 2 — Iniciar o Worker de Processamento Assíncrono (Porta 8081)
 .\gradlew.bat :zelafix-worker:bootRun
+
+# Linux / macOS — Terminal 1 (API REST - Porta 8080) e Terminal 2 (Worker - Porta 8081)
+./gradlew :zelafix-api:bootRun
+./gradlew :zelafix-worker:bootRun
 ```
 
 * **Swagger UI:** `http://localhost:8080/swagger-ui.html`
