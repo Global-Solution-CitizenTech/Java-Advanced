@@ -1,0 +1,31 @@
+================================================================================
+FIAP GRADUAÇÃO — GLOBAL SOLUTION 2026/2
+CITIZENTECH: TECNOLOGIA COM O CIDADÃO NO CENTRO DA INOVAÇÃO
+================================================================================
+
+PROJETO / GRUPO: ZelaFix — Zeladoria Urbana Colaborativa
+DISCIPLINA: Java Advanced
+TURMA: 2TDSPG
+
+INTEGRANTES DO GRUPO:
+- RM: 561432 | Nome Completo: Enzo Okuizumi                    | Turma: 2TDSPG
+- RM: 563428 | Nome Completo: Gustavo Okada                    | Turma: 2TDSPG
+- RM: 566422 | Nome Completo: Lucas Barros Gouveia             | Turma: 2TDSPG
+- RM: 562290 | Nome Completo: Luna de Carvalho Guimarães       | Turma: 2TDSPG
+- RM: 564836 | Nome Completo: Milton Jakson de Sousa Marcelino | Turma: 2TDSPG
+
+REPOSITÓRIO GITHUB:
+https://github.com/Global-Solution-CitizenTech/Java-Advanced
+
+VÍDEO PITCH:
+[INSERIR LINK DO VÍDEO PITCH AQUI]
+
+Vídeo Java:
+[INSERIR LINK DO VÍDEO JAVA AQUI]
+
+DEPLOY EM NUVEM:
+API em Produção (Azure Web App): https://app-zelafix.azurewebsites.net/
+Worker IA em Produção (Azure Web App): https://app-zelafix-worker.azurewebsites.net
+
+Swagger UI: https://app-zelafix.azurewebsites.net/swagger-ui.html
+================================================================================
