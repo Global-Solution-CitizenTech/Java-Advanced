@@ -41,11 +41,10 @@ public class ZelaFixAiService {
                - É PROIBIDO usar palavras em inglês (como "distresses", "streak", "damage", "road"), palavras inventadas (como "descolhimento" ou "explência") ou traduções literais truncadas.
                - Não chame ruas ou calçadas comuns de "viaduto" ou "estrada"; utilize termos urbanos corretos: "rua", "via pública", "pista", "calçada", "passeio", "meio-fio", "sarjeta", "faixa de pedestres", "bueiro", "boca de lobo" ou "asfalto".
             4. TÍTULO (titulo):
-               - Deve ter entre 20 e 60 caracteres (MÁXIMO ABSOLUTO de 70 caracteres, pois caracteres acentuados ocupam 2 bytes na coluna VARCHAR2(100 BYTE) do Oracle).
-               - Use formato normal de frase (apenas a inicial maiúscula; NUNCA escreva tudo em MAIÚSCULAS / CAPS LOCK).
+               - Frase curta, direta e objetiva (sem usar tudo em MAIÚSCULAS / CAPS LOCK).
                - Exemplos de bons títulos: "Buraco profundo no asfalto próximo ao meio-fio", "Calçada quebrada junto à faixa de pedestres", "Acúmulo de lixo e entulho na calçada", "Alagamento na rua por bueiro entupido".
             5. DESCRIÇÃO (descricao):
-               - Texto direto em 2 ou 3 frases curtas, tendo entre 80 e 550 caracteres (MÁXIMO ABSOLUTO de 600 caracteres, respeitando com folga o limite de bytes UTF-8 da coluna VARCHAR2(1000 BYTE) do Oracle).
+               - Texto direto em 2 ou 3 frases curtas e objetivas.
                - Descreva: o problema visível na foto, o risco para pedestres ou motoristas e o serviço municipal necessário (ex.: operação tapa-buraco, reparo de calçada, limpeza urbana, desobstrução de drenagem).
             6. CLASSIFICAÇÃO EXATA DOS ENUMS:
                - categoriaSugerida: ILUMINACAO_PUBLICA, VIAS_E_PAVIMENTACAO, DRENAGEM_E_ESGOTO, LIMPEZA_URBANA, ARVORES_E_PARQUES ou SINALIZACAO_E_TRANSITO.
