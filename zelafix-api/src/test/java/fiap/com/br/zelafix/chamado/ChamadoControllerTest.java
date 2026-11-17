@@ -36,10 +36,8 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import org.springframework.security.access.AccessDeniedException;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -297,7 +295,7 @@ class ChamadoControllerTest {
     }
 
     @Test
-    @DisplayName("PUT /chamados/{id} - Deve atualizar dados do chamado com retorno 200 OK")
+    @DisplayName("PUT /chamados/{id} - Deve atualizar dados do chamado com retorno 200 OK quando GESTOR")
     void deveAtualizarChamadoComSucesso() throws Exception {
         EnderecoRequest enderecoReq = new EnderecoRequest("01001-000", "100", "Em frente ao mercado", "Rua das Flores");
         ChamadoRequest chamadoReq = new ChamadoRequest(
@@ -308,12 +306,14 @@ class ChamadoControllerTest {
         );
 
         ChamadoResponse responseMock = criarMockResponse(1L, chamadoReq.titulo(), chamadoReq.descricao());
-        when(chamadoService.update(eq(1L), any(ChamadoRequest.class), eq("cidadao@zelafix.com"))).thenReturn(responseMock);
+        when(chamadoService.update(eq(1L), any(ChamadoRequest.class), eq("gestor@zelafix.com"))).thenReturn(responseMock);
 
         mockMvc.perform(put("/chamados/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(chamadoReq))
-                        .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("cidadao@zelafix.com"))))
+                        .with(SecurityMockMvcRequestPostProcessors.jwt()
+                                .authorities(new SimpleGrantedAuthority("ROLE_GESTOR"))
+                                .jwt(jwt -> jwt.subject("gestor@zelafix.com").claim("role", "GESTOR"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.idChamado").value(1L))
                 .andExpect(jsonPath("$.titulo").value("Buraco concertado parcialmente"));
@@ -356,7 +356,7 @@ class ChamadoControllerTest {
     }
 
     @Test
-    @DisplayName("PUT /chamados/{id} - Deve retornar 403 Forbidden quando outro cidadão tentar editar")
+    @DisplayName("PUT /chamados/{id} - Deve retornar 403 Forbidden quando cidadão tentar editar")
     void deveBloquearEdicaoChamadoParaOutroUsuario() throws Exception {
         ChamadoRequest chamadoReq = new ChamadoRequest(
                 "Tentativa indevida",
@@ -365,16 +365,14 @@ class ChamadoControllerTest {
                 new EnderecoRequest("01001-000", "100", "Em frente ao mercado", "Rua das Flores")
         );
 
-        when(chamadoService.update(eq(1L), any(ChamadoRequest.class), eq("outro@zelafix.com")))
-                .thenThrow(new AccessDeniedException("Apenas o autor do chamado ou um gestor/administrador pode editá-lo."));
-
         mockMvc.perform(put("/chamados/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(chamadoReq))
-                        .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("outro@zelafix.com"))))
+                        .with(SecurityMockMvcRequestPostProcessors.jwt()
+                                .authorities(new SimpleGrantedAuthority("ROLE_CIDADAO"))
+                                .jwt(jwt -> jwt.subject("cidadao@zelafix.com").claim("role", "CIDADAO"))))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.status").value(403))
-                .andExpect(jsonPath("$.message").value("Apenas o autor do chamado ou um gestor/administrador pode editá-lo."));
+                .andExpect(jsonPath("$.status").value(403));
     }
 
     @Test
@@ -425,15 +423,12 @@ class ChamadoControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /chamados/{id} - Deve retornar 403 Forbidden quando usuário não for o autor nem ADMIN")
-    void deveBloquearExclusaoChamadoParaGestor() throws Exception {
-        doThrow(new AccessDeniedException("Apenas o autor do chamado ou um administrador pode excluí-lo."))
-                .when(chamadoService).delete(1L, "gestor@zelafix.com");
-
+    @DisplayName("DELETE /chamados/{id} - Deve retornar 403 Forbidden quando usuário for CIDADAO")
+    void deveBloquearExclusaoChamadoParaCidadao() throws Exception {
         mockMvc.perform(delete("/chamados/1")
                         .with(SecurityMockMvcRequestPostProcessors.jwt()
-                                .authorities(new SimpleGrantedAuthority("ROLE_GESTOR"))
-                                .jwt(jwt -> jwt.subject("gestor@zelafix.com").claim("role", "GESTOR"))))
+                                .authorities(new SimpleGrantedAuthority("ROLE_CIDADAO"))
+                                .jwt(jwt -> jwt.subject("cidadao@zelafix.com").claim("role", "CIDADAO"))))
                 .andExpect(status().isForbidden());
     }
 

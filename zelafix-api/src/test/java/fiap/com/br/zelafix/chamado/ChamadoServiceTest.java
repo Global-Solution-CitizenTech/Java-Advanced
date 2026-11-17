@@ -329,8 +329,14 @@ class ChamadoServiceTest {
     }
 
     @Test
-    @DisplayName("ADMIN ou AUTOR pode deletar chamado por ID")
-    void devePermitirAutorOuAdminDeletarChamado() {
+    @DisplayName("ADMIN ou GESTOR pode deletar chamado por ID")
+    void devePermitirGestorOuAdminDeletarChamado() {
+        Usuario admin = Usuario.builder()
+                .idUsuario(99L)
+                .email("admin@zelafix.com.br")
+                .cargo(CargoUsuario.ADMIN)
+                .build();
+
         Chamado chamado = Chamado.builder()
                 .idChamado(700L)
                 .titulo("Chamado para exclusão")
@@ -338,9 +344,9 @@ class ChamadoServiceTest {
                 .build();
 
         when(chamadoRepository.findById(700L)).thenReturn(Optional.of(chamado));
-        when(usuarioService.findByEmail(usuario.getEmail())).thenReturn(usuario);
+        when(usuarioService.findByEmail(admin.getEmail())).thenReturn(admin);
 
-        chamadoService.delete(700L, usuario.getEmail());
+        chamadoService.delete(700L, admin.getEmail());
 
         verify(votoChamadoRepository).deleteByChamadoIdChamado(700L);
         verify(histChamadoRepository).deleteByChamadoIdChamado(700L);
@@ -348,14 +354,8 @@ class ChamadoServiceTest {
     }
 
     @Test
-    @DisplayName("Deve bloquear outro cidadão ao tentar deletar chamado alheio")
-    void deveBloquearExclusaoPorNaoAutorSemCargoAdmin() {
-        Usuario outroCidadao = Usuario.builder()
-                .idUsuario(2L)
-                .email("outro@zelafix.com.br")
-                .cargo(CargoUsuario.CIDADAO)
-                .build();
-
+    @DisplayName("Deve bloquear cidadão ao tentar deletar chamado")
+    void deveBloquearExclusaoPorCidadao() {
         Chamado chamado = Chamado.builder()
                 .idChamado(701L)
                 .titulo("Chamado do cidadão")
@@ -363,9 +363,9 @@ class ChamadoServiceTest {
                 .build();
 
         when(chamadoRepository.findById(701L)).thenReturn(Optional.of(chamado));
-        when(usuarioService.findByEmail(outroCidadao.getEmail())).thenReturn(outroCidadao);
+        when(usuarioService.findByEmail(usuario.getEmail())).thenReturn(usuario);
 
-        assertThrows(AccessDeniedException.class, () -> chamadoService.delete(701L, outroCidadao.getEmail()));
+        assertThrows(AccessDeniedException.class, () -> chamadoService.delete(701L, usuario.getEmail()));
     }
 
     @Test

@@ -102,7 +102,8 @@ public class ChamadoController {
 
     @PutMapping("/{id}")
     @ResponseStatus(HttpStatus.OK)
-    @Operation(summary = "Atualizar dados do chamado")
+    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN')")
+    @Operation(summary = "[GESTOR / ADMIN] Atualizar dados do chamado")
     public ChamadoResponse update(@PathVariable Long id, @RequestBody @Valid ChamadoRequest request, @AuthenticationPrincipal Jwt jwt) {
         return chamadoService.update(id, request, jwt.getSubject());
     }
@@ -124,7 +125,8 @@ public class ChamadoController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "[AUTOR / GESTOR / ADMIN] Excluir um chamado")
+    @PreAuthorize("hasAnyRole('GESTOR', 'ADMIN')")
+    @Operation(summary = "[GESTOR / ADMIN] Excluir um chamado")
     public void delete(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
         chamadoService.delete(id, jwt.getSubject());
     }
