@@ -5,6 +5,7 @@ import fiap.com.br.zelafix.chamado.dto.ChamadoRequest;
 import fiap.com.br.zelafix.chamado.dto.ChamadoResponse;
 import fiap.com.br.zelafix.chamado.dto.ChamadoStatusRequest;
 import fiap.com.br.zelafix.chamado.dto.EstatisticasResponse;
+import fiap.com.br.zelafix.config.WorkerWakeUpService;
 import fiap.com.br.zelafix.endereco.dto.EnderecoRequest;
 import fiap.com.br.zelafix.util.ImageMimeTypeDetector;
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,6 +51,7 @@ import java.io.IOException;
 public class ChamadoController {
 
     private final ChamadoService chamadoService;
+    private final WorkerWakeUpService workerWakeUpService;
 
     // =========================================================================
     // 1. CONSULTAS E LISTAGENS
@@ -90,6 +92,7 @@ public class ChamadoController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Abrir chamado enviando endereço e foto via multipart/form-data com triagem inteligente por IA via RabbitMQ")
     public DeferredResult<ChamadoResponse> create(@ModelAttribute @Valid EnderecoRequest endereco, @RequestPart("foto") MultipartFile foto, @AuthenticationPrincipal Jwt jwt) throws IOException {
+        workerWakeUpService.wakeUpAsync();
         return chamadoService.create(endereco, foto.getBytes(), jwt.getSubject());
     }
 

@@ -319,7 +319,7 @@ Copy-Item .env.example .env
 
 ```
 
-Abra o `.env` e preencha as credenciais do **Oracle Database** (FIAP ou container local), **RabbitMQ** (`SPRING_RABBITMQ_ADDRESSES`, ex.: `amqp://guest:guest@localhost:5672` para o container local do passo 3) e do **Provedor de LLM Multimodal via Spring AI** (`AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`).
+Abra o `.env` e preencha as credenciais do **Oracle Database** (FIAP ou container local), **RabbitMQ** (`SPRING_RABBITMQ_ADDRESSES`, ex.: `amqp://guest:guest@localhost:5672` para o container local do passo 3) e do **Provedor de LLM Multimodal via Spring AI** (`AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`). Em ambientes em nuvem que hibernam por inatividade (ex.: Azure F1), configure também `WORKER_URL` na API para habilitar o *wake-up* assíncrono do worker.
 
 ### 3. Iniciar o RabbitMQ (caso use broker local via Docker)
 

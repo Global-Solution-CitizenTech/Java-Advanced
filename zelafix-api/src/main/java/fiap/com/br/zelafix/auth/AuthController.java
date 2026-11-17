@@ -1,5 +1,6 @@
 package fiap.com.br.zelafix.auth;
 
+import fiap.com.br.zelafix.config.WorkerWakeUpService;
 import fiap.com.br.zelafix.usuario.Usuario;
 import fiap.com.br.zelafix.usuario.UsuarioService;
 import fiap.com.br.zelafix.usuario.dto.UsuarioResponse;
@@ -25,6 +26,7 @@ public class AuthController {
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
     private final UsuarioService usuarioService;
+    private final WorkerWakeUpService workerWakeUpService;
 
     public record LoginRequest(
             @NotBlank(message = "O e-mail é obrigatório.")
@@ -47,6 +49,7 @@ public class AuthController {
 
         String token = tokenService.generateToken(auth.getName());
         Usuario usuario = usuarioService.findByEmail(request.email());
+        workerWakeUpService.wakeUpAsync();
 
         return new LoginResponse(token, UsuarioResponse.fromEntity(usuario));
     }
