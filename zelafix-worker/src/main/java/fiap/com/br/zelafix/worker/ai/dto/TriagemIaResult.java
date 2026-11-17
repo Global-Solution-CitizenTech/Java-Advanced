@@ -14,7 +14,7 @@ public record TriagemIaResult(
         @JsonPropertyDescription("Título curto, direto e em português do Brasil natural com capitalização normal de frase, sem usar tudo em maiúsculas (máximo 70 caracteres para respeitar o limite de bytes UTF-8 do Oracle)")
         String titulo,
 
-        @JsonPropertyDescription("Descrição objetiva em português do Brasil correto explicando o problema visível na foto, seu impacto na via/calçada e o reparo necessário (máximo 500 caracteres para respeitar o limite de bytes UTF-8 do Oracle)")
+        @JsonPropertyDescription("Descrição objetiva em português do Brasil explicando o problema visível na foto, seu impacto na via/calçada, o reparo necessário e, ao final, o decreto e o prazo SLA retornados pelas ferramentas (máximo 500 caracteres para respeitar o limite de bytes UTF-8 do Oracle)")
         String descricao,
 
         @JsonPropertyDescription("Categoria oficial do problema urbano observado na foto")
