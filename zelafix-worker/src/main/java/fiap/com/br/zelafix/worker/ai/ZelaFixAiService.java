@@ -45,7 +45,7 @@ public class ZelaFixAiService {
                - Exemplos de bons títulos: "Buraco profundo no asfalto próximo ao meio-fio", "Calçada quebrada junto à faixa de pedestres", "Acúmulo de lixo e entulho na calçada", "Alagamento na rua por bueiro entupido".
             5. DESCRIÇÃO (descricao):
                - Texto direto em 2 ou 3 frases curtas e objetivas.
-               - Descreva: o problema visível na foto, o risco para pedestres ou motoristas e o serviço municipal necessário (ex.: operação tapa-buraco, reparo de calçada, limpeza urbana, desobstrução de drenagem).
+               - Descreva: o problema visível na foto, o risco para pedestres ou motoristas, o serviço municipal necessário e, quando válida, encerre citando o decreto de consultarNormaMunicipal e o prazo SLA de calcularPrazoSla.
             6. CLASSIFICAÇÃO EXATA DOS ENUMS:
                - categoriaSugerida: ILUMINACAO_PUBLICA, VIAS_E_PAVIMENTACAO, DRENAGEM_E_ESGOTO, LIMPEZA_URBANA, ARVORES_E_PARQUES ou SINALIZACAO_E_TRANSITO.
                - prioridade: BAIXA, MEDIA, ALTA ou URGENTE.
