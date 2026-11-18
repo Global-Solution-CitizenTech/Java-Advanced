@@ -48,7 +48,7 @@ public class AuthController {
         );
 
         String token = tokenService.generateToken(auth.getName());
-        Usuario usuario = usuarioService.findByEmail(request.email());
+        Usuario usuario = usuarioService.findByEmail(auth.getName());
         workerWakeUpService.wakeUpAsync();
 
         return new LoginResponse(token, UsuarioResponse.fromEntity(usuario));

@@ -145,8 +145,8 @@ No ZelaFix, todo chamado registrado na plataforma requer foto da ocorrência (`B
 
 O versionamento do schema corporativo Oracle segue o padrão incremental estrito:
 - **`V1__criar_tabelas_zelafix.sql`:** DDL canônico conforme especificação da FIAP. Sequências `IDENTITY` declaradas com `START WITH 100` para permitir cargas e evitar colisões.
-- **`V2__dados_iniciais_zelafix.sql`:** Carga controlada de dados mestres (Estados, Cidades, Bairros de São Paulo, Categorias e Status).
-- **`V3__admin_inicial.sql`:** Usuários padrão do sistema com senhas criptografadas em BCrypt (`ROLE_CIDADAO`, `ROLE_GESTOR`, `ROLE_ADMIN`).
+- **`V2__admin_inicial.sql`:** Carga controlada de dados mestres (Estados, Cidades, Bairros de São Paulo, Categorias, Status, Prioridades, Órgãos) e Administrador inicial.
+- **`V3__dados_iniciais_zelafix.sql`:** Usuários padrão do sistema com senhas criptografadas em BCrypt (`ROLE_CIDADAO`, `ROLE_GESTOR`) e chamados iniciais com imagens JPEG em `BLOB`.
 - **Regra do Agente:** Nunca modifique o DDL canônico de migrations já aplicadas. Não utilize blocos PL/SQL anônimos desnecessários; use a convenção padrão do Flyway.
 
 ---

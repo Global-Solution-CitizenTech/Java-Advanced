@@ -300,84 +300,20 @@ if created_user_id:
     record("Tenta Quebrar", "Alterar cargo para valor inválido no Enum", "PATCH", f"/usuarios/{created_user_id}/cargo", r.status_code, 400, r.status_code == 400, ms)
 
 # =============================================================================
-# BLOCO 4: CATEGORIAS DE ZELADORIA URBANA (/categorias)
+# BLOCO 4: HISTÓRICOS DE AUDITORIA (/historicos)
 # =============================================================================
 print("\n" + "#" * 80)
-print("4. CATEGORIAS DE ZELADORIA URBANA (/categorias)")
+print("4. HISTÓRICOS DE AUDITORIA (/historicos)")
 print("#" * 80)
 
-# 4.1 GET /categorias (Público/Cidadão)
-r, ms = req("GET", "/categorias", headers=cidadao_headers)
-passed = r.status_code == 200 and isinstance(r.json(), list) and len(r.json()) > 0
-record("Categorias", "Listar categorias cadastradas (GET /categorias)", "GET", "/categorias", r.status_code, 200, passed, ms)
-categorias_list = r.json() if passed else []
-valid_cat_id = categorias_list[0]["id"] if categorias_list else 1
+# 4.1 GET /historicos como ADMIN
+r, ms = req("GET", "/historicos", headers=admin_headers)
+passed = r.status_code == 200 and "content" in r.json()
+record("Históricos", "Listar históricos paginados como ADMIN (GET /historicos)", "GET", "/historicos", r.status_code, 200, passed, ms)
 
-# 4.2 GET /categorias/{id}
-r, ms = req("GET", f"/categorias/{valid_cat_id}", headers=cidadao_headers)
-passed = r.status_code == 200 and r.json().get("id") == valid_cat_id
-record("Categorias", f"Buscar categoria por ID {valid_cat_id}", "GET", f"/categorias/{valid_cat_id}", r.status_code, 200, passed, ms)
-
-# 4.3 POST /categorias como ADMIN
-cat_nome = f"Categoria Auto {unique_id}"
-r, ms = req("POST", "/categorias", headers=admin_headers, json={"nome": cat_nome})
-passed = r.status_code == 201 and "id" in r.json()
-record("Categorias", f"Criar categoria '{cat_nome}' como ADMIN", "POST", "/categorias", r.status_code, 201, passed, ms)
-created_cat_id = r.json().get("id") if passed else None
-
-# 4.4 POST /categorias como CIDADÃO (deve retornar 403 Forbidden)
-r, ms = req("POST", "/categorias", headers=cidadao_headers, json={"nome": "Hack Categoria"})
-record("Segurança/RBAC", "Cidadão tentando criar categoria (deve retornar 403)", "POST", "/categorias", r.status_code, 403, r.status_code == 403, ms)
-
-# 4.5 POST /categorias com nome vazio (validação @NotBlank)
-r, ms = req("POST", "/categorias", headers=admin_headers, json={"nome": "   "})
-record("Tenta Quebrar", "Criar categoria com nome vazio", "POST", "/categorias", r.status_code, 400, r.status_code == 400, ms)
-
-# 4.6 PUT /categorias/{id} (Atualizar como ADMIN)
-if created_cat_id:
-    r, ms = req("PUT", f"/categorias/{created_cat_id}", headers=admin_headers, json={"nome": f"Cat Atualizada {unique_id}"})
-    passed = r.status_code == 200 and r.json().get("nome") == f"Cat Atualizada {unique_id}"
-    record("Categorias", f"Atualizar categoria ID {created_cat_id} como ADMIN", "PUT", f"/categorias/{created_cat_id}", r.status_code, 200, passed, ms)
-
-# 4.7 DELETE /categorias/{id} (Excluir como ADMIN)
-if created_cat_id:
-    r, ms = req("DELETE", f"/categorias/{created_cat_id}", headers=admin_headers)
-    record("Categorias", f"Excluir categoria ID {created_cat_id} como ADMIN", "DELETE", f"/categorias/{created_cat_id}", r.status_code, 204, r.status_code == 204, ms)
-
-# =============================================================================
-# BLOCO 5: STATUS DO CICLO DE VIDA DOS CHAMADOS (/status)
-# =============================================================================
-print("\n" + "#" * 80)
-print("5. STATUS DO CICLO DE VIDA DOS CHAMADOS (/status)")
-print("#" * 80)
-
-# 5.1 GET /status
-r, ms = req("GET", "/status", headers=cidadao_headers)
-passed = r.status_code == 200 and isinstance(r.json(), list) and len(r.json()) > 0
-record("Status", "Listar status disponíveis (GET /status)", "GET", "/status", r.status_code, 200, passed, ms)
-status_list = r.json() if passed else []
-valid_status_id = status_list[0]["id"] if status_list else 1
-
-# 5.2 GET /status/{id}
-r, ms = req("GET", f"/status/{valid_status_id}", headers=cidadao_headers)
-passed = r.status_code == 200 and r.json().get("id") == valid_status_id
-record("Status", f"Buscar status por ID {valid_status_id}", "GET", f"/status/{valid_status_id}", r.status_code, 200, passed, ms)
-
-# 5.3 POST /status com nome customizado fora do enum (deve rejeitar 400 por constraint ck_status_nome)
-status_nome = f"CUSTOM_{unique_id % 10000}"
-r, ms = req("POST", "/status", headers=admin_headers, json={"nome": status_nome})
-passed = r.status_code == 400
-record("Status", f"Criar status customizado rejeitado com 400 (ck_status_nome)", "POST", "/status", r.status_code, 400, passed, ms)
-created_status_id = None
-
-# 5.4 POST /status como CIDADÃO (deve retornar 403 Forbidden)
-r, ms = req("POST", "/status", headers=cidadao_headers, json={"nome": "STATUS_HACK"})
-record("Segurança/RBAC", "Cidadão tentando criar status (deve retornar 403)", "POST", "/status", r.status_code, 403, r.status_code == 403, ms)
-
-# 5.5 DELETE /status/{id} como ADMIN
-if created_status_id:
-    r, ms = req("DELETE", f"/status/{created_status_id}", headers=admin_headers)
-    record("Status", f"Excluir status ID {created_status_id} como ADMIN", "DELETE", f"/status/{created_status_id}", r.status_code, 204, r.status_code == 204, ms)
+# 4.2 GET /historicos como CIDADÃO (deve retornar 403 Forbidden)
+r, ms = req("GET", "/historicos", headers=cidadao_headers)
+record("Segurança/RBAC", "Cidadão tentando listar todos os históricos (deve retornar 403)", "GET", "/historicos", r.status_code, 403, r.status_code == 403, ms)
 
 # =============================================================================
 # BLOCO 6: GERENCIAMENTO DE ENDEREÇOS (/enderecos)
@@ -436,25 +372,29 @@ passed = r.status_code == 200 and "content" in r.json()
 record("Chamados", "Listar chamados com paginação (GET /chamados)", "GET", "/chamados", r.status_code, 200, passed, ms)
 
 # 7.3 GET /chamados com filtros dinâmicos
-r, ms = req("GET", "/chamados?status=ABERTO", headers=cidadao_headers)
-record("Chamados", "Filtrar chamados por status=ABERTO", "GET", "/chamados?status=ABERTO", r.status_code, 200, r.status_code == 200, ms)
+r, ms = req("GET", "/chamados?status=PENDENTE", headers=cidadao_headers)
+record("Chamados", "Filtrar chamados por status=PENDENTE", "GET", "/chamados?status=PENDENTE", r.status_code, 200, r.status_code == 200, ms)
 
-r, ms = req("GET", f"/chamados?categoriaId={valid_cat_id}", headers=cidadao_headers)
-record("Chamados", f"Filtrar chamados por categoriaId={valid_cat_id}", "GET", f"/chamados?categoriaId={valid_cat_id}", r.status_code, 200, r.status_code == 200, ms)
+r, ms = req("GET", "/chamados?categoria=VIAS_E_PAVIMENTACAO", headers=cidadao_headers)
+record("Chamados", "Filtrar chamados por categoria=VIAS_E_PAVIMENTACAO", "GET", "/chamados?categoria=VIAS_E_PAVIMENTACAO", r.status_code, 200, r.status_code == 200, ms)
 
-# 7.4 POST /chamados (Criação de novo chamado com foto base64 e endereço)
-chamado_payload = {
-    "fotoBase64": MINIMAL_PNG_B64.split(",", 1)[1],
-    "endereco": {
+# 7.4 POST /chamados (Criação de novo chamado via multipart/form-data com foto e endereço)
+foto_bytes = base64.b64decode(MINIMAL_PNG_B64.split(",", 1)[1])
+r, ms = req(
+    "POST",
+    "/chamados",
+    headers=cidadao_headers,
+    data={
         "cep": "01311000",
         "rua": "Avenida Paulista",
         "numero": "1800",
         "referencia": "Próximo à Alameda Ministro Rocha Azevedo"
-    }
-}
-r, ms = req("POST", "/chamados", headers=cidadao_headers, json=chamado_payload)
+    },
+    files={"foto": ("ocorrencia.png", foto_bytes, "image/png")},
+    timeout=90
+)
 passed = r.status_code == 201 and "idChamado" in r.json()
-record("Chamados", "Abrir novo chamado com Foto Base64 (POST /chamados)", "POST", "/chamados", r.status_code, 201, passed, ms)
+record("Chamados", "Abrir novo chamado com Foto Multipart (POST /chamados)", "POST", "/chamados", r.status_code, 201, passed, ms)
 created_chamado_id = r.json().get("idChamado") if passed else None
 
 if created_chamado_id:
@@ -479,11 +419,11 @@ if created_chamado_id:
     passed = r.status_code == 200 and r.json().get("apoiadoPorMim") is True
     record("Votos/RabbitMQ", f"Reativar apoio comunitário ID {created_chamado_id}", "POST", f"/chamados/{created_chamado_id}/apoiar", r.status_code, 200, passed, ms)
 
-    # 7.9 PUT /chamados/{id} (Atualizar chamado pelo criador com endereço obrigatório)
+    # 7.9 PUT /chamados/{id} (Atualizar chamado como GESTOR com endereço obrigatório)
     put_chamado_payload = {
         "titulo": f"Buraco grave e afundamento [ATUALIZADO] #{unique_id}",
         "descricao": "Cratera aumentou após chuva forte. Equipe de sinalização urgente solicitada.",
-        "categoriaId": valid_cat_id,
+        "categoria": "VIAS_E_PAVIMENTACAO",
         "endereco": {
             "cep": "01311000",
             "rua": "Avenida Paulista",
@@ -491,9 +431,9 @@ if created_chamado_id:
             "referencia": "Próximo à Alameda Ministro Rocha Azevedo"
         }
     }
-    r, ms = req("PUT", f"/chamados/{created_chamado_id}", headers=cidadao_headers, json=put_chamado_payload)
+    r, ms = req("PUT", f"/chamados/{created_chamado_id}", headers=gestor_headers, json=put_chamado_payload)
     passed = r.status_code == 200 and "ATUALIZADO" in r.json().get("titulo", "")
-    record("Chamados", f"Atualizar chamado ID {created_chamado_id} (PUT)", "PUT", f"/chamados/{created_chamado_id}", r.status_code, 200, passed, ms)
+    record("Chamados", f"Atualizar chamado ID {created_chamado_id} como GESTOR (PUT)", "PUT", f"/chamados/{created_chamado_id}", r.status_code, 200, passed, ms)
 
     # 7.10 PATCH /chamados/{id}/status por CIDADÃO (deve ser rejeitado com 403 Forbidden)
     r, ms = req("PATCH", f"/chamados/{created_chamado_id}/status", headers=cidadao_headers, json={"status": "CONCLUIDO", "observacao": "Eu mesmo resolvi"})
@@ -528,32 +468,35 @@ print("#" * 80)
 r, ms = req("GET", "/chamados?status=' UNION SELECT NULL,NULL,NULL FROM DUAL--", headers=cidadao_headers)
 record("Tenta Quebrar", "Injeção SQL em query param ?status=", "GET", "/chamados?status=SQLI", r.status_code, 400, r.status_code in [200, 400], ms)
 
-# 8.2 Título com 10.000 caracteres (Buffer Overflow / Validation Test)
-huge_title = "A" * 10000
-bad_payload = {
-    "titulo": huge_title,
-    "descricao": "Teste de payload gigante",
-    "categoriaId": valid_cat_id,
-    "endereco": {"cep": "01311000", "rua": "Paulista", "numero": "1"}
-}
-r, ms = req("POST", "/chamados", headers=cidadao_headers, json=bad_payload)
-record("Tenta Quebrar", "Abertura de chamado com título de 10.000 caracteres", "POST", "/chamados", r.status_code, 400, r.status_code in [400, 413], ms)
+# 8.2 Referência com 10.000 caracteres (Buffer Overflow / Validation Test)
+huge_ref = "A" * 10000
+r, ms = req(
+    "POST",
+    "/chamados",
+    headers=cidadao_headers,
+    data={"cep": "01311000", "rua": "Paulista", "numero": "1", "referencia": huge_ref},
+    files={"foto": ("ocorrencia.png", foto_bytes, "image/png")}
+)
+record("Tenta Quebrar", "Abertura de chamado com referência de 10.000 caracteres", "POST", "/chamados", r.status_code, 400, r.status_code in [400, 413], ms)
 
-# 8.3 Foto corrompida (não-base64)
-bad_photo_payload = {
-    "fotoBase64": "isto_nao_eh_um_base64_valido!@#$%^&*()_+",
-    "endereco": {"cep": "01311000", "rua": "Paulista", "numero": "1", "referencia": "Esquina"}
-}
-r, ms = req("POST", "/chamados", headers=cidadao_headers, json=bad_photo_payload)
-record("Tenta Quebrar", "Abertura de chamado com foto base64 corrompida", "POST", "/chamados", r.status_code, 400, r.status_code == 400, ms)
+# 8.3 Foto corrompida (bytes inválidos)
+r, ms = req(
+    "POST",
+    "/chamados",
+    headers=cidadao_headers,
+    data={"cep": "01311000", "rua": "Paulista", "numero": "1", "referencia": "Esquina"},
+    files={"foto": ("corrompida.png", b"isto_nao_eh_uma_imagem", "image/png")}
+)
+record("Tenta Quebrar", "Abertura de chamado com foto binária corrompida", "POST", "/chamados", r.status_code, 400, r.status_code == 400, ms)
 
 # 8.4 Foto com MIME type proibido (.exe)
-bad_exe_b64 = "data:application/x-msdownload;base64," + base64.b64encode(b"MZ executable header dummy").decode("utf-8")
-bad_exe_payload = {
-    "fotoBase64": bad_exe_b64,
-    "endereco": {"cep": "01311000", "rua": "Paulista", "numero": "1", "referencia": "Esquina"}
-}
-r, ms = req("POST", "/chamados", headers=cidadao_headers, json=bad_exe_payload)
+r, ms = req(
+    "POST",
+    "/chamados",
+    headers=cidadao_headers,
+    data={"cep": "01311000", "rua": "Paulista", "numero": "1", "referencia": "Esquina"},
+    files={"foto": ("malware.exe", b"MZ executable header dummy", "application/x-msdownload")}
+)
 record("Tenta Quebrar", "Tentativa de upload de .exe no campo foto (MimeType)", "POST", "/chamados", r.status_code, 400, r.status_code == 400, ms)
 
 # 8.5 Teste de Carga Concorrente: 30 requisições simultâneas em paralelo

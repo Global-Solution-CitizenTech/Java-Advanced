@@ -89,15 +89,23 @@ def test_chamados_crud_lifecycle():
     )
     assert res.status_code == 400, f"Deveria falhar sem endereço: {res.status_code}"
 
-    # PUT com categoria inexistente
-    res = requests.put(f"{BASE_URL}/chamados/{chamado_json_id}", headers=cidadao_headers, json={
+    # PUT com categoria inexistente (como GESTOR) e bloqueio 403 para CIDADAO
+    res = requests.put(f"{BASE_URL}/chamados/{chamado_json_id}", headers=gestor_headers, json={
         "titulo": "Título válido",
         "descricao": "Descrição válida detalhada",
         "categoria": "CATEGORIA_INEXISTENTE",
         "endereco": {"cep": "01310-100", "numero": "1", "referencia": "Ref"}
     })
     assert res.status_code in [400, 404], f"Deveria falhar categoria inexistente no PUT: {res.status_code}"
-    print(" -> Sucesso! Todas as 3 rejeições de validação retornaram 400/404.")
+
+    res_forbidden = requests.put(f"{BASE_URL}/chamados/{chamado_json_id}", headers=cidadao_headers, json={
+        "titulo": "Título válido",
+        "descricao": "Descrição válida detalhada",
+        "categoria": "VIAS_E_PAVIMENTACAO",
+        "endereco": {"cep": "01310-100", "numero": "1", "referencia": "Ref"}
+    })
+    assert res_forbidden.status_code == 403, f"Cidadão não deveria poder editar chamado: {res_forbidden.status_code}"
+    print(" -> Sucesso! Rejeições de validação (400) e permissão (403) confirmadas.")
 
     # 3.5 Listagem Paginada e Filtros
     print("\n[3.5] Testando listagem paginada (GET /chamados?page=0&size=5)...")

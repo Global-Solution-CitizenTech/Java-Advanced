@@ -35,6 +35,7 @@ class SwaggerConfigTest {
         OpenAPI openApi = new OpenAPI();
         openApi.setTags(new ArrayList<>(List.of(
                 new Tag().name("Endereco"),
+                new Tag().name("Históricos"),
                 new Tag().name("Chamados"),
                 new Tag().name("TagDesconhecida"),
                 new Tag().name("Usuarios"),
@@ -46,8 +47,9 @@ class SwaggerConfigTest {
         assertEquals("Autenticação", openApi.getTags().get(0).getName());
         assertEquals("Usuarios", openApi.getTags().get(1).getName());
         assertEquals("Chamados", openApi.getTags().get(2).getName());
-        assertEquals("Endereco", openApi.getTags().get(3).getName());
-        assertEquals("TagDesconhecida", openApi.getTags().get(4).getName());
+        assertEquals("Históricos", openApi.getTags().get(3).getName());
+        assertEquals("Endereco", openApi.getTags().get(4).getName());
+        assertEquals("TagDesconhecida", openApi.getTags().get(5).getName());
     }
 
     @Test
