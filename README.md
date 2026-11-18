@@ -234,7 +234,15 @@ A API retorna DTOs padronizados e centraliza o tratamento de erros em `@RestCont
 | `POST` | `/login` | Público | Autentica usuário e retorna token JWT assinado com chave RSA (2048-bit). |
 | `POST` | `/usuarios` | Público | Cadastro de novo cidadão com validação Jakarta e senha criptografada com BCrypt. |
 | `GET` | `/usuarios/me` | Autenticado | Retorna dados cadastrais e perfil do usuário logado. |
-| `GET` | `/chamados` | Autenticado | Listagem paginada (`Pageable`) de chamados com filtros. |
+| `PUT` | `/usuarios/me` | Autenticado | Atualiza perfil do usuário logado e retorna novo JWT no header `X-Novo-Token`. |
+| `DELETE` | `/usuarios/me` | Autenticado | Exclui a conta do usuário logado (quando não possui chamados/históricos vinculados). |
+| `GET` | `/usuarios` | `ADMIN` | Lista todos os usuários com paginação (`Pageable`) e ordenação. |
+| `GET` | `/usuarios/{id}` | `ADMIN` | Busca dados cadastrais de um usuário por ID. |
+| `PUT` | `/usuarios/{id}` | `ADMIN` | Atualiza dados cadastrais de um usuário por ID. |
+| `DELETE` | `/usuarios/{id}` | `ADMIN` | Exclui um usuário por ID. |
+| `GET` | `/usuarios/by-email` | `ADMIN` | Busca usuário por endereço de e-mail (`?email=...`). |
+| `PATCH` | `/usuarios/{id}/cargo` | `ADMIN` | Altera o cargo/perfil (`CIDADAO`, `GESTOR`, `ADMIN`) de um usuário. |
+| `GET` | `/chamados` | Autenticado | Listagem paginada (`Pageable`) de chamados com filtros dinâmicos. |
 | `GET` | `/chamados/{id}` | Autenticado | Detalhes do chamado, histórico de status e contagem de apoios. |
 | `GET` | `/chamados/{id}/foto` | Público | Retorna os bytes da foto (redimensionada em JPEG até 1080px se > 200 KB) com `Cache-Control: public, max-age=86400`. |
 | `POST` | `/chamados` | Autenticado | Abertura de ocorrência (`multipart/form-data`: endereço + foto) com triagem via `DeferredResult`. |
@@ -244,9 +252,16 @@ A API retorna DTOs padronizados e centraliza o tratamento de erros em `@RestCont
 | `POST` | `/chamados/{id}/apoiar` | Autenticado | Adiciona ou remove apoio comunitário (toggle), grava no Oracle e publica evento na fila. |
 | `GET` | `/chamados/estatisticas` | Autenticado | Retorna totais de chamados agrupados por status e apoios. |
 | `GET` | `/historicos/chamado/{chamadoId}` | Autenticado | Lista o histórico completo de auditoria de um chamado em ordem cronológica. |
-| `GET` / `POST` / `PUT` / `DELETE` | `/historicos` | `GESTOR` / `ADMIN` | CRUD e listagem paginada (`Pageable`) de eventos de auditoria. |
-| `GET` / `POST` / `PUT` / `DELETE` | `/enderecos` | `ADMIN` | CRUD e listagem paginada (`Pageable`) de endereços integrados ao ViaCEP. |
-| `GET` | `/swagger-ui.html` | Público | Documentação interativa Swagger OpenAPI 3.0. |
+| `GET` | `/historicos` | `ADMIN` | Listagem paginada (`Pageable`) de todos os eventos de histórico. |
+| `GET` | `/historicos/{id}` | `ADMIN` | Busca evento específico de histórico por ID. |
+| `POST` | `/historicos` | `GESTOR` / `ADMIN` | Registra novo evento de histórico/status para um chamado. |
+| `PUT` | `/historicos/{id}` | `ADMIN` | Atualiza status e observação de um evento de histórico. |
+| `DELETE` | `/historicos/{id}` | `ADMIN` | Exclui evento de histórico (exceto o evento inicial de criação). |
+| `GET` | `/enderecos` | `ADMIN` | Listagem paginada (`Pageable`) de endereços cadastrados. |
+| `GET` | `/enderecos/{id}` | `ADMIN` | Busca endereço por ID. |
+| `POST` / `PUT` / `DELETE` | `/enderecos` e `/enderecos/{id}` | `ADMIN` | Cadastro (via ViaCEP), atualização e exclusão de endereços. |
+| `GET` | `/swagger-ui.html` | Público | Documentação interativa Swagger OpenAPI 3.0 (`/v3/api-docs`). |
+| `GET` | `/actuator/health` | Público | Health Check do serviço, Oracle DB e RabbitMQ (`/actuator/info` público; `/actuator/metrics/**` `ADMIN`). |
 
 ---
 
