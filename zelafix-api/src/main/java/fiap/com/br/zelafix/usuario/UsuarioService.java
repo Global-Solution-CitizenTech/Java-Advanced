@@ -37,7 +37,7 @@ public class UsuarioService {
 
     @Transactional(readOnly = true)
     public Usuario findByEmail(String email) {
-        return usuarioRepository.findByEmail(email)
+        return usuarioRepository.findByEmail(email.trim().toLowerCase())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário com e-mail " + email + " não encontrado."));
     }
 

@@ -36,6 +36,7 @@ import java.util.List;
                 @Tag(name = "Autenticação", description = "Login, emissão de token JWT e cadastro de usuários"),
                 @Tag(name = "Usuarios", description = "Perfil e gestão de usuários munícipes e gestores"),
                 @Tag(name = "Chamados", description = "CRUD de ocorrências de zeladoria, paginação e filtros"),
+                @Tag(name = "Históricos", description = "CRUD de eventos de auditoria e timeline de chamados"),
                 @Tag(name = "Endereco", description = "Consulta e gestão de endereços e CEPs")
         }
 )
@@ -57,7 +58,7 @@ public class SwaggerConfig implements WebMvcConfigurer {
     public OpenApiCustomizer sortTagsCustomizer() {
         return openApi -> {
             if (openApi.getTags() != null) {
-                var ordem = List.of("Autenticação", "Usuarios", "Chamados", "Endereco");
+                var ordem = List.of("Autenticação", "Usuarios", "Chamados", "Históricos", "Endereco");
                 openApi.getTags().sort(Comparator.comparingInt(tag -> {
                     int index = ordem.indexOf(tag.getName());
                     return index == -1 ? Integer.MAX_VALUE : index;

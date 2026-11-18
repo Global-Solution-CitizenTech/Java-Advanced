@@ -8,8 +8,8 @@ DISCIPLINA: Java Advanced
 TURMA: 2TDSPG
 
 INTEGRANTES DO GRUPO:
-- RM: 561432 | Nome Completo: Enzo Okuizumi                    | Turma: 2TDSPG
-- RM: 563428 | Nome Completo: Gustavo Okada                    | Turma: 2TDSPG
+- RM: 561432 | Nome Completo: Enzo Okuizumi Miranda de Souza   | Turma: 2TDSPG
+- RM: 563428 | Nome Completo: Gustavo Keiji Okada              | Turma: 2TDSPG
 - RM: 566422 | Nome Completo: Lucas Barros Gouveia             | Turma: 2TDSPG
 - RM: 562290 | Nome Completo: Luna de Carvalho Guimarães       | Turma: 2TDSPG
 - RM: 564836 | Nome Completo: Milton Jakson de Sousa Marcelino | Turma: 2TDSPG

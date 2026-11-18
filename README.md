@@ -175,7 +175,7 @@ Removemos o JPA, o JDBC e qualquer conexão direta ao Oracle no `zelafix-worker`
 
 1. **Isolamento de falhas:** Chamadas externas para APIs de IA levam alguns segundos e podem oscilar. Como o worker não abre transações no banco, uma lentidão no provedor de IA não prende conexões do pool (HikariCP) nem trava as consultas da API principal.
 2. **Controle de conexões no Oracle:** O banco acadêmico possui limite baixo de sessões simultâneas. Deixando apenas a `zelafix-api` conectar ao banco, podemos subir novas instâncias do worker sem disputar conexões com o Oracle.
-3. **Validação antes de gravar (`DeferredResult`):** No `POST /chamados` (`multipart/form-data` com `cep`, `numero`, `referencia`, `rua` e `foto`), a API guarda a requisição em espera no `TriagemPendenteStore` (timeout de `60s`) e envia a imagem para a fila. O worker analisa a foto e devolve o parecer na fila `chamado.triagem-concluida.queue`. Se a foto for de um problema urbano válido (`ocorrenciaValida = true`), a API grava o chamado e dois registros de histórico via `saveAll` (`PENDENTE` na abertura + `EM_ANALISE` da triagem) e responde `201 Created`. Se a foto for inválida (`recusado = true`), a API responde `400 Bad Request` sem salvar registros inúteis no banco.
+3. **Validação antes de gravar (`DeferredResult`):** No `POST /chamados` (`multipart/form-data` com `cep`, `numero`, `referencia`, `rua` e `foto`), a API guarda a requisição em espera no `TriagemPendenteStore` (timeout de `90s`) e envia a imagem para a fila. O worker analisa a foto e devolve o parecer na fila `chamado.triagem-concluida.queue`. Se a foto for de um problema urbano válido (`ocorrenciaValida = true`), a API grava o chamado e dois registros de histórico via `saveAll` (`PENDENTE` na abertura + `EM_ANALISE` da triagem) e responde `201 Created`. Se a foto for inválida (`recusado = true`), a API responde `400 Bad Request` sem salvar registros inúteis no banco.
 4. **Agrupamento de votos em rajada:** Quando vários usuários apoiam o mesmo chamado ao mesmo tempo (`POST /chamados/{id}/apoiar`), a API grava o voto no banco e publica um evento em `chamado.voto.queue`. O `VotoConsumer` no worker acumula esses eventos em um `ConcurrentHashMap` em memória e verifica os totais a cada 3 segundos (`@Scheduled`). Quando o chamado atinge $\ge 3$ votos (`ALTA`) ou $\ge 5$ votos (`URGENTE`), o worker envia uma única mensagem de escalonamento para a API atualizar o Oracle, evitando recálculos repetidos no banco a cada clique.
 
 ### ⚠️ Limitação Conhecida (`TriagemPendenteStore`)
@@ -243,6 +243,9 @@ A API retorna DTOs padronizados e centraliza o tratamento de erros em `@RestCont
 | `PATCH` | `/chamados/{id}/status` | `GESTOR` / `ADMIN` | Atualização de status operacional (`EM_EXECUCAO`, `CONCLUIDO`, etc.) com parecer técnico. |
 | `POST` | `/chamados/{id}/apoiar` | Autenticado | Adiciona ou remove apoio comunitário (toggle), grava no Oracle e publica evento na fila. |
 | `GET` | `/chamados/estatisticas` | Autenticado | Retorna totais de chamados agrupados por status e apoios. |
+| `GET` | `/historicos/chamado/{chamadoId}` | Autenticado | Lista o histórico completo de auditoria de um chamado em ordem cronológica. |
+| `GET` / `POST` / `PUT` / `DELETE` | `/historicos` | `GESTOR` / `ADMIN` | CRUD e listagem paginada (`Pageable`) de eventos de auditoria. |
+| `GET` / `POST` / `PUT` / `DELETE` | `/enderecos` | `ADMIN` | CRUD e listagem paginada (`Pageable`) de endereços integrados ao ViaCEP. |
 | `GET` | `/swagger-ui.html` | Público | Documentação interativa Swagger OpenAPI 3.0. |
 
 ---

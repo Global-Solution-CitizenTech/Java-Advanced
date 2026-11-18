@@ -30,4 +30,14 @@ class TriagemNormativaToolsTest {
         assertTrue(resposta.contains("URGENTE: 12h"));
         assertTrue(resposta.contains("America/Sao_Paulo"));
     }
+
+    @Test
+    @DisplayName("Deve aplicar fallback seguro quando parâmetros das tools forem nulos")
+    void deveAplicarFallbackQuandoParametrosNulos() {
+        var regra = tools.consultarNormaMunicipal(null);
+        String sla = tools.calcularPrazoSla(null);
+
+        assertEquals(DepartamentoGoverno.SECRETARIA_OBRAS, regra.orgaoPadrao());
+        assertTrue(sla.contains("MEDIA: 48h"));
+    }
 }

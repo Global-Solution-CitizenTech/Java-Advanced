@@ -10,7 +10,9 @@ import org.springframework.stereotype.Component;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.EnumMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Ferramentas Spring AI ({@code @Tool}) para consulta stateless de competência municipal e SLA na triagem.
@@ -23,7 +25,7 @@ public class TriagemNormativaTools {
 
     public record RegraMunicipal(String decreto, DepartamentoGoverno orgaoPadrao, String criterio) {}
 
-    private static final Map<CategoriaSugerida, RegraMunicipal> REGRAS = Map.of(
+    private static final Map<CategoriaSugerida, RegraMunicipal> REGRAS = new EnumMap<>(Map.of(
             CategoriaSugerida.VIAS_E_PAVIMENTACAO, new RegraMunicipal(
                     "Decreto PMSP nº 59.150/2019", DepartamentoGoverno.SECRETARIA_OBRAS,
                     "Buracos, afundamentos e calçadas danificadas; risco estrutural grave vai para DEFESA_CIVIL."),
@@ -42,26 +44,27 @@ public class TriagemNormativaTools {
             CategoriaSugerida.SINALIZACAO_E_TRANSITO, new RegraMunicipal(
                     "Código de Trânsito Brasileiro", DepartamentoGoverno.CET_TRANSITO,
                     "Semáforos apagados/danificados, placas e faixas de pedestres.")
-    );
+    ));
 
-    private static final Map<PrioridadeChamado, Integer> SLA_HORAS = Map.of(
+    private static final Map<PrioridadeChamado, Integer> SLA_HORAS = new EnumMap<>(Map.of(
             PrioridadeChamado.URGENTE, 12,
             PrioridadeChamado.ALTA, 24,
             PrioridadeChamado.MEDIA, 48,
             PrioridadeChamado.BAIXA, 72
-    );
+    ));
 
     @Tool(description = "Consulta o decreto municipal de São Paulo, órgão responsável oficial e critério de enquadramento da categoria")
     public RegraMunicipal consultarNormaMunicipal(@ToolParam(description = "Categoria urbana identificada na ocorrência") CategoriaSugerida categoria) {
-        return REGRAS.get(categoria);
+        return REGRAS.getOrDefault(categoria, REGRAS.get(CategoriaSugerida.VIAS_E_PAVIMENTACAO));
     }
 
     @Tool(description = "Retorna a data/hora atual em São Paulo e calcula o prazo limite (SLA) de atendimento para a prioridade")
     public String calcularPrazoSla(@ToolParam(description = "Nível de prioridade da ocorrência") PrioridadeChamado prioridade) {
-        int horas = SLA_HORAS.get(prioridade);
+        PrioridadeChamado prio = Objects.requireNonNullElse(prioridade, PrioridadeChamado.MEDIA);
+        int horas = SLA_HORAS.getOrDefault(prio, 48);
         ZonedDateTime agora = ZonedDateTime.now(ZONE_SP);
         ZonedDateTime limite = agora.plusHours(horas);
         return "Registrado em %s (America/Sao_Paulo). SLA legal para prioridade %s: %dh (atendimento previsto até %s)."
-                .formatted(agora.format(FORMATTER), prioridade, horas, limite.format(FORMATTER));
+                .formatted(agora.format(FORMATTER), prio, horas, limite.format(FORMATTER));
     }
 }
