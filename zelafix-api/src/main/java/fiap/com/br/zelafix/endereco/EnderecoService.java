@@ -103,10 +103,11 @@ public class EnderecoService {
     }
 
     private Endereco aplicarEm(Endereco endereco, EnderecoRequest request, String rua, Bairro bairro) {
+        String logradouro = (request.rua() != null && !request.rua().isBlank()) ? request.rua().trim() : rua;
         endereco.setCep(request.cep().replaceAll("\\D", ""));
-        endereco.setNumero(request.numero());
-        endereco.setReferencia(request.referencia());
-        endereco.setRua(rua);
+        endereco.setNumero(request.numero().trim());
+        endereco.setReferencia(request.referencia().trim());
+        endereco.setRua(logradouro);
         endereco.setBairro(bairro);
         return endereco;
     }

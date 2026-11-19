@@ -219,6 +219,31 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("Deve extrair nome do campo inválido quando causa for Jackson 3 DatabindException")
+    void deveExtrairCampoInvalidoDeJackson3DatabindException() {
+        tools.jackson.databind.DatabindException databindEx =
+                tools.jackson.databind.DatabindException.from((tools.jackson.core.JsonParser) null, "Cannot deserialize");
+        databindEx.prependPath(new tools.jackson.core.JacksonException.Reference(new Object(), "chamadoId"));
+        HttpInputMessage inputMessage = new HttpInputMessage() {
+            @Override
+            public InputStream getBody() {
+                return new ByteArrayInputStream(new byte[0]);
+            }
+            @Override
+            public HttpHeaders getHeaders() {
+                return new HttpHeaders();
+            }
+        };
+
+        HttpMessageNotReadableException ex = new HttpMessageNotReadableException("JSON parse error", databindEx, inputMessage);
+        ResponseEntity<GlobalExceptionHandler.ApiErrorResponse> response =
+                exceptionHandler.handleHttpMessageNotReadable(ex, request);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(response.getBody().message().contains("'chamadoId'"));
+    }
+
+    @Test
     @DisplayName("Deve tratar MethodArgumentTypeMismatchException e retornar 400")
     void deveTratarMethodArgumentTypeMismatchException() {
         MethodArgumentTypeMismatchException ex = new MethodArgumentTypeMismatchException(
