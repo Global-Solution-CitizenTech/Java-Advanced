@@ -20,7 +20,7 @@
 
 ## 🔗 Vídeo Pitch e Demonstração (Global Solution 2)
 
-* **Vídeo Pitch (até 5 min):** *(Link do YouTube será inserido após gravação)*
+* **Vídeo Pitch (até 5 min):** [Video Pitch - ZelaFix Global Solution](https://www.youtube.com/watch?v=MDx60mm2oJA)
 
 ---
 
@@ -314,7 +314,7 @@ O banco de dados Oracle é populado com contas de demonstração via migrations 
 | **Cidadão** | Enzo Okuizumi | `enzo.okuizumi@gmail.com` | `123mudar` | Criar ocorrências com foto + endereço, apoiar chamados, editar próprios dados e consultar histórico. |
 | **Gestor Público** | Eng. Roberto Santos | `roberto.gestor@subprefeitura.sp.gov.br` | `Senha#123` | Atualizar status dos chamados (`PENDENTE`, `EM_ANALISE`, `EM_EXECUCAO`, `CONCLUIDO`, `REJEITADO`). |
 | **Gestor Público** | Coordenador Lucas Mendes | `lucas.zeladoria@subprefeitura.sp.gov.br` | `Senha#123` | Acompanhar triagens, atualizar status e registrar observações técnicas. |
-| **Administrador Geral** | Administrador Geral | `admin@zelafix.com.br` | `123mudar` | Gerenciar usuários, chamados, endereços e perfis de acesso. |
+| **Administrador Geral** | Administrador Geral | `admin@zelafix.com.br` | `********` | Gerenciar usuários, chamados, endereços e perfis de acesso. |
 
 ---
 

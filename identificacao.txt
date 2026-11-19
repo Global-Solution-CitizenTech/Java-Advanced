@@ -18,7 +18,7 @@ REPOSITÓRIO GITHUB:
 https://github.com/Global-Solution-CitizenTech/Java-Advanced
 
 VÍDEO PITCH:
-[INSERIR LINK DO VÍDEO PITCH AQUI]
+https://www.youtube.com/watch?v=MDx60mm2oJA
 
 DEPLOY EM NUVEM:
 API em Produção (Azure Web App): https://app-zelafix.azurewebsites.net/
