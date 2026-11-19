@@ -20,9 +20,6 @@ https://github.com/Global-Solution-CitizenTech/Java-Advanced
 VÍDEO PITCH:
 [INSERIR LINK DO VÍDEO PITCH AQUI]
 
-Vídeo Java:
-[INSERIR LINK DO VÍDEO JAVA AQUI]
-
 DEPLOY EM NUVEM:
 API em Produção (Azure Web App): https://app-zelafix.azurewebsites.net/
 Worker IA em Produção (Azure Web App): https://app-zelafix-worker.azurewebsites.net
