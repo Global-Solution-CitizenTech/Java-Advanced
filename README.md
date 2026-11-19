@@ -21,7 +21,6 @@
 ## 🔗 Vídeo Pitch e Demonstração (Global Solution 2)
 
 * **Vídeo Pitch (até 5 min):** *(Link do YouTube será inserido após gravação)*
-* **Vídeo de Demonstração Técnica:** *(Link do YouTube será inserido após gravação)*
 
 ---
 
