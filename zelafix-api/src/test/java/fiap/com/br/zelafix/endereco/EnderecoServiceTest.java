@@ -169,6 +169,26 @@ class EnderecoServiceTest {
     }
 
     @Test
+    @DisplayName("Deve preservar rua informada manualmente no update quando ViaCEP retornar logradouro vazio")
+    void devePreservarRuaManualNoUpdateQuandoViaCepSemLogradouro() {
+        EnderecoRequest req = new EnderecoRequest("13300-000", " 50 ", " Centro ", "Rua Nova Manual");
+        ViaCepResponse viaCep = new ViaCepResponse("", "Centro", "Itu", "São Paulo", false);
+
+        when(enderecoRepository.findById(1L)).thenReturn(Optional.of(endereco));
+        when(viaCepService.getEnderecoPorCep("13300000")).thenReturn(viaCep);
+        when(estadoRepository.findByNomeIgnoreCase("São Paulo")).thenReturn(Optional.of(estadoSP));
+        when(cidadeRepository.findByNomeIgnoreCaseAndEstadoId("Itu", 1L)).thenReturn(Optional.of(cidadeSP));
+        when(bairroRepository.findByNomeIgnoreCaseAndCidadeId("Centro", 1L)).thenReturn(Optional.of(bairroCentro));
+        when(enderecoRepository.save(any(Endereco.class))).thenReturn(endereco);
+
+        Endereco atualizado = enderecoService.update(1L, req);
+
+        assertEquals("Rua Nova Manual", atualizado.getRua());
+        assertEquals("50", atualizado.getNumero());
+        assertEquals("Centro", atualizado.getReferencia());
+    }
+
+    @Test
     @DisplayName("Deve deletar endereço existente")
     void deveDeletarEnderecoExistente() {
         when(enderecoRepository.findById(1L)).thenReturn(Optional.of(endereco));

@@ -1,6 +1,6 @@
 package fiap.com.br.zelafix.exception;
 
-import com.fasterxml.jackson.databind.JsonMappingException;
+import tools.jackson.core.JacksonException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -133,9 +133,11 @@ public class GlobalExceptionHandler {
         String mensagem = "Erro na leitura dos dados. Verifique os tipos informados no JSON.";
 
         Throwable cause = exception.getCause();
-        if (cause instanceof JsonMappingException jme && !jme.getPath().isEmpty()) {
-            String field = jme.getPath().get(0).getFieldName();
-            mensagem = String.format("Valor inválido para o campo '%s'. Verifique o tipo ou formato informado.", field);
+        if (cause instanceof JacksonException je && !je.getPath().isEmpty()) {
+            String field = je.getPath().getFirst().getPropertyName();
+            if (field != null) {
+                mensagem = String.format("Valor inválido para o campo '%s'. Verifique o tipo ou formato informado.", field);
+            }
         }
 
         return error(HttpStatus.BAD_REQUEST, mensagem, request);

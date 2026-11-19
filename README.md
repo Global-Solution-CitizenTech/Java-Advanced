@@ -71,7 +71,7 @@ Java-Advanced/
 │       │   │   ├── queue/            # Produtores RabbitMQ e Feedback Consumer da IA
 │       │   │   ├── validation/       # Anotações e validadores customizados (@DddValidation)
 │       │   │   ├── util/             # Utilitários (ImageMimeTypeDetector)
-│       │   │   ├── config/           # SecurityConfig, RabbitConfig, SwaggerConfig
+│       │   │   ├── config/           # CorsConfig, RabbitConfig, SwaggerConfig, WorkerWakeUpService
 │       │   │   └── exception/        # GlobalExceptionHandler
 │       │   └── resources/
 │       │       ├── application.properties
@@ -246,7 +246,7 @@ A API retorna DTOs padronizados e centraliza o tratamento de erros em `@RestCont
 | `GET` | `/chamados/{id}` | Autenticado | Detalhes do chamado, histórico de status e contagem de apoios. |
 | `GET` | `/chamados/{id}/foto` | Público | Retorna os bytes da foto (redimensionada em JPEG até 1080px se > 200 KB) com `Cache-Control: public, max-age=86400`. |
 | `POST` | `/chamados` | Autenticado | Abertura de ocorrência (`multipart/form-data`: endereço + foto) com triagem via `DeferredResult`. |
-| `PUT` | `/chamados/{id}` | `GESTOR` / `ADMIN` | Edição dos dados da ocorrência via método `aplicarEm`. |
+| `PUT` | `/chamados/{id}` | `GESTOR` / `ADMIN` | Edição de título, descrição, categoria e endereço da ocorrência. |
 | `DELETE` | `/chamados/{id}` | `GESTOR` / `ADMIN` | Exclusão do chamado junto com seus históricos e votos. |
 | `PATCH` | `/chamados/{id}/status` | `GESTOR` / `ADMIN` | Atualização de status operacional (`EM_EXECUCAO`, `CONCLUIDO`, etc.) com parecer técnico. |
 | `POST` | `/chamados/{id}/apoiar` | Autenticado | Adiciona ou remove apoio comunitário (toggle), grava no Oracle e publica evento na fila. |
