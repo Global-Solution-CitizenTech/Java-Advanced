@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -34,7 +35,7 @@ public class EnderecoController {
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
     @Operation(summary = "[ADMIN] Listar todos os endereços com paginação")
-    public Page<EnderecoResponse> findAll(@PageableDefault(size = 10, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
+    public Page<EnderecoResponse> findAll(@ParameterObject @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
         return enderecoService.findAll(pageable).map(EnderecoResponse::fromEntity);
     }
 

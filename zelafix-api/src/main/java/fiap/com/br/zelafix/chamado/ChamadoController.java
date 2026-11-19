@@ -61,7 +61,7 @@ public class ChamadoController {
     @ResponseStatus(HttpStatus.OK)
     @Operation(summary = "Listar chamados com paginação (Pageable) e filtros dinâmicos")
     public Page<ChamadoResponse> findAll(@ParameterObject ChamadoFiltroRequest filtro, @AuthenticationPrincipal Jwt jwt,
-            @PageableDefault(size = 20, sort = "dtAbertura", direction = Sort.Direction.DESC) Pageable pageable) {
+            @ParameterObject @PageableDefault(size = 20, sort = "dtAbertura", direction = Sort.Direction.DESC) Pageable pageable) {
         return chamadoService.findAll(filtro, jwt.getSubject(), pageable);
     }
 
@@ -91,7 +91,7 @@ public class ChamadoController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Abrir chamado enviando endereço e foto via multipart/form-data com triagem inteligente por IA via RabbitMQ")
-    public DeferredResult<ChamadoResponse> create(@ModelAttribute @Valid EnderecoRequest endereco, @RequestPart("foto") MultipartFile foto, @AuthenticationPrincipal Jwt jwt) throws IOException {
+    public DeferredResult<ChamadoResponse> create(@ParameterObject @ModelAttribute @Valid EnderecoRequest endereco, @RequestPart("foto") MultipartFile foto, @AuthenticationPrincipal Jwt jwt) throws IOException {
         workerWakeUpService.wakeUpAsync();
         return chamadoService.create(endereco, foto.getBytes(), jwt.getSubject());
     }
