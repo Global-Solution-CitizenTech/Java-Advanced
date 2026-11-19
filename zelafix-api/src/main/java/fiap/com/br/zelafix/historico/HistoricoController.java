@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -40,7 +41,7 @@ public class HistoricoController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "[ADMIN] Listar eventos de histórico com paginação")
     public Page<HistoricoResponse> findAll(
-            @PageableDefault(size = 20, sort = "dtMudanca", direction = Sort.Direction.DESC) Pageable pageable) {
+            @ParameterObject @PageableDefault(size = 20, sort = "dtMudanca", direction = Sort.Direction.DESC) Pageable pageable) {
         return historicoService.findAll(pageable);
     }
 
